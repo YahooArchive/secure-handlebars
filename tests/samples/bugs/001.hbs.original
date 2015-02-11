@@ -1,0 +1,490 @@
+{{{header}}}
+
+<div id="{{mojit_view_id}}" class="monitor-body">
+
+{{#monitor_data}}
+
+    <!-- begin of new time selector -->
+    <div class="cc-date-time-range-picker" id="cc-date-time-range-picker">
+    </div>
+    <!-- end of new time selector -->
+    <!-- begin of time selector -->
+    <div class="time-selector">
+        <form id="query-form">
+            <span>From</span>
+            <input type="text" id="start-time" name="startTime" value="{{params.startTime}}">
+            <input type="hidden" id="start-time-unit" name="startTimeUnit" value="{{params.startTimeUnit}}">
+            <div class="dropdown" id="start-time-unit-dropdown">
+                <div class="dropdown-label">
+                    <span class="ccicon-arrow-down"></span>
+                    <span class="dropdown-label-text">{{params.startTimeUnitDesc}}</span>
+                </div>
+                <div class="dropdown-overlay cc-hide">
+                    <ul>
+                        <li data-key="h">Hours ago</li>
+                        <li data-key="d">Days ago</li>
+                        <li data-key="w">Weeks ago</li>
+                    </ul>
+                </div>
+            </div>
+
+            <span>To</span>
+            <input type="text" id="end-time" name="endTime" value="{{params.endTime}}">
+            <input type="hidden" id="end-time-unit" name="endTimeUnit" value="{{params.endTimeUnit}}">
+            <div class="dropdown" id="end-time-unit-dropdown">
+                <div class="dropdown-label">
+                    <span class="ccicon-arrow-down"></span>
+                    <span class="dropdown-label-text">{{params.endTimeUnitDesc}}</span>
+                </div>
+                <div class="dropdown-overlay cc-hide">
+                    <ul>
+                        <li data-key="h">Hours ago</li>
+                        <li data-key="d">Days ago</li>
+                        <li data-key="w">Weeks ago</li>
+                    </ul>
+                </div>
+            </div>
+            <input type="hidden" id="latency-target-output" name="latencyTargetOutput" value="{{params.latencyTargetOutput}}">
+            <input type="hidden" id="latency-user-output" name="latencyUserOutput" value="{{params.latencyUserOutput}}">
+            <input type="hidden" id="latency-topic-output" name="latencyTopicOutput" value="{{params.latencyTopicOutput}}">
+            <input type="hidden" id="latency-output-channels" name="latencyOutputChannels" value="{{params.latencyOutputChannels}}">
+            <input type="hidden" id="selected-time-zone" name="selectedTimezone" value="{{params.selectedTimezone}}">
+            <input type="hidden" id="selected-app" name="selectedApp" value="{{params.selectedApp}}">
+            <input type="submit" value="Go">
+        </form>
+
+        <div id="zoom-section">
+            Zoom:
+            <ul>
+                <li>1h</li>
+                <li>3h</li>
+                <li>6h</li>
+                <li>1d</li>
+                <li>3d</li>
+                <li>1w</li>
+                <li>2w</li>
+        </div>
+
+        <div id="timezone-section">
+            Timezone
+            {{> timezone}}
+        </div>
+    </div>
+    <!-- end of time selector-->
+
+    <!-- start of system status -->
+    <div class = "system-section">
+        <div class= "system-section-header">
+            <div class="select-app">
+                <span>Select Product</span>
+                <div class="dropdown" id="selected-app-dropdown">
+                    <div class="dropdown-label">
+                        <span class="ccicon-arrow-down"></span>
+                        <span class="dropdown-label-text">{{params.selectedApp}}</span>
+                    </div>
+                    <div class="dropdown-overlay cc-hide">
+                        <ul>
+                            {{#allApps}}
+                            <li data-key="{{key}}">{{label}}</li>
+                            {{/allApps}}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <span class="section-title">OnePush system status:</span>
+            <div class="{{systemStatus.img_class}}"></div>
+
+            <div class="system-status">
+                <div class="{{systemStatus.status}}">{{systemStatus.value}}</div>
+                <div class="ccicon-arrow-extend" id="system-status-expand">Extend to show details</div>
+            </div>
+        </div>
+        <div class="section-detail cc-hide" id="system-status-detail">
+            <div class="detail-inner-wrapper">
+                <div class="pie-chart-row">
+                    <div id="availability-pie-chart" class="pie-chart-wrapper">
+                        <div class="inner-text">
+                            <div class="ccicon-arrow-up percent"></div>
+                            <div class="status"></div>
+                        </div>
+                        <svg class="pie-chart"></svg>
+                        <div>
+                            <span class="tab-text" id ="tab-system-availability">
+                                Availability <span class="ccicon-info"
+                                    tooltip="Availability is measured by the ability of normally serving customer requests."></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div id="reliability-pie-chart" class="pie-chart-wrapper">
+                        <div class="inner-text">
+                            <div class="ccicon-arrow-up percent"></div>
+                            <div class="status"></div>
+                        </div>
+                        <svg class="pie-chart"></svg>
+                        <div>
+                            <span class="tab-text" id ="tab-system-reliability">
+                                Reliability <span class="ccicon-info"
+                                    tooltip=""></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div id="latency-pie-chart" class="pie-chart-wrapper">
+                        <div class="inner-text">
+                            <div class="ccicon-arrow-up percent"></div>
+                            <div class="status"></div>
+                        </div>
+                        <svg class="pie-chart"></svg>
+                        <div>
+                            <span class="tab-text" id ="tab-system-latency">
+                                Latency <span class="ccicon-info"
+                                    tooltip=""></span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <svg id="system-status-line-chart" class="line-chart"></svg>
+                </div>
+                <div>
+                    <span>Comments</span>
+                    <table>
+                        <tbody>
+                        {{#comments}}
+                        <tr>
+                            <td>{{commentTime}}</td>
+                            <td class="comment-td">{{{comment}}}</td>
+                        </tr>
+                        {{/comments}}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <!-- end of system status -->
+
+
+    <!-- start of provision info -->
+    {{#provisionInfo}}
+    <div class="section">
+        <span class="section-title">Provision info</span>
+        <div>
+            <table>
+                <tbody>
+                {{#Narrowcast}}
+                <tr>
+                    <td>Narrowcast</td>
+                    <td>{{this}}</td>
+                </tr>
+                {{/Narrowcast}}
+
+                {{#Broadcast}}
+                <tr>
+                    <td>Broadcast</td>
+                    <td>{{this}}</td>
+                </tr>
+                {{/Broadcast}}
+
+                {{#Unicast}}
+                <tr>
+                    <td>Unicast</td>
+                    <td>{{this}}</td>
+                </tr>
+                {{/Unicast}}
+
+                {{#Multicast}}
+                <tr>
+                    <td>Multicast</td>
+                    <td>{{this}}</td>
+                </tr>
+                {{/Multicast}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{/provisionInfo}}
+    <!-- end of provision info -->
+
+
+    <!-- start of input RPS -->
+    <div class="section">
+        <span class="section-title">Notification traffic from backend to OnePush (Input RPS)</span>
+        <div class="unicast-wrapper">
+            <div class="cast-title">Unicast</div>
+                {{#targetBasedInputRPS}}
+                {{> summary}}
+                {{/targetBasedInputRPS}}
+
+                {{#userBasedInputRPS}}
+                {{> summary}}
+                {{/userBasedInputRPS}}
+        </div>
+        <div class="multicast-wrapper">
+            <div class="cast-title">Multicast</div>
+            {{#topicBasedInputRPS}}
+            {{> summary}}
+            {{/topicBasedInputRPS}}
+        </div>
+        <div class="ccicon-arrow-extend" id="input-expand">
+            Extend to show details
+        </div>
+        <div class="section-detail cc-hide" id="input-detail">
+            <div class="detail-inner-wrapper">
+                <svg id="input-line-chart" class="line-chart"></svg>
+                <div>
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Input</th>
+                            <th scope="col">Average</th>
+                            <th scope="col">Peak</th>
+                            <th scope="col">Min</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {{#targetBasedInputRPS}}
+                        <tr>
+                            <td>{{msg}}</td>
+                            <td>{{avg}}</td>
+                            <td>{{peak}}</td>
+                            <td>{{min}}</td>
+                        </tr>
+                        {{/targetBasedInputRPS}}
+                        {{#userBasedInputRPS}}
+                        <tr>
+                            <td>{{msg}}</td>
+                            <td>{{avg}}</td>
+                            <td>{{peak}}</td>
+                            <td>{{min}}</td>
+                        </tr>
+                        {{/userBasedInputRPS}}
+                        {{#topicBasedInputRPS}}
+                        <tr>
+                            <td>{{msg}}</td>
+                            <td>{{avg}}</td>
+                            <td>{{peak}}</td>
+                            <td>{{min}}</td>
+                        </tr>
+                        {{/topicBasedInputRPS}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- end of input RPS -->
+
+
+    <!-- start of output RPS -->
+    <div class="section">
+        <span class="section-title">Notification traffic from OnePush to channels (Output RPS)</span>
+        <div>
+            {{#output}}
+            {{> summary}}
+            {{/output}}
+        </div>
+
+        <div class="ccicon-arrow-extend" id="output-expand">
+            Extend to show details
+        </div>
+        <div class="section-detail cc-hide" id="output-detail">
+            <div class="detail-inner-wrapper">
+                <svg id="output-line-chart" class="line-chart"></svg>
+                <div>
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Output</th>
+                            <th scope="col">Average</th>
+                            <th scope="col">Peak</th>
+                            <th scope="col">Min</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {{#output}}
+                        <tr>
+                            <td>{{name}}</td>
+                            <td>{{avg}}</td>
+                            <td>{{peak}}</td>
+                            <td>{{min}}</td>
+                        </tr>
+                        {{/output}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- end of output RPS -->
+
+
+    <!-- start of e2e latency -->
+    <div class="section">
+        <span class="section-title">End to end latency</span>
+        <span id="channel-filter-expand">
+            <span class="ccicon-filter"></span>
+            Filter
+            <span class="ccicon-arrow-down"></span>
+        </span>
+        <div id="channel-filter-detail" class="cc-hide">
+            <div id="channel-filter-dialog">
+                <div class="channels-wrapper">
+                    <div>
+                        <span id="apns-checkbox" class="checkbox-wrapper">
+                            <span class="checkbox ccicon-checkbox-static"></span>
+                            <span class="ccicon-apns"></span>APNS
+                        </span>
+                        <span id="gcm-checkbox" class="checkbox-wrapper">
+                            <span class="checkbox ccicon-checkbox-static"></span>
+                            <span class="ccicon-gcm"></span>GCM
+                        </span>
+                        <span id="tcp-checkbox" class="checkbox-wrapper">
+                            <span class="checkbox ccicon-checkbox-static"></span>
+                            <span class="ccicon-tcp"></span>TCP
+                        </span>
+                        <span id="https-checkbox" class="checkbox-wrapper">
+                            <span class="checkbox ccicon-checkbox-static"></span>
+                            <span class="ccicon-http"></span>HTTPS
+                        </span>
+                    </div>
+                    <div>
+                        <span id="filter-ok-button" class="button">OK</span>
+                        <span id="filter-cancel-button" class="button">Cancel</span>
+                    </div>
+                </div>
+                <div>
+                    <span class="checkbox-all">
+                        <span class="checkbox ccicon-checkbox-static"></span>
+                        All
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="selected-channels-wrapper">
+            <span>Selected channels:</span>
+            <span class='channels-container'>
+            </span>
+        </div>
+
+        <div class="section-detail" id="e2e-latency-detail">
+            <div class="detail-inner-wrapper">
+                <div class="pie-chart-row">
+                    <div id="target-pie-chart" class="pie-chart-wrapper">
+                        <div class="inner-text">
+                            <div class="ccicon-arrow-up percent"></div>
+                            <div class="status"></div>
+                        </div>
+                        <svg class="pie-chart"></svg>
+                        <div>
+                            <span class="tab-text" id="tab-target-based">
+                                Target based notification <span class="ccicon-info"
+                                    tooltip="Availability is measured by the ability of normally serving customer requests."></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div id="user-pie-chart" class="pie-chart-wrapper">
+                        <div class="inner-text">
+                            <div class="ccicon-arrow-up percent"></div>
+                            <div class="status"></div>
+                        </div>
+                        <svg class="pie-chart"></svg>
+                        <div>
+                            <span class="tab-text" id="tab-user-based">
+                                User based notification <span class="ccicon-info"
+                                    tooltip="Availability is measured by the ability of normally serving customer requests."></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div id="topic-pie-chart" class="pie-chart-wrapper">
+                        <div class="inner-text">
+                            <div class="ccicon-arrow-up percent"></div>
+                            <div class="status"></div>
+                        </div>
+                        <svg class="pie-chart"></svg>
+                        <div>
+                            <span class="tab-text" id="tab-topic-based">
+                                Topic based notification <span class="ccicon-info"
+                                    tooltip="Availability is measured by the ability of normally serving customer requests."></span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <svg id="latency-stacked-chart" class="stacked-chart"></svg>
+                </div>
+                <div>
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Input</th>
+                            <th scope="col">Average</th>
+                            <th scope="col">Peak</th>
+                            <th scope="col">Min</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {{#output}}
+                        <tr>
+                            <td>{{name}}</td>
+                            <td>{{avg}}</td>
+                            <td>{{peak}}</td>
+                            <td>{{min}}</td>
+                        </tr>
+                        {{/output}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- end of e2e latency -->
+
+
+    <!-- start of multicast notifacation metric -->
+    {{#if multicastMetricHasData}}
+    <div class="section">
+        <span class="section-title">Multicast notification metric</span>
+        <div>
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Notify Id</th>
+                    <th scope="col">Topic name</th>
+                    <th scope="col">Start time</th>
+                    <th scope="col">Fanout(GCM)</th>
+                    <th scope="col">Fanout(APNS)</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{#multicastMetricSummar}}
+                <tr>
+                    <td>{{notify_id}}</td>
+                    <td>{{topic_name}}</td>
+                    <td>{{start_time}}</td>
+                    <td>{{fanout_gcm}}</td>
+                    <td>{{fanout_apns}}</td>
+                    <td id='pre-{{notify_id}}-expand' class="ccicon-arrow-extend">Extend to show details</td>
+                </tr>
+                <tr>
+                    <td colspan = "6">
+                        <div id='pre-{{notify_id}}-detail' class='section-detail cc-hide'>
+                            <div class="detail-inner-wrapper">
+                            <svg id='pre-{{notify_id}}-chart' class="line-chart"></svg>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {{/multicastMetricSummar}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{/if}}
+    <!-- end of multicast notifacation metric -->
+
+{{/monitor_data}}
+
+</div>
+
+{{{footer}}}

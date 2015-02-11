@@ -1,0 +1,64 @@
+{{#monitor_data}} 
+line001
+	{{#allApps}}
+	line002
+	{{/allApps}}
+       	{{#comments}}
+	line003
+	{{/comments}}
+
+	line004
+
+	{{#provisionInfo}}
+	line005
+		{{#Narrowcast}}
+		line006
+                {{/Narrowcast}}
+                {{#Broadcast}}
+		line007
+                {{/Broadcast}}
+                {{#Unicast}}
+		line008
+                {{/Unicast}}
+                {{#Multicast}}
+		line009
+                {{/Multicast}}
+	line010
+	{{/provisionInfo}}
+line011
+
+	{{#targetBasedInputRPS}}
+	line012
+       	{{/targetBasedInputRPS}}
+	{{#userBasedInputRPS}}
+	line013
+	{{/userBasedInputRPS}}
+        {{#topicBasedInputRPS}}
+	line014
+        {{/topicBasedInputRPS}}
+	{{#targetBasedInputRPS}}
+	line016
+	{{/targetBasedInputRPS}}
+        {{#userBasedInputRPS}}
+	line017
+       	{{/userBasedInputRPS}}
+	{{#topicBasedInputRPS}}
+	line018
+	{{/topicBasedInputRPS}}
+	{{#output}}
+	line020
+	{{/output}}
+	{{#output}}
+	line022
+	{{/output}}
+	{{#output}}
+	line024
+	{{/output}}
+
+	{{#if multicastMetricHasData}}
+                {{#multicastMetricSummar}}
+		line027
+                {{/multicastMetricSummar}}
+    	{{/if}}
+
+{{/monitor_data}}

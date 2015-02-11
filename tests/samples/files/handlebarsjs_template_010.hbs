@@ -1,0 +1,13 @@
+   <div class="cc-hd-navigation">
+        <ul>
+            {{#NAVIGATION}}
+            <li {{#if SELECTED}} class="{{SELECTED1}}" {{/if}}></li>
+	    <li {{SELECTED}}></li>
+	    {{else}}
+            <a {{#if SELECTED}} class="{{SELECTED2}} {{SELECTED3}}" {{/if}} href="{{URL1}}">{{NAME1}}</a>
+            <a class="{{SELECTED4}}" href="{{URL2}}">{{NAME2}}</a>
+            </li>
+            {{/NAVIGATION}}
+        </ul>
+    </div>
+

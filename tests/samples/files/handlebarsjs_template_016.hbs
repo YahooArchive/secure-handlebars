@@ -1,0 +1,5 @@
+<option value="{{valueA}}" {{#if mobile}} selected > {{#list people}}{{firstName11}}{{lastName12}}{{/list}} {{else}} > {{/if}}*{{placeholderA}}
+<option value="{{valueB}}" {{#if mobile}} selected > {{#each people}}{{firstName21}}{{lastName22}}{{/each}} {{else}} > {{/if}}*{{placeholderB}}
+<option value="{{valueC}}" {{#if mobile}} selected > {{#with people}}{{firstName31}}{{lastName32}}{{/with}} {{else}} > {{/if}}*{{placeholderC}}
+<option value="{{valueD}}" {{#if mobile}} selected > {{#tag people}}{{firstName41}}{{lastName42}}{{/tag}} {{else}} > {{/if}}*{{placeholderD}}
+<option value="{{valueE}}" {{#if mobile}} selected > {{#unless people}}{{firstName51}}{{lastName52}}{{/unless}} {{else}} > {{/if}}*{{placeholderE}}
