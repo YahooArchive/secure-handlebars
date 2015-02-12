@@ -13,9 +13,12 @@ var debug = require('debug')('context-parser-handlebars');
 
 /* import the html context parser */
 var contextParser = require('context-parser'),
-    filter = require('../node_modules/xss-filters/src/private-xss-filters.js'),
     handlebarsUtil = require('./handlebars-utils.js'),
     stateMachine = contextParser.StateMachine;
+
+var filterPath = require.resolve('xss-filters');
+filterPath = filterPath.replace('xss-filters.js', 'private-xss-filters.js');
+var filter = require(filterPath);
 
 /** 
 * @module ContextParserHandlebars
