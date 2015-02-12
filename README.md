@@ -67,6 +67,10 @@ grunt
 grunt test
 ```
 
+## Build
+
+[![Build Status](https://travis-ci.org/yahoo/context-parser-handlebars.svg?branch=master)](https://travis-ci.org/yahoo/context-parser-handlebars)
+
 ### Limitations
 
 - Our approach is the static analysis of the template file in which dynamic data affecting the execution context of the HTML5 page cannot be handled by our pre-compiler.
