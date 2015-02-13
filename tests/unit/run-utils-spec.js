@@ -24,19 +24,19 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{else   }}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{   else   }}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
         });
 
         it("handlebars-utils#_getExpressionExtraInfo output markup test", function() {
@@ -47,37 +47,55 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(true);
+            expect(r.isSingleIdentifier).to.equal(true);
 
             str = '{h}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(true);
+            expect(r.isSingleIdentifier).to.equal(true);
 
             str = '{people.name}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(true);
+            expect(r.isSingleIdentifier).to.equal(true);
 
             str = '{../name}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(true);
+            expect(r.isSingleIdentifier).to.equal(true);
+
+            str = '{article/title}}';
+            r = parser._getExpressionExtraInfo(str, 0);
+            expect(r.isKnownFilter).to.equal(false);
+            expect(r.filter).to.equal('');
+            expect(r.isSingleIdentifier).to.equal(true);
+
+            str = '{article[0]}}';
+            r = parser._getExpressionExtraInfo(str, 0);
+            expect(r.isKnownFilter).to.equal(false);
+            expect(r.filter).to.equal('');
+            expect(r.isSingleIdentifier).to.equal(true);
+
+            str = '{articles.[10].[#comments]}}';
+            r = parser._getExpressionExtraInfo(str, 0);
+            expect(r.isKnownFilter).to.equal(false);
+            expect(r.filter).to.equal('');
+            expect(r.isSingleIdentifier).to.equal(true);
 
             str = '{y   }}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(true);
+            expect(r.isSingleIdentifier).to.equal(true);
 
             str = '{   y   }}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(true);
+            expect(r.isSingleIdentifier).to.equal(true);
         });
 
         it("handlebars-utils#_getExpressionExtraInfo test", function() {
@@ -88,67 +106,67 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{h output}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('h');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{people.name output}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('people.name');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{../name output}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('../name');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{y   output}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{h   output}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('h');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{    y   output}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{    h   output}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('h');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{y ../output}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{y    ../output}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{    y    ../output}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
         });
 
         it("handlebars-utils#_getExpressionExtraInfo 2 arguments test", function() {
@@ -159,19 +177,19 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{y    xxx    zzz}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{    y    xxx    zzz}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
         });
 
         it("handlebars-utils#_getExpressionExtraInfo 2 arguments (reference format) test", function() {
@@ -182,25 +200,25 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{y ../xxx.name zzz}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{   y    xxx.name    zzz}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{   y    ../xxx.name    zzz}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
         });
 
         it("handlebars-utils#_getExpressionExtraInfo reserved tag test", function() {
@@ -211,78 +229,80 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{#    y    }}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
         });
 
         it("handlebars-utils#_getExpressionExtraInfo subexpression test", function() {
             var ContextParserHandlebars = require("../../src/context-parser-handlebars.js");
             var parser = new ContextParserHandlebars();
 
-            var str = '{y(output)}}';
-            var r = parser._getExpressionExtraInfo(str, 0);
+            /* not a valid handlebars syntax
+            str = '{y(output)}}';
+            r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
+            */
 
             str = '{y (output)}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{y    ( output    )}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{y (helper xxx)}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{y    (   helper    xxx    )}}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = "{y (helper 'xxx')}}";
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = "{y    (   helper   'xxx'   )}}";
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = "{y helper2 (    helper1    'xxx'    )}}";
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = "{y (outer-helper (inner-helper 'abc') 'def')}}";
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = "{y     (    outer-helper (inner-helper 'abc') 'def')}}";
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
         });
 
         it("handlebars-utils#_getExpressionExtraInfo greedy match test", function() {
@@ -293,55 +313,67 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
+
+            str = '{y}}xxxxx{{h    zzz    }}';
+            r = parser._getExpressionExtraInfo(str, 0);
+            expect(r.isKnownFilter).to.equal(false);
+            expect(r.filter).to.equal('');
+            expect(r.isSingleIdentifier).to.equal(true);
+
+            str = '{y}}{{h    zzz    }}';
+            r = parser._getExpressionExtraInfo(str, 0);
+            expect(r.isKnownFilter).to.equal(false);
+            expect(r.filter).to.equal('');
+            expect(r.isSingleIdentifier).to.equal(true);
 
             str = '{y    }}{{h    zzz    }}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(true);
+            expect(r.isSingleIdentifier).to.equal(true);
 
             str = '{y    xxx    }}{{h    zzz    }}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{y    ../xxx    }}{{h    zzz    }}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{y    xxx.name    }}{{h    zzz    }}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{#y    }}{{h    zzz    }}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(false);
             expect(r.filter).to.equal('');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = '{   y   (   helper   xxx   )}}{{h    zzz    }}';
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = "{   y   (   helper   'xxx'  )}}{{h    zzz    }}";
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
 
             str = "{   y   helper2    (   helper1   xxx  )}}{{h    zzz    }}";
             r = parser._getExpressionExtraInfo(str, 0);
             expect(r.isKnownFilter).to.equal(true);
             expect(r.filter).to.equal('y');
-            expect(r.isOutputMarkup).to.equal(false);
+            expect(r.isSingleIdentifier).to.equal(false);
         });
 
         it("handlebars-utils#generateNonce test", function() {

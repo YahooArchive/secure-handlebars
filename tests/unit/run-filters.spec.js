@@ -511,13 +511,13 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         it("Filter - subexpression format test", function() {
-            var t1 = new ContextParserHandlebars(false, true);
+            var t1 = new ContextParserHandlebars(false);
             var data = "<html><title>{{title}}</title></html>";
             t1.contextualize(data);
             var output = t1.getBuffer().join('');
             expect(output).to.match(/{{{yd title}}}/);
 
-            var t2 = new ContextParserHandlebars(false, true);
+            var t2 = new ContextParserHandlebars(false);
             var data = "<a href='{{url}}'>link</a>";
             t2.contextualize(data);
             var output = t2.getBuffer().join('');
