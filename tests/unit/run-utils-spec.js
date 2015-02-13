@@ -513,10 +513,10 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         it("handlebars-utils#isBranchTag (illegal tag format) test", function() {
             s = "{{#   t-ag   xxx}}xxx";
             r = util.isBranchTag(s);
-            expect(r).to.equal("t");
+            expect(r).to.equal("t-ag");
             s = "{{/   t-ag   }}xxx";
             r = util.isBranchEndTag(s);
-            expect(r).to.equal("t");
+            expect(r).to.equal("t-ag");
         });
 
         it("handlebars-utils#isBranchTag (unless) test", function() {

@@ -81,15 +81,12 @@ HandlebarsUtils.isReservedChar = function(ch) {
 */
 HandlebarsUtils.isBranchTag = function(input, i) {
     // TODO: regular expression and slice is slow
-    var p = /^{{[#|\\^]\s*(\w)+/g;
+    var p = /^{{[#|\\^]\s*([^\s\}]+)?[\s\}]/g;
     var re = p.exec(input.slice(i));
     if (re === null) {
         return false;
     } else {
-        var tag = re[0]; 
-        tag = tag.replace(/ /g, "");
-        tag = tag.replace("{{#", "");
-        tag = tag.replace("{{^", "");
+        var tag = re[1];
         return tag;
     }
 };
@@ -107,14 +104,13 @@ HandlebarsUtils.isBranchTag = function(input, i) {
 */
 HandlebarsUtils.isBranchEndTag = function(input, i) {
     // TODO: regular expression and slice is slow
-    var p = /^{{\/\s*(\w)+/g;
+    var p = /^{{\/\s*([^\s\}]+)?[\s\}]/g;
     var re = p.exec(input.slice(i));
+
     if (re === null) {
         return false;
     } else {
-        var tag = re[0]; 
-        tag = tag.replace(/ /g, "");
-        tag = tag.replace("{{\/", "");
+        var tag = re[1]; 
         return tag;
     }
 };
@@ -131,7 +127,6 @@ HandlebarsUtils.isBranchEndTag = function(input, i) {
 *
 */
 HandlebarsUtils.isElseTag = function(input, i) {
-    // TODO: regular expression and slice is slow
     var p = /^{{\s*else\s*}}/g;
     if (input.slice(i).match(p)) {
         return true;
@@ -609,9 +604,9 @@ HandlebarsUtils._analyzeContext = function(state, str) {
 * 
 */
 HandlebarsUtils._replaceFilterPlaceHolder = function(obj, str) {
-    var filters = obj.filterPlaceHolder.slice(0); 
+    var filterPlaceHolders = obj.filterPlaceHolder.slice(0); 
 
-    filters.forEach(function(filterPlaceHolder) {
+    filterPlaceHolders.forEach(function(filterPlaceHolder) {
         /* get the output markup from stmt */
         var outputMarkup = new RegExp('{{' + filterPlaceHolder + '.*?}}', 'g');
         var m1 = outputMarkup.exec(obj.stmt);
