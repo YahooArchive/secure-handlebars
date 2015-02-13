@@ -94,8 +94,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(data).to.match(/{{{yavd SELECTED2}}}/);
             expect(data).to.match(/{{{yavd SELECTED3}}}/);
             expect(data).to.match(/{{{yavd SELECTED4}}}/);
-            expect(data).to.match(/{{{yubl yavd yufull URL1}}}/);
-            expect(data).to.match(/{{{yubl yavd yufull URL2}}}/);
+            expect(data).to.match(/{{{yubl \(yavd \(yufull URL1\)\)}}}/);
+            expect(data).to.match(/{{{yubl \(yavd \(yufull URL2\)\)}}}/);
             expect(data).to.match(/{{{yd NAME1}}}/);
             expect(data).to.match(/{{{yd NAME2}}}/);
             expect(data).to.match(/{{{y SELECTED}}}/);
