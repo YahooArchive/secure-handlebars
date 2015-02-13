@@ -531,8 +531,8 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
         var ast = handlebarsUtil.parseBranchStmt(objMaskedStmt.stmt);
 
         /* Restore the open/close_brace_nonce with {} for analysis */
-        objMaskedStmt.stmt = objMaskedStmt.stmt.replace(new RegExp(objMaskedStmt.openBraceNonce, 'g'), '{');
-        objMaskedStmt.stmt = objMaskedStmt.stmt.replace(new RegExp(objMaskedStmt.closeBraceNonce, 'g'), '}');
+        objMaskedStmt.stmt = objMaskedStmt.stmt.replace(new RegExp(objMaskedStmt.openBracePlaceHolder, 'g'), '{');
+        objMaskedStmt.stmt = objMaskedStmt.stmt.replace(new RegExp(objMaskedStmt.closeBracePlaceHolder, 'g'), '}');
 
         var result = handlebarsUtil.parseAstTreeState(ast, state, objMaskedStmt);
 
