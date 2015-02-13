@@ -9,7 +9,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 */
 
 /* debug facility */
-var debugBranch = require('debug')('branch');
+var debug = require('debug')('cph-debug'),
+    debugBranch = require('debug')('cph-branching'),
+    debugDump = require('debug')('cph-dump');
 
 /**
 * @class HandlebarsUtils
@@ -19,19 +21,6 @@ var HandlebarsUtils = {};
 
 /* vanillia Handlebars */
 var Handlebars = require("handlebars");
-
-/**
-* @function HandlebarsUtils.warnDeveloper
-*
-* @static
-*
-* @description
-* <p>Warn the developer that ContextParser/Handlebars does not handle some cases.</p>
-*
-*/
-HandlebarsUtils.warnDeveloper = function(msg) {
-    console.log("[WARNING] ContextParserHandlebars: " + msg);
-};
 
 /**
 * @function HandlebarsUtils.generateNonce
@@ -224,7 +213,7 @@ HandlebarsUtils.parseBranchStmt = function(s) {
 * @param {string} input - The template input string.
 * @param {int} k - The pointer to the first char of the first brace markup of Handlebars template.
 * @param {boolean} masked - The flag to mask the non branching statement markup.
-* @returns {Object} The object with branching statement and nonce.
+* @returns {Object} The object with branching statement and place holder.
 *
 * @description
 * <p>This function extracts a branching statement with balanced markup.</p>
@@ -238,7 +227,7 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
         r = {},
         j = 0;
 
-    // init
+    /* init */
     var str = input.slice(k);
     var l = str.length;
 
@@ -249,9 +238,9 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
     * complicated, so this function masks out all open/close brace
     * with a random nonce.
     */
-    r.filterNonce = [];
-    r.openBraceNonce = HandlebarsUtils.generateNonce();
-    r.closeBraceNonce = HandlebarsUtils.generateNonce();
+    r.filterPlaceHolder = [];
+    r.openBracePlaceHolder = HandlebarsUtils.generateNonce();
+    r.closeBracePlaceHolder = HandlebarsUtils.generateNonce();
 
     for(var i=0;i<l;++i) {
         var tag = HandlebarsUtils.isBranchTag(str, i),
@@ -300,16 +289,16 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
             /* {{{expression}}} case */
             if (str[i] === '{' && i+2<l && str[i+1] === '{' && str[i+2] === '{' && masked) {
                 /* masked the '{{{' */
-                stmt += r.openBraceNonce;
-                stmt += r.openBraceNonce;
-                stmt += r.openBraceNonce;
+                stmt += r.openBracePlaceHolder;
+                stmt += r.openBracePlaceHolder;
+                stmt += r.openBracePlaceHolder;
                 /* loop till the end of '}}}' */
                 for(j=i+3;j<l;++j) {
                     if (str[j] === '}' && i+3<l && str[j+1] === '}' && str[j+2] === '}') {
                         /* append 3 chars, }}} */
-                        stmt += r.closeBraceNonce;
-                        stmt += r.closeBraceNonce;
-                        stmt += r.closeBraceNonce;
+                        stmt += r.closeBracePlaceHolder;
+                        stmt += r.closeBracePlaceHolder;
+                        stmt += r.closeBracePlaceHolder;
                         /* advance the pointer by 2, the for loop will increase by one more for next char */
                         i=j+2;
                         break;
@@ -321,14 +310,14 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
             /* {{[!@/>]expression}} */
             } else if (str[i] === '{' && i+2<l && str[i+1] === '{' && masked && HandlebarsUtils.isReservedChar(str[i+2])) {
                 /* masked the '{{' */
-                stmt += r.openBraceNonce;
-                stmt += r.openBraceNonce;
+                stmt += r.openBracePlaceHolder;
+                stmt += r.openBracePlaceHolder;
                 /* loop till the end of '}}' */
                 for(j=i+2;j<l;++j) {
                     if (str[j] === '}' && i+2<l && str[j+1] === '}') {
                         /* append 2 chars, }} */
-                        stmt += r.closeBraceNonce;
-                        stmt += r.closeBraceNonce;
+                        stmt += r.closeBracePlaceHolder;
+                        stmt += r.closeBracePlaceHolder;
                         /* advance the pointer by 1, the for loop will increase by one more for next char */
                         i=j+1;
                         break;
@@ -340,20 +329,20 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
             /* {{expression}} */
             } else if (str[i] === '{' && i+2<l && str[i+1] === '{' && masked && !HandlebarsUtils.isReservedChar(str[i+2])) {
                 /* masked the '{{' */
-                stmt += r.openBraceNonce;
-                stmt += r.openBraceNonce;
+                stmt += r.openBracePlaceHolder;
+                stmt += r.openBracePlaceHolder;
 
                 /* add the filter place holder */
-                var filterNonce = HandlebarsUtils.generateNonce();
-                stmt += filterNonce + " ";
-                r.filterNonce.push(filterNonce);
+                var filterPlaceHolder = HandlebarsUtils.generateNonce();
+                stmt += filterPlaceHolder;
+                r.filterPlaceHolder.push(filterPlaceHolder);
 
                 /* loop till the end of '}}' */
                 for(j=i+2;j<l;++j) {
                     if (str[j] === '}' && i+2<l && str[j+1] === '}') {
                         /* append 2 chars, }} */
-                        stmt += r.closeBraceNonce;
-                        stmt += r.closeBraceNonce;
+                        stmt += r.closeBracePlaceHolder;
+                        stmt += r.closeBracePlaceHolder;
                         /* advance the pointer by 1, the for loop will increase by one more for next char */
                         i=j+1;
                         break;
@@ -380,6 +369,7 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
     }
 
     r.stmt = stmt;
+    debugBranch("extractBranchStmt:"+stmt);
     return r;
 };
 
@@ -394,7 +384,7 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
 *
 * @param {array} o - The AST of the branching statement.
 * @param {int} state - The init state of the string.
-* @param {object} obj - The object contains the open/close brace nonce, filter nonce and branching statement.
+* @param {object} obj - The object contains the open/close brace place holder, filter place holder and branching statement.
 * @returns {array} The last states of the 1st and 2nd branches.
 *
 */
@@ -457,19 +447,19 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
                     nodeFlag[0] = false;
                     str = o[i].program.statements[j].string;
 
-                    /* restore the open/close brace nonce */
-                    str = str.replace(new RegExp(obj.openBraceNonce, 'g'), '{');
-                    str = str.replace(new RegExp(obj.closeBraceNonce, 'g'), '}');
+                    /* restore the open/close brace place holder */
+                    str = str.replace(new RegExp(obj.openBracePlaceHolder, 'g'), '{');
+                    str = str.replace(new RegExp(obj.closeBracePlaceHolder, 'g'), '}');
 
                     /* parse the string */
                     t = HandlebarsUtils._analyzeContext(state, str);
                     newLastState = t.lastState;
                     output = t.output;
-                    debugBranch(":if:1,["+state+"/"+newLastState+"],["+str+"]");
+                    debugBranch("parseAstTreeState:if:1,["+state+"/"+newLastState+"],["+str+"],["+output+"]");
                     r.lastStates[0] = newLastState;
 
-                    /* replace the filter nonce */
-                    obj.stmt = HandlebarsUtils._replaceFilterNonce(obj, output);
+                    /* replace the filter place holder */
+                    obj = HandlebarsUtils._replaceFilterPlaceHolder(obj, output);
 
                 /* 2nd node */
                 } else if (o[i].program.statements[j].type === 'block') {
@@ -479,26 +469,26 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
                     t = HandlebarsUtils.parseAstTreeState(s, r.lastStates[0], obj);
                     newLastState = t.lastStates[0]; // index 0 and 1 MUST be equal
                     obj.stmt = t.stmt;
-                    debugBranch(":if:2,["+r.lastStates[0]+"/"+newLastState+"]");
+                    debugBranch("parseAstTreeState:if:2,["+r.lastStates[0]+"/"+newLastState+"]");
                     r.lastStates[0] = newLastState;
 
                 /* 3rd node */
                 } else if (o[i].program.statements[j].type === 'content' && !nodeFlag[0]) {
                     str = o[i].program.statements[j].string;
 
-                    /* restore the open/close brace nonce */
-                    str = str.replace(new RegExp(obj.openBraceNonce, 'g'), '{');
-                    str = str.replace(new RegExp(obj.closeBraceNonce, 'g'), '}');
+                    /* restore the open/close brace place holder */
+                    str = str.replace(new RegExp(obj.openBracePlaceHolder, 'g'), '{');
+                    str = str.replace(new RegExp(obj.closeBracePlaceHolder, 'g'), '}');
 
                     /* parse the string */
                     t = HandlebarsUtils._analyzeContext(r.lastStates[0], str);
                     newLastState = t.lastState;
                     output = t.output;
-                    debugBranch(":if:3,["+r.lastStates[0]+"/"+newLastState+"],["+str+"]");
+                    debugBranch("parseAstTreeState:if:3,["+r.lastStates[0]+"/"+newLastState+"],["+str+"],["+output+"]");
                     r.lastStates[0] = newLastState;
 
-                    /* replace the filter nonce */
-                    obj.stmt = HandlebarsUtils._replaceFilterNonce(obj, output);
+                    /* replace the filter place holder */
+                    obj = HandlebarsUtils._replaceFilterPlaceHolder(obj, output);
 
                 }
             }
@@ -515,19 +505,19 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
                     nodeFlag[1] = false;
                     str = o[i].inverse.statements[j].string;
 
-                    /* restore the open/close brace nonce */
-                    str = str.replace(new RegExp(obj.openBraceNonce, 'g'), '{');
-                    str = str.replace(new RegExp(obj.closeBraceNonce, 'g'), '}');
+                    /* restore the open/close brace place holder */
+                    str = str.replace(new RegExp(obj.openBracePlaceHolder, 'g'), '{');
+                    str = str.replace(new RegExp(obj.closeBracePlaceHolder, 'g'), '}');
 
                     /* parse the string */
                     t = HandlebarsUtils._analyzeContext(state, str);
                     newLastState = t.lastState;
                     output = t.output;
-                    debugBranch(":else:1,["+state+"/"+newLastState+"],["+str+"]");
+                    debugBranch("parseAstTreeState:else:1,["+state+"/"+newLastState+"],["+str+"],["+output+"]");
                     r.lastStates[1] = newLastState;
 
-                    /* replace the filter nonce */
-                    obj.stmt = HandlebarsUtils._replaceFilterNonce(obj, output);
+                    /* replace the filter place holder */
+                    obj = HandlebarsUtils._replaceFilterPlaceHolder(obj, output);
 
                 /* 2nd node */
                 } else if (o[i].inverse.statements[j].type === 'block') {
@@ -537,26 +527,26 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
                     t = HandlebarsUtils.parseAstTreeState(s, r.lastStates[1], obj);
                     newLastState = t.lastStates[0]; // index 0 and 1 MUST be equal
                     obj.stmt = t.stmt;
-                    debugBranch(":else:2,["+r.lastStates[1]+"/"+newLastState+"]");
+                    debugBranch("parseAstTreeState:else:2,["+r.lastStates[1]+"/"+newLastState+"]");
                     r.lastStates[1] = newLastState;
 
                 /* 3rd node */
                 } else if (o[i].inverse.statements[j].type === 'content' && !nodeFlag[1]) {
                     str = o[i].inverse.statements[j].string;
 
-                    /* restore the open/close brace nonce */
-                    str = str.replace(new RegExp(obj.openBraceNonce, 'g'), '{');
-                    str = str.replace(new RegExp(obj.closeBraceNonce, 'g'), '}');
+                    /* restore the open/close brace place holder */
+                    str = str.replace(new RegExp(obj.openBracePlaceHolder, 'g'), '{');
+                    str = str.replace(new RegExp(obj.closeBracePlaceHolder, 'g'), '}');
 
                     /* parse the string */
                     t = HandlebarsUtils._analyzeContext(r.lastStates[1], str);
                     newLastState = t.lastState;
                     output = t.output;
-                    debugBranch("else:3,["+r.lastStates[1]+"/"+newLastState+"],["+str+"]");
+                    debugBranch("parseAstTreeState:else:3,["+r.lastStates[1]+"/"+newLastState+"],["+str+"],["+output+"]");
                     r.lastStates[1] = newLastState;
 
-                    /* replace the filter nonce */
-                    obj.stmt = HandlebarsUtils._replaceFilterNonce(obj, output);
+                    /* replace the filter place holder */
+                    obj = HandlebarsUtils._replaceFilterPlaceHolder(obj, output);
 
                 }
             }
@@ -564,10 +554,10 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
     }
 
     if (branchesFlag[0] && !branchesFlag[1]) {
-        debugBranch(":else:0,["+state+"/"+state+"]");
+        debugBranch("parseAstTreeState:else:0,["+state+"/"+state+"]");
         r.lastStates[1] = state;
     } else if (!branchesFlag[0] && branchesFlag[1]) {
-        debugBranch(":if:0,["+state+"/"+state+"]");
+        debugBranch("parseAstTreeState:if:0,["+state+"/"+state+"]");
         r.lastStates[0] = state;
     }
 
@@ -600,51 +590,52 @@ HandlebarsUtils._analyzeContext = function(state, str) {
         ContextParserHandlebars = require('./context-parser-handlebars');
 
     /* parse the string */
+    debugBranch("_analyzeContext:"+str);
     parser = new ContextParserHandlebars(false);
     parser.setInitState(state);
     parser.contextualize(str);
     r.lastState = parser.getLastState();
     r.output = parser.getBuffer().join('');
+    debugBranch("_analyzeContext:"+r.output);
 
     return r;
 };
 
 /*
-* @function HandlebarsUtils._replaceFilterNonce
+* @function HandlebarsUtils._replaceFilterPlaceHolder
 *
 * @static
 * @private 
 * 
 */
-// TODO: can optimize the code to reduce the number of replaced filter nonce.
-HandlebarsUtils._replaceFilterNonce = function(obj, str) {
-    var stmt = obj.stmt,
-        filterNonce = obj.filterNonce;
+HandlebarsUtils._replaceFilterPlaceHolder = function(obj, str) {
+    var filters = obj.filterPlaceHolder.slice(0); 
 
-    for(var n=0;n<filterNonce.length;++n) {
+    filters.forEach(function(filterPlaceHolder) {
         /* get the output markup from stmt */
-        var outputMarkup = new RegExp('{{' + filterNonce[n] + '.*?}}', 'g');
-        var m1 = outputMarkup.exec(stmt);
-        debugBranch("replaceFilterNonce:"+stmt);
-        debugBranch("replaceFilterNonce:m1:"+m1);
+        var outputMarkup = new RegExp('{{' + filterPlaceHolder + '.*?}}', 'g');
+        var m1 = outputMarkup.exec(obj.stmt);
 
-        /* get the filter markup from output */
-        // var filterMarkup = new RegExp('{{{([a-zA-Z_-]+[\\(\\s])+' + filterNonce[n] + '.*?}}}', 'g');
-        var filterMarkup = new RegExp('{{{.*' + filterNonce[n] + '.*?}}}', 'g');
-        var m2 = filterMarkup.exec(str);
-        debugBranch("replaceFilterNonce:"+str);
-        debugBranch("replaceFilterNonce:m2:"+m2);
+        var i = str.indexOf(filterPlaceHolder);
+        if (i !== -1 && m1 !== null && m1[0]) {
+            var s = str.substr(0,i).lastIndexOf('{');
+            var e = str.substr(i).indexOf('}') + i + 1;
+            m2 = str.substring(s-2, e+2);
+            debugBranch("replaceFilterPlaceHolder:i:"+i+",s:"+s+",e:"+e+",m1:"+m1+",m2"+m2);
 
-        if (m1 !== null && m1[0] &&
-            m2 !== null && m2[0]) {
-            /* Replace the output markup with filter markup */
-            stmt = stmt.replace(m1[0], m2[0]);
-            /* Replace the filterNonce[n] with empty string */
-            stmt = stmt.replace(filterNonce[n]+" ", "");
-            debugBranch("replaceFilterNonce:o:"+stmt);
+            if (m1 !== null && m1[0] &&
+                m2 !== null && m2) {
+                /* Replace the output markup with filter markup */
+                obj.stmt = obj.stmt.replace(m1[0], m2);
+                /* Replace the filterPlaceHolder with empty string */
+                obj.stmt = obj.stmt.replace(filterPlaceHolder, "");
+                /* Remove element from array */
+                var j = obj.filterPlaceHolder.indexOf(filterPlaceHolder);
+                obj.filterPlaceHolder.splice(j, 1);
+            }
         }
-    }
-    return stmt;
+    });
+    return obj;
 };
 
 module.exports = HandlebarsUtils;
