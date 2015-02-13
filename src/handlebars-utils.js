@@ -9,9 +9,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 */
 
 /* debug facility */
-var debug = require('debug')('cph-debug'),
-    debugBranch = require('debug')('cph-branching'),
-    debugDump = require('debug')('cph-dump');
+var debugBranch = require('debug')('cph-branching');
 
 /**
 * @class HandlebarsUtils
@@ -620,7 +618,7 @@ HandlebarsUtils._replaceFilterPlaceHolder = function(obj, str) {
         if (i !== -1 && m1 !== null && m1[0]) {
             var s = str.substr(0,i).lastIndexOf('{');
             var e = str.substr(i).indexOf('}') + i + 1;
-            m2 = str.substring(s-2, e+2);
+            var m2 = str.substring(s-2, e+2);
             debugBranch("replaceFilterPlaceHolder:i:"+i+",s:"+s+",e:"+e+",m1:"+m1+",m2"+m2);
 
             if (m1 !== null && m1[0] &&

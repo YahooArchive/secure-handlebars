@@ -10,7 +10,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
 /* debug facility */
 var debug = require('debug')('cph-debug'),
-    debugBranch = require('debug')('cph-branching'),
     debugDump = require('debug')('cph-dump');
 
 /* import the html context parser */
