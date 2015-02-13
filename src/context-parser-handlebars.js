@@ -9,7 +9,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 */
 
 /* debug facility */
-var debug = require('debug')('context-parser-handlebars');
+var debug = require('debug')('cph-debug'),
+    debugBranch = require('debug')('cph-branching'),
+    debugDump = require('debug')('cph-dump');
 
 /* import the html context parser */
 var contextParser = require('context-parser'),
@@ -96,18 +98,18 @@ ContextParserHandlebars.prototype.getBuffer = function() {
 */
 ContextParserHandlebars.prototype.printCharWithState = function() {
     var len = this.states.length;
-    debug('{ statesSize: '+len+' }');
+    debugDump('{ statesSize: '+len+' }');
     for(var i=0;i<len;i++) {
         var c = this.bytes[i];
         var s = this.states[i];
         var t = this.symbols[i];
         if (i === 0) {
-            debug('{ ch: 0, state: '+s+', symbol: 0 }');
+            debugDump('{ ch: 0, state: '+s+', symbol: 0 }');
         } else {
             if (c !== undefined) {
-                debug('{ ch: '+c+' [0x'+c.charCodeAt(0).toString(16)+'], state: '+s+', symbol: '+t+' }');
+                debugDump('{ ch: '+c+' [0x'+c.charCodeAt(0).toString(16)+'], state: '+s+', symbol: '+t+' }');
             } else {
-                debug('{ undefined - char in template without state }');
+                debugDump('{ undefined - char in template without state }');
             }
         }
     }
@@ -179,6 +181,7 @@ ContextParserHandlebars.prototype._getExpressionExtraInfo = function(input, i) {
             }
         }
     }
+    debug("_getExpressionExtraInfo:"+obj);
     return obj;
 };
 
@@ -207,9 +210,7 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, ptr, extr
     var attributeName = extraInfo.attributeName,
         attributeValue = extraInfo.attributeValue;
 
-    debug("STATE:"+state);
-    debug("ATTR_NAME:"+attributeName);
-    debug("ATTR_VALUE:"+attributeValue);
+    debug("_addFilters:state:"+state+",attrname:"+attributeName+",attrvalue:"+attributeValue);
 
     // 1
     if (state === stateMachine.State.STATE_DATA) {
@@ -436,6 +437,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
     var noOfFilter = 0;
     /* Encounter a known filter, we will not add any customized filters if it is known filter */
     var isKnownFilter = false;
+    debug("_handleTemplate:len:"+len+",i:"+i);
 
     /* 
     * ---- LOGIC #1 - is handlebars template? ----
@@ -454,6 +456,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
         /* return immediately for non template start char '{' */
         return index;
     }
+    debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
 
     /*
     * ---- LOGIC #2 - OPEN BRACE ----
@@ -479,6 +482,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
         i=i+1; /* point to last '{' */
         this.printChar(input[i]);
     }
+    debug("_handleTemplate:LOGIC#2:isBranchTags:"+isBranchTags+",isHandlebarsReservedTag:"+isHandlebarsReservedTag+",i:"+i);
 
     /*
     * ---- LOGIC #3 - ADD FILTERS ----
@@ -514,6 +518,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
             }
         }
     }
+    debug("_handleTemplate:LOGIC#3:extraExpressionInfo:"+extraExpressionInfo+",filters:"+filters);
 
     /*
     * ---- LOGIC #A - BRANCHING STATEMENT HANDLING ----
@@ -539,6 +544,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
         i=i+objUnmaskedStmt.stmt.length;
         this.state = result.lastStates[0];
 
+        debug("_handleTemplate:LOGIC#A:state:"+this.state+",i:"+i);
         return i;
     }
 
@@ -629,6 +635,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
             }
         }
     }
+    debug("_handleTemplate:LOGIC#4:i:"+i);
 
     /*
     * ---- LOGIC #5 - BROKEN TEMPLATE ----
@@ -673,20 +680,16 @@ ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
             break;
         }
 
+        /* update the i, it is the index right after the handlebars markup */
+        i = j;
+
         /*
-<<<<<<< HEAD
-        * break immediately if out of character.
-=======
         * break immediately if out of character 
         * (no need to throw error as outer loop will handle it).
->>>>>>> yahoo
         */
         if (j >= len) {
             break;
         }
-
-        /* update the i, it is the index right after the handlebars markup */
-        i = j;
 
         /* read the new char to handle, may be template char again! */
         ch = input[i];
