@@ -8,6 +8,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
          Adonis Fung <adon@yahoo-inc.com>
 */
 
+/* debug facility */
+var debugBranch = require('debug')('branch');
+
 /**
 * @class HandlebarsUtils
 * @static
@@ -52,7 +55,7 @@ HandlebarsUtils.generateNonce = function() {
 * <p>Check whether the Handlebars markup is a reserved markup.
 * The reserved markup includes block expression, partial template expression etc.</p>
 *
-* <p>For reference, please check http://handlebarsjs.com/</p>
+* <p>For reference, please check https://github.com/mustache/spec/tree/master/specs</p>
 *
 */
 HandlebarsUtils.isReservedChar = function(ch) {
@@ -396,10 +399,6 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
     *
     */
 
-    // TODO: refactor
-    /* @param {boolean} _debug Internal debug flag */
-    var _debug = false;
-
     /* being used for which node is being handled next */
     var nodeFlag = [];
     /* true for first node, false for third node (1st branch) */
@@ -453,7 +452,7 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
                     t = HandlebarsUtils._analyzeContext(state, str);
                     newLastState = t.lastState;
                     output = t.output;
-                    if (_debug) { console.log(":if:1,["+state+"/"+newLastState+"],["+str+"]"); }
+                    debugBranch(":if:1,["+state+"/"+newLastState+"],["+str+"]");
                     r.lastStates[0] = newLastState;
 
                     /* replace the filter nonce */
@@ -467,7 +466,7 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
                     t = HandlebarsUtils.parseAstTreeState(s, r.lastStates[0], obj);
                     newLastState = t.lastStates[0]; // index 0 and 1 MUST be equal
                     obj.stmt = t.stmt;
-                    if (_debug) { console.log(":if:2,["+r.lastStates[0]+"/"+newLastState+"]"); }
+                    debugBranch(":if:2,["+r.lastStates[0]+"/"+newLastState+"]");
                     r.lastStates[0] = newLastState;
 
                 /* 3rd node */
@@ -482,7 +481,7 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
                     t = HandlebarsUtils._analyzeContext(r.lastStates[0], str);
                     newLastState = t.lastState;
                     output = t.output;
-                    if (_debug) { console.log(":if:3,["+r.lastStates[0]+"/"+newLastState+"],["+str+"]"); }
+                    debugBranch(":if:3,["+r.lastStates[0]+"/"+newLastState+"],["+str+"]");
                     r.lastStates[0] = newLastState;
 
                     /* replace the filter nonce */
@@ -511,7 +510,7 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
                     t = HandlebarsUtils._analyzeContext(state, str);
                     newLastState = t.lastState;
                     output = t.output;
-                    if (_debug) { console.log(":else:1,["+state+"/"+newLastState+"],["+str+"]"); }
+                    debugBranch(":else:1,["+state+"/"+newLastState+"],["+str+"]");
                     r.lastStates[1] = newLastState;
 
                     /* replace the filter nonce */
@@ -525,7 +524,7 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
                     t = HandlebarsUtils.parseAstTreeState(s, r.lastStates[1], obj);
                     newLastState = t.lastStates[0]; // index 0 and 1 MUST be equal
                     obj.stmt = t.stmt;
-                    if (_debug) { console.log(":else:2,["+r.lastStates[1]+"/"+newLastState+"]"); }
+                    debugBranch(":else:2,["+r.lastStates[1]+"/"+newLastState+"]");
                     r.lastStates[1] = newLastState;
 
                 /* 3rd node */
@@ -540,7 +539,7 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
                     t = HandlebarsUtils._analyzeContext(r.lastStates[1], str);
                     newLastState = t.lastState;
                     output = t.output;
-                    if (_debug) { console.log("else:3,["+r.lastStates[1]+"/"+newLastState+"],["+str+"]"); }
+                    debugBranch("else:3,["+r.lastStates[1]+"/"+newLastState+"],["+str+"]");
                     r.lastStates[1] = newLastState;
 
                     /* replace the filter nonce */
@@ -552,10 +551,10 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
     }
 
     if (branchesFlag[0] && !branchesFlag[1]) {
-        if (_debug) { console.log(":else:0,["+state+"/"+state+"]"); }
+        debugBranch(":else:0,["+state+"/"+state+"]");
         r.lastStates[1] = state;
     } else if (!branchesFlag[0] && branchesFlag[1]) {
-        if (_debug) { console.log(":if:0,["+state+"/"+state+"]"); }
+        debugBranch(":if:0,["+state+"/"+state+"]");
         r.lastStates[0] = state;
     }
 
@@ -588,7 +587,7 @@ HandlebarsUtils._analyzeContext = function(state, str) {
         ContextParserHandlebars = require('./context-parser-handlebars');
 
     /* parse the string */
-    parser = new ContextParserHandlebars(false, false);
+    parser = new ContextParserHandlebars(false);
     parser.setInitState(state);
     parser.contextualize(str);
     r.lastState = parser.getLastState();
@@ -613,10 +612,15 @@ HandlebarsUtils._replaceFilterNonce = function(obj, str) {
         /* get the output markup from stmt */
         var outputMarkup = new RegExp('{{' + filterNonce[n] + '.*?}}', 'g');
         var m1 = outputMarkup.exec(stmt);
+        debugBranch("replaceFilterNonce:"+stmt);
+        debugBranch("replaceFilterNonce:m1:"+m1);
 
         /* get the filter markup from output */
-        var filterMarkup = new RegExp('{{{([a-zA-Z_-]+[\\(\\s])+' + filterNonce[n] + '.*?}}}', 'g');
+        // var filterMarkup = new RegExp('{{{([a-zA-Z_-]+[\\(\\s])+' + filterNonce[n] + '.*?}}}', 'g');
+        var filterMarkup = new RegExp('{{{.*' + filterNonce[n] + '.*?}}}', 'g');
         var m2 = filterMarkup.exec(str);
+        debugBranch("replaceFilterNonce:"+str);
+        debugBranch("replaceFilterNonce:m2:"+m2);
 
         if (m1 !== null && m1[0] &&
             m2 !== null && m2[0]) {
@@ -624,6 +628,7 @@ HandlebarsUtils._replaceFilterNonce = function(obj, str) {
             stmt = stmt.replace(m1[0], m2[0]);
             /* Replace the filterNonce[n] with empty string */
             stmt = stmt.replace(filterNonce[n]+" ", "");
+            debugBranch("replaceFilterNonce:o:"+stmt);
         }
     }
     return stmt;

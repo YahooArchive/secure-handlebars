@@ -16,8 +16,7 @@ This utility parse the handlebars template file and add the customized filters
         ContextParserHandlebars = require("./context-parser-handlebars.js"),
         noOfArgs = 0,
         file = '',
-        printChar = true,
-        subexpression = true;
+        printChar = true;
 
     process.argv.forEach(function (val, index) {
         ++noOfArgs;
@@ -25,15 +24,13 @@ This utility parse the handlebars template file and add the customized filters
             file = val;
         } else if (index === 3) {
             printChar = val;
-        } else if (index === 4) {
-            subexpression = val;
         }
     });
 
     if (noOfArgs >= 3 && noOfArgs <= 4) {
         if (fs.existsSync(file)) {
             var data = fs.readFileSync(file, 'utf-8');
-            var parser = new ContextParserHandlebars(printChar, subexpression);
+            var parser = new ContextParserHandlebars(printChar);
             parser.contextualize(data);
             parser.printCharWithState();
             process.exit(0);
@@ -42,7 +39,7 @@ This utility parse the handlebars template file and add the customized filters
             process.exit(1);
         }
     } else {
-        console.log("Usage: handlebarspc <Handlebars template file> <printChar? true|false> <Handlebars 2.0 subexpression filter? true|false>");
+        console.log("Usage: handlebarspc <Handlebars template file> <printChar? true|false>");
         process.exit(1);
     }
 
