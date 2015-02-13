@@ -21,7 +21,7 @@ var filter = require('xss-filters/src/private-xss-filters.js');
 /** 
 * @module ContextParserHandlebars
 */
-function ContextParserHandlebars(printChar, subexpression) {
+function ContextParserHandlebars(printChar) {
 
     /* super() */
     contextParser.Parser.call(this);
@@ -45,8 +45,8 @@ function ContextParserHandlebars(printChar, subexpression) {
     this._printChar = typeof printChar !== undefined? printChar : true;
 
     /* The flag is used to enable the output filter format as Handlebars 2.0.0 subexpression or not. */
+    this._enableSubexpression = true;
     this._handlebarsVersion = require('handlebars').VERSION;
-    this._enableSubexpression = typeof subexpression !== undefined? subexpression : this._handlebarsVersion.test(/^2\.0/);
 
     debug("_printChar:"+this._printChar);
     debug("_enableSubexpression:"+this._enableSubexpression);
@@ -133,38 +133,45 @@ ContextParserHandlebars.prototype._getExpressionExtraInfo = function(input, i) {
 
     /*
     * Substring the input string and match it 
-    * Note: the expected format is "{\sxxx".
+    * Note: the expected format is "{\sxxx}".
     */
     var firststr = "",
         obj = {
             filter: '',
             isKnownFilter: false,
-            isOutputMarkup: false
+            isSingleIdentifier: false
         };
 
-    /* https://github.com/wycats/handlebars.js/blob/master/src/handlebars.l#L27, excluding . / */
-    var r = /^{\s*[^\s!"#%-,;->@\[-\^`\{-~]+\s*[}]*/;
+    /* 
+    * this method is to judge whether it is a standalone output place holder?
+    *
+    * reference:
+    * http://handlebarsjs.com/expressions.html
+    * https://github.com/wycats/handlebars.js/blob/master/src/handlebars.l#L27
+    */
+    // TODO: not fast enough
+    var r = /^{\s*(\S+)\s*(.*)}/;
     var str = input.substring(i);
+    var j = str.indexOf('}');
+    str = str.substring(0, j+1);
     var m = r.exec(str);
 
     if (m !== null) {
-        if (m[0].match(/}$/)) {
-            obj.isOutputMarkup = true;
+        var isReservedChar;
+        if (m[1] !== undefined) {
+            firststr = m[1];
+            isReservedChar = handlebarsUtil.isReservedChar(m[1][0]);
+            /* special handling for {else} */
+            if (firststr === 'else') {
+                obj.isSingleIdentifier = false;
+                obj.isKnownFilter = true;
+                return obj;
+            }
         }
 
-        /* replace the first brace */
-        firststr = m[0].replace('{', '');
-        /* replace all space, brace and bracket */
-        firststr = firststr.replace(/\s/g, '');
-        firststr = firststr.replace(/}/g, '');
-
-        if (firststr === 'else') {
-            obj.isOutputMarkup = false;
-            obj.isKnownFilter = true;
-            return obj;
-        }
-
-        if (!obj.isOutputMarkup) {
+        if (m[2] !== undefined && m[2].trim() === '' && !isReservedChar) {
+            obj.isSingleIdentifier = true;
+        } else if (!isReservedChar) {
             obj.filter = firststr;
             var k = this._knownFilters.indexOf(obj.filter);
             if (k !== -1) {
@@ -496,7 +503,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
             filters = this._addFilters(state, input, i, extraInfo);
             for(noOfFilter=filters.length-1;noOfFilter>=0;--noOfFilter) {
                 if (this._enableSubexpression) {
-                    if (extraExpressionInfo.isOutputMarkup && noOfFilter === 0) {
+                    if (extraExpressionInfo.isSingleIdentifier && noOfFilter === 0) {
                         this.printChar(filters[noOfFilter] + " ");
                     } else {
                         this.printChar(filters[noOfFilter] + " (");
@@ -549,7 +556,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                 /* close the filters subexpression */
                 if (this._enableSubexpression) {
                     for(noOfFilter=filters.length-1;noOfFilter>=0;--noOfFilter) {
-                        if (extraExpressionInfo.isOutputMarkup && noOfFilter === 0) {
+                        if (extraExpressionInfo.isSingleIdentifier && noOfFilter === 0) {
                         } else {
                             this.printChar(")");
                         }
