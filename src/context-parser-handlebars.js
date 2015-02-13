@@ -128,15 +128,14 @@ ContextParserHandlebars.prototype.printCharWithState = function() {
 * @returns {boolean} true or false.
 *
 * @description
-* <p>Parsing the expression information.
-* Note: this function expect that the expression is not reserved tag.</p>
+* <p>this method is to judge whether it is a standalone output place holder?</p>
+*
+* reference:
+* http://handlebarsjs.com/expressions.html
+* https://github.com/wycats/handlebars.js/blob/master/src/handlebars.l#L27
 */
 ContextParserHandlebars.prototype._getExpressionExtraInfo = function(input, i) {
 
-    /*
-    * Substring the input string and match it 
-    * Note: the expected format is "{\sxxx}".
-    */
     var firststr = "",
         obj = {
             filter: '',
@@ -144,18 +143,16 @@ ContextParserHandlebars.prototype._getExpressionExtraInfo = function(input, i) {
             isSingleIdentifier: false
         };
 
-    /* 
-    * this method is to judge whether it is a standalone output place holder?
-    *
-    * reference:
-    * http://handlebarsjs.com/expressions.html
-    * https://github.com/wycats/handlebars.js/blob/master/src/handlebars.l#L27
+    /*
+    * Substring the input string and match it 
+    * Note: the expected format is "{.*}".
     */
-    // TODO: not fast enough
-    var r = /^{\s*(\S+)\s*(.*)}/;
     var str = input.substring(i);
     var j = str.indexOf('}');
     str = str.substring(0, j+1);
+
+    /* '{' 'space'* 'non-space'+ 'space'* 'non-{'* '}' */
+    var r = /^{\s*(\S+)\s*([^}]*)?}/g;
     var m = r.exec(str);
 
     if (m !== null) {
@@ -169,11 +166,14 @@ ContextParserHandlebars.prototype._getExpressionExtraInfo = function(input, i) {
                 obj.isKnownFilter = true;
                 return obj;
             }
+            if (isReservedChar) {
+                return obj;
+            }
         }
 
-        if (m[2] !== undefined && m[2].trim() === '' && !isReservedChar) {
+        if (m[2] === undefined) {
             obj.isSingleIdentifier = true;
-        } else if (!isReservedChar) {
+        } else {
             obj.filter = firststr;
             var k = this._knownFilters.indexOf(obj.filter);
             if (k !== -1) {
