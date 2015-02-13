@@ -81,6 +81,7 @@ HandlebarsUtils.isReservedChar = function(ch) {
 */
 HandlebarsUtils.isBranchTag = function(input, i) {
     // TODO: regular expression and slice is slow
+    /* '{{' '# ot ^' 'space'* 'non-space and non-}'+ first-'space or }' */
     var p = /^{{[#|\\^]\s*([^\s\}]+)?[\s\}]/g;
     var re = p.exec(input.slice(i));
     if (re === null) {
@@ -104,6 +105,7 @@ HandlebarsUtils.isBranchTag = function(input, i) {
 */
 HandlebarsUtils.isBranchEndTag = function(input, i) {
     // TODO: regular expression and slice is slow
+    /* '{{' '/' 'space'* 'non-space and non-}'+ first-'space or }' */
     var p = /^{{\/\s*([^\s\}]+)?[\s\}]/g;
     var re = p.exec(input.slice(i));
 
@@ -127,11 +129,14 @@ HandlebarsUtils.isBranchEndTag = function(input, i) {
 *
 */
 HandlebarsUtils.isElseTag = function(input, i) {
-    var p = /^{{\s*else\s*}}/g;
-    if (input.slice(i).match(p)) {
-        return true;
-    } else {
+    // TODO: regular expression and slice is slow
+    var p = /^{{\s*else\s*?}}/g;
+    var re = p.exec(input.slice(i));
+
+    if (re === null) {
         return false;
+    } else {
+        return true;
     }
 };
 

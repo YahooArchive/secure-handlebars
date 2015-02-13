@@ -523,10 +523,23 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var s = "{{#unless xxx}}";
             var r = util.isBranchTag(s);
             expect(r).to.equal('unless');
+            s = "{{#unless xxx}}{{#unless xxx}}";
+            r = util.isBranchTag(s);
+            expect(r).to.equal('unless');
+            s = "{{#unless xxx}} xxx {{#unless xxx}}";
+            r = util.isBranchTag(s);
+            expect(r).to.equal('unless');
             s = "{{#   unless xxx}}";
             r = util.isBranchTag(s);
             expect(r).to.equal('unless');
+
             s = "{{/unless}}";
+            r = util.isBranchEndTag(s);
+            expect(r).to.equal('unless');
+            s = "{{/unless}}{{/unless}}";
+            r = util.isBranchEndTag(s);
+            expect(r).to.equal('unless');
+            s = "{{/unless}} xxx {{/unless}}";
             r = util.isBranchEndTag(s);
             expect(r).to.equal('unless');
             s = "{{/   unless   }}";
@@ -539,6 +552,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var r = util.isElseTag(s);
             expect(r).to.equal(true);
             s = "{{   else   }}";
+            r = util.isElseTag(s);
+            expect(r).to.equal(true);
+            s = "{{else}}{{else}}";
+            r = util.isElseTag(s);
+            expect(r).to.equal(true);
+            s = "{{else}} xxxx {{else}}";
             r = util.isElseTag(s);
             expect(r).to.equal(true);
         });
