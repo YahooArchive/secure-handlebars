@@ -21,6 +21,19 @@ var HandlebarsUtils = {};
 var Handlebars = require("handlebars");
 
 /**
+* @function HandlebarsUtils.warnDeveloper
+*
+* @static
+*
+* @description
+* <p>Warn the developer that ContextParser/Handlebars does not handle some cases.</p>
+*
+*/
+HandlebarsUtils.warnDeveloper = function(msg) {
+    console.log("[WARNING] ContextParserHandlebars: " + msg);
+};
+
+/**
 * @function HandlebarsUtils.generateNonce
 *
 * @static
