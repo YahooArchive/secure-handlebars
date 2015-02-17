@@ -7,10 +7,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
          Albert Yu <albertyu@yahoo-inc.com>
          Adonis Fung <adon@yahoo-inc.com>
 */
+(function () {
+"use strict";
 
 /* debug facility */
 var debug = require('debug')('cph-debug'),
-    debugInfo = require('debug')('cph-info');
     debugDump = require('debug')('cph-dump');
 
 /* import the html context parser */
@@ -50,7 +51,7 @@ function ContextParserHandlebars(printChar) {
     this._enableSubexpression = true;
     this._handlebarsVersion = require('handlebars').VERSION;
 
-    /* record the line of being processed */
+    /* save the line number being processed */
     this._lineNo = 1;
 
     debug("_printChar:"+this._printChar);
@@ -525,7 +526,6 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                 'attributeValue': this.getAttributeValue(),
             };
             filters = this._addFilters(state, input, i, extraInfo);
-            debugInfo("[INFO] ContextParserHandlebars: adding filters "+filters.toString()+" to line:"+this._lineNo+"/position:"+i);
             for(noOfFilter=filters.length-1;noOfFilter>=0;--noOfFilter) {
                 if (this._enableSubexpression) {
                     if (extraExpressionInfo.isSingleIdentifier && noOfFilter === 0) {
@@ -730,3 +730,5 @@ ContextParserHandlebars.prototype.afterWalk = function(ch) {
 
 /* exposing it */
 module.exports = ContextParserHandlebars;
+
+})();
