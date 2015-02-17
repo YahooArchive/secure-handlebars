@@ -25,10 +25,12 @@ cat <handlebars template file>
 Run the handlebars template file with our Handlebars Pre-compiler and context filter is added.
 ```
 ./bin/handlebarspc <handlebars template file>
-<html><title>{{yd title}}</title></html>
+<html><title>{{{yd title}}}</title></html>
 ```
 
 The new pre-compiled template file is compatible with vanilla Handlebars and those can be used in the vanilla Handlebars with our new <a href="https://github.com/yahoo/secure-handlebars-helpers">secure-handlebars-helpers</a> in the client side!
+
+Note: the default 'h' filter in Handlebars is disable with raw {{{expression}}}.
 
 ### Server-side (nodejs)
 
@@ -45,7 +47,7 @@ var data = '<html><title>{{title}}</title></html>';
 try {
     parser.contextualize(data);
     /* the output is the new handlebars template file with context filter added! 
-       var output = '<html><title>{{yd title}}</title></html>';
+       var output = '<html><title>{{{yd title}}}</title></html>';
     */
     var output = parser.getBuffer().join('');
 } catch (err) {
