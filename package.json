@@ -39,7 +39,7 @@
   "dependencies": {
     "debug": "^2.0",
     "handlebars": "2.*",
-    "context-parser": "*",
+    "context-parser": "^1.*",
     "xss-filters": "^1.*"
   },
   "devDependencies": {
