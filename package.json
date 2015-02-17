@@ -1,64 +1,63 @@
 {
-    "name": "context-parser-handlebars",
-    "version": "0.99.6",
-    "licenses": [
-        {
-            "type": "BSD",
-            "url": "https://github.com/yahoo/context-parser-handlebars/blob/master/LICENSE"
-        }
-    ],
-    "author": "Nera Liu",
-    "contributors": [
-        {
-            "name": "Nera Liu",
-            "email": "neraliu@yahoo-inc.com"
-        },
-        {
-            "name": "Adonis Fung",
-            "email": "adon@yahoo-inc.com"
-        },
-        {
-            "name": "Albert Yu",
-            "email": "albertyu@yahoo-inc.com"
-        }
-    ],
-    "description": "Context Handlebars PreCompiler/Parser",
-    "repository": {
-        "type": "git",
-        "url": "git@github.com:yahoo/context-parser-handlebars.git"
-    },
-    "keywords": [
-        "xss",
-        "security",
-        "escape",
-        "encode",
-        "filter",
-        "context",
-        "html5",
-        "handlebars",
-        "parser",
-        "precompiler"
-    ],
-    "scripts": {
-        "hint": "grunt jshint",
-        "build": "npm install; grunt",
-        "clean": "grunt clean",
-        "test": "grunt test"
-    },
-    "dependencies": {
-        "handlebars": "2.*",
-        "context-parser": "*",
-        "xss-filters": "*"
-    },
-    "devDependencies": {
-        "debug": "*",
-        "bluebird": "*",
-        "expect.js": "^0.3.1",
-        "grunt": "^0.4.5",
-        "grunt-cli": "0.1.*",
-        "grunt-contrib-clean": "^0.6.0",
-        "grunt-contrib-jshint": "^0.11.0",
-        "grunt-mocha-istanbul": "^2.3.0"
-    },
-    "main": "./src/context-parser-handlebars.js"
+  "name": "context-parser-handlebars",
+  "version": "0.99.6",
+  "licenses": [
+    {
+      "type": "BSD",
+      "url": "https://github.com/yahoo/context-parser-handlebars/blob/master/LICENSE"
+    }
+  ],
+  "author": "Nera Liu",
+  "contributors": [
+    "Nera Liu <neraliu@yahoo-inc.com>",
+    "Adonis Fung <adon@yahoo-inc.com>",
+    "Albert Yu <albertyu@yahoo-inc.com>"
+  ],
+  "description": "Context Handlebars PreCompiler/Parser",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:yahoo/context-parser-handlebars.git"
+  },
+  "keywords": [
+    "xss",
+    "security",
+    "escape",
+    "encode",
+    "filter",
+    "context",
+    "html5",
+    "handlebars",
+    "parser",
+    "precompiler"
+  ],
+  "scripts": {
+    "hint": "grunt jshint",
+    "build": "npm install; grunt",
+    "clean": "grunt clean",
+    "test": "grunt test"
+  },
+  "dependencies": {
+    "debug": "^2.0",
+    "handlebars": "2.*",
+    "context-parser": "*",
+    "xss-filters": "^1.*"
+  },
+  "devDependencies": {
+    "bluebird": "*",
+    "expect.js": "^0.3.1",
+    "grunt": "^0.4.5",
+    "grunt-cli": "0.1.*",
+    "grunt-contrib-clean": "^0.6.0",
+    "grunt-contrib-jshint": "^0.11.0",
+    "grunt-mocha-istanbul": "^2.3.0"
+  },
+  "main": "./src/context-parser-handlebars.js",
+  "bugs": {
+    "url": "https://github.com/yahoo/context-parser-handlebars/issues"
+  },
+  "homepage": "https://github.com/yahoo/context-parser-handlebars",
+  "directories": {
+    "test": "tests"
+  },
+  "license": "BSD"
 }
