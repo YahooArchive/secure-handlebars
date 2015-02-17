@@ -1,6 +1,6 @@
 {
   "name": "context-parser-handlebars",
-  "version": "0.99.6",
+  "version": "1.0.0",
   "licenses": [
     {
       "type": "BSD",
@@ -13,7 +13,7 @@
     "Adonis Fung <adon@yahoo-inc.com>",
     "Albert Yu <albertyu@yahoo-inc.com>"
   ],
-  "description": "Context Handlebars PreCompiler/Parser",
+  "description": "Handlebars Context PreCompiler",
   "repository": {
     "type": "git",
     "url": "git@github.com:yahoo/context-parser-handlebars.git"
