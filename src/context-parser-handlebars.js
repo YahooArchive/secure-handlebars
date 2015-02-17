@@ -19,7 +19,7 @@ var contextParser = require('context-parser'),
     handlebarsUtil = require('./handlebars-utils.js'),
     stateMachine = contextParser.StateMachine;
 
-var filter = require('xss-filters/src/private-xss-filters.js');
+var filter = require('xss-filters')._privFilters;
 
 /** 
 * @module ContextParserHandlebars
