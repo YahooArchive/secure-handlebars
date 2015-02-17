@@ -269,7 +269,7 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, ptr, extr
 
         /* we don't support javascript parsing yet */
         // TODO: this filtering rule cannot cover all cases.
-        if (attributeValue.match(/^javascript:|^vbscript:/i)) {
+        if (handlebarsUtil.blacklistProtocol(attributeValue)) {
             filters.push(filter.FILTER_NOT_HANDLE);
             msg = "[WARNING] ContextParserHandlebars: unsafe output place holder at (line:"+this._lineNo+"/position:"+ptr+")";
             handlebarsUtil.handleError(msg);
