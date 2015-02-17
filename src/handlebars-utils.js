@@ -7,6 +7,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
          Albert Yu <albertyu@yahoo-inc.com>
          Adonis Fung <adon@yahoo-inc.com>
 */
+(function () {
+"use strict";
 
 /* debug facility */
 var debugBranch = require('debug')('cph-branching');
@@ -270,15 +272,13 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
                     }
                 } else {
                     /* broken template as the end markup does not match, throw exception before function returns */
-                    msg = "[ERROR] ContextParserHandlebars: Handlebars template markup mismatch (start_tag:"+lastTag+"/endTag:"+endTag+")";
+                    msg = "[ERROR] ContextParserHandlebars: Template markup mismatch (start_tag:"+lastTag+"/endTag:"+endTag+")";
                     HandlebarsUtils.handleError(msg, true);
-                    break;
                 }
             } else {
                 /* broken template, throw exception before function returns */
-                msg = "[ERROR] ContextParserHandlebars: Handlebars template cannot find the corresponding start markup (tag:"+endTag+")";
+                msg = "[ERROR] ContextParserHandlebars: cannot find the corresponding start markup (tag:"+endTag+")";
                 HandlebarsUtils.handleError(msg, true);
-                break;
             }
 
        /* non-branching markup */
@@ -362,7 +362,7 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
     /* if all chars are consumed while the sp is not empty, the template is broken */
     if (sp.length > 0) {
         /* throw error on the template */
-        msg = "[ERROR] ContextParserHandlebars: Handlebars template does not have balanced branching markup.";
+        msg = "[ERROR] ContextParserHandlebars: Template does not have balanced branching markup.";
         HandlebarsUtils.handleError(msg, true);
     }
 
@@ -560,7 +560,7 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
     }
 
     if (r.lastStates[0] !== r.lastStates[1]) {
-        msg = "[ERROR] ContextParserHandlebars: Handlebarsjs template parsing error, inconsitent HTML5 state after conditional branches. Please fix your template!";
+        msg = "[ERROR] ContextParserHandlebars: Template parsing error, inconsitent HTML5 state after conditional branches. Please fix your template!";
         HandlebarsUtils.handleError(msg, true);
     }
 
@@ -636,4 +636,31 @@ HandlebarsUtils._replaceFilterPlaceHolder = function(obj, str) {
     return obj;
 };
 
+/* 
+* @function HandlebarsUtils.blacklistProtocol
+*
+* Reference:
+* https://github.com/yahoo/xss-filters/blob/master/src/private-xss-filters.js#L266
+*/
+HandlebarsUtils._URI_BLACKLIST = null;
+HandlebarsUtils._URI_BLACKLIST_REGEXPSTR = "^(?:&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*(?:(?:j|J|&#[xX]0*(?:6|4)[aA];?|&#0*(?:106|74);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:a|A|&#[xX]0*(?:6|4)1;?|&#0*(?:97|65);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:v|V|&#[xX]0*(?:7|5)6;?|&#0*(?:118|86);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:a|A|&#[xX]0*(?:6|4)1;?|&#0*(?:97|65);?)|(?:v|V|&#[xX]0*(?:7|5)6;?|&#0*(?:118|86);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:b|B|&#[xX]0*(?:6|4)2;?|&#0*(?:98|66);?))(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:s|S|&#[xX]0*(?:7|5)3;?|&#0*(?:115|83);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:c|C|&#[xX]0*(?:6|4)3;?|&#0*(?:99|67);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:r|R|&#[xX]0*(?:7|5)2;?|&#0*(?:114|82);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:i|I|&#[xX]0*(?:6|4)9;?|&#0*(?:105|73);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:p|P|&#[xX]0*(?:7|5)0;?|&#0*(?:112|80);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:t|T|&#[xX]0*(?:7|5)4;?|&#0*(?:116|84);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?::|&#[xX]0*3[aA];?|&#0*58;?)";
+HandlebarsUtils.blacklistProtocol = function(s) {
+    var URI_FASTLANE = ['&', 'j', 'J', 'v', 'V'];
+    if (URI_FASTLANE.indexOf(s[0]) === -1) {
+        return false;
+    } else {
+        if (HandlebarsUtils._URI_BLACKLIST === null) {
+            HandlebarsUtils._URI_BLACKLIST = new RegExp(HandlebarsUtils._URI_BLACKLIST_REGEXPSTR);
+        }
+        if (HandlebarsUtils._URI_BLACKLIST.test(s)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    return true;
+};
+
 module.exports = HandlebarsUtils;
+
+})();
