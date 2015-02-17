@@ -7,6 +7,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
          Albert Yu <albertyu@yahoo-inc.com>
          Adonis Fung <adon@yahoo-inc.com>
 */
+(function () {
+"use strict";
 
 /* debug facility */
 var debugBranch = require('debug')('cph-branching');
@@ -660,3 +662,5 @@ HandlebarsUtils.blacklistProtocol = function(s) {
 };
 
 module.exports = HandlebarsUtils;
+
+})();
