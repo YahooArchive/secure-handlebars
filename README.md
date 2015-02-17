@@ -77,10 +77,6 @@ grunt test
 - We handle HTML specification only, we don't support Javascript and CSS context right now!
 - We assume that the in state and out state of partial is DATA state now!
 
-## API Documentations
-
-Check out /docs for the detailed usage.
-
 ## License
 
 This software is free to use under the BSD license.
