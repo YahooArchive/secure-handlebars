@@ -10,6 +10,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
 /* debug facility */
 var debug = require('debug')('cph-debug'),
+    debugInfo = require('debug')('cph-info');
     debugDump = require('debug')('cph-dump');
 
 /* import the html context parser */
@@ -48,6 +49,9 @@ function ContextParserHandlebars(printChar) {
     /* The flag is used to enable the output filter format as Handlebars 2.0.0 subexpression or not. */
     this._enableSubexpression = true;
     this._handlebarsVersion = require('handlebars').VERSION;
+
+    /* record the line of being processed */
+    this._lineNo = 1;
 
     debug("_printChar:"+this._printChar);
     debug("_enableSubexpression:"+this._enableSubexpression);
@@ -201,7 +205,8 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, ptr, extr
 
     /* transitent var */
     var e,
-        f;
+        f,
+        msg;
 
     /* return filters */
     var filters = [];
@@ -225,6 +230,8 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, ptr, extr
         * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
+        msg = "[WARNING] ContextParserHandlebars: unsafe output place holder at (line:"+this._lineNo+"/position:"+ptr+")";
+        handlebarsUtil.handleError(msg);
         return filters;
     // 6
     } else if (state === stateMachine.State.STATE_SCRIPT_DATA) {
@@ -232,6 +239,8 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, ptr, extr
         * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
+        msg = "[WARNING] ContextParserHandlebars: unsafe output place holder at (line:"+this._lineNo+"/position:"+ptr+")";
+        handlebarsUtil.handleError(msg);
         return filters;
     // 34
     } else if (state === stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME) {
@@ -242,6 +251,8 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, ptr, extr
         * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
+        msg = "[WARNING] ContextParserHandlebars: unsafe output place holder at (line:"+this._lineNo+"/position:"+ptr+")";
+        handlebarsUtil.handleError(msg);
         return filters;
     // 36
     } else if (state === stateMachine.State.STATE_AFTER_ATTRIBUTE_NAME) {
@@ -259,6 +270,8 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, ptr, extr
         // TODO: this filtering rule cannot cover all cases.
         if (attributeValue.match(/^javascript:|^vbscript:/i)) {
             filters.push(filter.FILTER_NOT_HANDLE);
+            msg = "[WARNING] ContextParserHandlebars: unsafe output place holder at (line:"+this._lineNo+"/position:"+ptr+")";
+            handlebarsUtil.handleError(msg);
             /* this one is safe to return */
             return filters;
         }
@@ -314,6 +327,8 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, ptr, extr
         * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
+        msg = "[WARNING] ContextParserHandlebars: unsafe output place holder at (line:"+this._lineNo+"/position:"+ptr+")";
+        handlebarsUtil.handleError(msg);
         return filters;
     // 38, 39, 40 + Javascript spec
     } else if ((state === stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED || 
@@ -326,6 +341,8 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, ptr, extr
         * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
+        msg = "[WARNING] ContextParserHandlebars: unsafe output place holder at (line:"+this._lineNo+"/position:"+ptr+")";
+        handlebarsUtil.handleError(msg);
         return filters;
     // 38, 39, 40 ONLY and should be placed at last.
     } else if (state === stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED || 
@@ -357,6 +374,8 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, ptr, extr
         * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
+        msg = "[WARNING] ContextParserHandlebars: unsafe output place holder at (line:"+this._lineNo+"/position:"+ptr+")";
+        handlebarsUtil.handleError(msg);
         return filters;
     // 48
     } else if (state === stateMachine.State.STATE_COMMENT) {
@@ -368,6 +387,8 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, ptr, extr
     * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
     */
     filters.push(filter.FILTER_NOT_HANDLE);
+    msg = "[WARNING] ContextParserHandlebars: unsafe output place holder at (line:"+this._lineNo+"/position:"+ptr+")";
+    handlebarsUtil.handleError(msg);
     return filters;
 };
 
@@ -504,6 +525,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                 'attributeValue': this.getAttributeValue(),
             };
             filters = this._addFilters(state, input, i, extraInfo);
+            debugInfo("[INFO] ContextParserHandlebars: adding filters "+filters.toString()+" to line:"+this._lineNo+"/position:"+i);
             for(noOfFilter=filters.length-1;noOfFilter>=0;--noOfFilter) {
                 if (this._enableSubexpression) {
                     if (extraExpressionInfo.isSingleIdentifier && noOfFilter === 0) {
@@ -642,7 +664,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
     * it indicates that the input Handlebars template file is an incomplete file.
     */
     if (isHandlebarsContext) {
-        msg = "[ERROR] ContextParserHandlebars: Handlebarsjs template parsing error, cannot encounter '}}' or '}}}' close brace.";
+        msg = "[ERROR] ContextParserHandlebars: Template parsing error, cannot encounter '}}' or '}}}' close brace at (line:"+this._lineNo+"/position:"+i+")";
         handlebarsUtil.handleError(msg, true);
     }
 
@@ -701,6 +723,9 @@ ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
 /* overriding the HTML5 Context Parser's afterWalk for printing out */
 ContextParserHandlebars.prototype.afterWalk = function(ch) {
     this.printChar(ch);
+    if (ch === '\n') {
+        ++this._lineNo;
+    }
 };
 
 /* exposing it */

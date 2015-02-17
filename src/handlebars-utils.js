@@ -270,15 +270,13 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
                     }
                 } else {
                     /* broken template as the end markup does not match, throw exception before function returns */
-                    msg = "[ERROR] ContextParserHandlebars: Handlebars template markup mismatch (start_tag:"+lastTag+"/endTag:"+endTag+")";
+                    msg = "[ERROR] ContextParserHandlebars: Template markup mismatch (start_tag:"+lastTag+"/endTag:"+endTag+")";
                     HandlebarsUtils.handleError(msg, true);
-                    break;
                 }
             } else {
                 /* broken template, throw exception before function returns */
-                msg = "[ERROR] ContextParserHandlebars: Handlebars template cannot find the corresponding start markup (tag:"+endTag+")";
+                msg = "[ERROR] ContextParserHandlebars: cannot find the corresponding start markup (tag:"+endTag+")";
                 HandlebarsUtils.handleError(msg, true);
-                break;
             }
 
        /* non-branching markup */
@@ -362,7 +360,7 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
     /* if all chars are consumed while the sp is not empty, the template is broken */
     if (sp.length > 0) {
         /* throw error on the template */
-        msg = "[ERROR] ContextParserHandlebars: Handlebars template does not have balanced branching markup.";
+        msg = "[ERROR] ContextParserHandlebars: Template does not have balanced branching markup.";
         HandlebarsUtils.handleError(msg, true);
     }
 
@@ -560,7 +558,7 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
     }
 
     if (r.lastStates[0] !== r.lastStates[1]) {
-        msg = "[ERROR] ContextParserHandlebars: Handlebarsjs template parsing error, inconsitent HTML5 state after conditional branches. Please fix your template!";
+        msg = "[ERROR] ContextParserHandlebars: Template parsing error, inconsitent HTML5 state after conditional branches. Please fix your template!";
         HandlebarsUtils.handleError(msg, true);
     }
 
