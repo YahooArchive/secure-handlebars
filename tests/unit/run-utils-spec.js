@@ -382,6 +382,146 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(n1).not.to.equal(n2);
         });
 
+        /* 
+        * this test is the same as "handlebars {{expression}} test" and "handlebars invalid {{expression}} test"
+        */
+        it("handlebars-utils#isValidExpression escapeExpressionRegExp test", function() {
+            var s = "{{anything}}";
+            var r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r[0]).to.equal('{{anything}}');
+            expect(r.result).to.equal(true);
+
+            s = "{{    anything   }}";
+            r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r[0]).to.equal('{{    anything   }}');
+            expect(r.result).to.equal(true);
+
+            s = "{{any\rthing}}";
+            r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r[0]).to.equal('{{any\rthing}}');
+            expect(r.result).to.equal(true);
+
+            s = "{{anything}}}";
+            r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{{anything}";
+            r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{ {anything}}";
+            r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{{anything} }";
+            r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{{    {anything}}";
+            r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{{    }anything}}";
+            r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{{}}";
+            r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r.result).to.equal(false);
+        });
+
+        /* 
+        * this test is the same as "handlebars {{{expression}}} test" and "handlebars invalid {{{expression}}} test"
+        */
+        it("handlebars-utils#isValidExpression rawExpressionRegExp test", function() {
+            s = "{{{anything}}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r[0]).to.equal('{{{anything}}}');
+            expect(r.result).to.equal(true);
+
+            s = "{{{    anything   }}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r[0]).to.equal('{{{    anything   }}}');
+            expect(r.result).to.equal(true);
+
+            s = "{{{any\nthing}}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r[0]).to.equal('{{{any\nthing}}}');
+            expect(r.result).to.equal(true);
+
+            s = "{{{anything}}}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{{{anything}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{ {{anything}}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{{{anything}} }";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{{{anything} }}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{{{    {anything}}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{{{    }anything}}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{{{}}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r.result).to.equal(false);
+        });
+
+        it("handlebars-utils#isValidExpression greedy match test", function() {
+            var s = "{{anything}}{{anything}}";
+            var r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r[0]).to.equal('{{anything}}');
+            expect(r.result).to.equal(true);
+
+            s = "{{    anything   }}{{    anything   }}";
+            r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r[0]).to.equal('{{    anything   }}');
+            expect(r.result).to.equal(true);
+
+            s = "{{any\rthing}}{{any\rthing}}";
+            r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r[0]).to.equal('{{any\rthing}}');
+            expect(r.result).to.equal(true);
+
+            s = "{{anything}}}{{anything}}}";
+            r = util.isValidExpression(s, 0, util.ESCAPE_EXPRESSION);
+            expect(r.result).to.equal(false);
+
+            s = "{{{anything}}}{{{anything}}}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r[0]).to.equal('{{{anything}}}');
+            expect(r.result).to.equal(true);
+
+            s = "{{{    anything   }}}{{{    anything   }}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r[0]).to.equal('{{{    anything   }}}');
+            expect(r.result).to.equal(true);
+
+            s = "{{{any\nthing}}}{{{any\nthing}}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r[0]).to.equal('{{{any\nthing}}}');
+            expect(r.result).to.equal(true);
+
+            s = "{{{anything}}}}{{{anything}}}}";
+            r = util.isValidExpression(s, 0, util.RAW_EXPRESSION);
+            expect(r.result).to.equal(false);
+        });
+
         it("handlebars-utils#isReservedChar test", function() {
             var s = "#";
             var r = util.isReservedChar(s);
@@ -403,196 +543,196 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(r).to.equal(true);
         });
 
-        it("handlebars-utils#isBranchTag (if) test", function() {
+        it("handlebars-utils#isBranchExpression (if) test", function() {
             var s = "{{#if xxx}}";
-            var r = util.isBranchTag(s);
+            var r = util.isBranchExpression(s);
             expect(r).to.equal('if');
             s = "{{#   if   xxx}}";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal('if');
             s = "{{/if}}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('if');
             s = "{{/   if   }}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('if');
         });
 
-        it("handlebars-utils#isBranchTag (with) test", function() {
+        it("handlebars-utils#isBranchExpression (with) test", function() {
             var s = "{{#with xxx}}";
-            var r = util.isBranchTag(s);
+            var r = util.isBranchExpression(s);
             expect(r).to.equal('with');
             s = "{{#   with   xxx}}";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal('with');
             s = "{{/with}}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('with');
             s = "{{/   with   }}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('with');
         });
 
-        it("handlebars-utils#isBranchTag (each) test", function() {
+        it("handlebars-utils#isBranchExpression (each) test", function() {
             var s = "{{#each xxx}}";
-            var r = util.isBranchTag(s);
+            var r = util.isBranchExpression(s);
             expect(r).to.equal('each');
             s = "{{#   each   xxx}}";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal('each');
             s = "{{/each}}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('each');
             s = "{{/   each   }}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('each');
         });
 
-        it("handlebars-utils#isBranchTag (list) test", function() {
+        it("handlebars-utils#isBranchExpression (list) test", function() {
             var s = "{{#list xxx}}";
-            var r = util.isBranchTag(s);
+            var r = util.isBranchExpression(s);
             expect(r).to.equal('list');
             s = "{{#   list   xxx}}";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal('list');
             s = "{{/list}}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('list');
             s = "{{/   list   }}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('list');
         });
 
-        it("handlebars-utils#isBranchTag (anything) test", function() {
+        it("handlebars-utils#isBranchExpression (anything) test", function() {
             s = "{{tag}}xxx";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal(false);
 
             s = "{{#tag}}xxx";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal("tag");
             s = "{{#   tag}}xxx";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal("tag");
             s = "{{#   tag   }}xxx";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal("tag");
             s = "{{#   tag   xxx}}xxx";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal("tag");
             s = "{{#   tag   xxx   }}xxx";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal("tag");
 
             s = "{{/tag}}xxx";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal("tag");
             s = "{{/   tag}}xxx";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal("tag");
             s = "{{/   tag   }}xxx";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal("tag");
         });
 
-        it("handlebars-utils#isBranchTag (negation ^msg) test", function() {
+        it("handlebars-utils#isBranchExpression (negation ^msg) test", function() {
             var s = "{{^msg}}";
-            var r = util.isBranchTag(s);
+            var r = util.isBranchExpression(s);
             expect(r).to.equal('msg');
             s = "{{^   msg    }}";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal('msg');
             s = "{{/msg}}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('msg');
             s = "{{/   msg    }}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('msg');
         });
 
-        it("handlebars-utils#isBranchTag (illegal tag format) test", function() {
+        it("handlebars-utils#isBranchExpression (illegal tag format) test", function() {
             s = "{{#   t-ag   xxx}}xxx";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal("t-ag");
             s = "{{/   t-ag   }}xxx";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal("t-ag");
         });
 
-        it("handlebars-utils#isBranchTag (unless) test", function() {
+        it("handlebars-utils#isBranchExpression (unless) test", function() {
             var s = "{{#unless xxx}}";
-            var r = util.isBranchTag(s);
+            var r = util.isBranchExpression(s);
             expect(r).to.equal('unless');
             s = "{{#unless xxx}}{{#unless xxx}}";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal('unless');
             s = "{{#unless xxx}} xxx {{#unless xxx}}";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal('unless');
             s = "{{#   unless xxx}}";
-            r = util.isBranchTag(s);
+            r = util.isBranchExpression(s);
             expect(r).to.equal('unless');
 
             s = "{{/unless}}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('unless');
             s = "{{/unless}}{{/unless}}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('unless');
             s = "{{/unless}} xxx {{/unless}}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('unless');
             s = "{{/   unless   }}";
-            r = util.isBranchEndTag(s);
+            r = util.isBranchEndExpression(s);
             expect(r).to.equal('unless');
         });
 
-        it("handlebars-utils#isElseTag test", function() {
+        it("handlebars-utils#isElseExpression test", function() {
             var s = "{{else}}";
-            var r = util.isElseTag(s);
+            var r = util.isElseExpression(s);
             expect(r).to.equal(true);
             s = "{{   else   }}";
-            r = util.isElseTag(s);
+            r = util.isElseExpression(s);
             expect(r).to.equal(true);
             s = "{{else}}{{else}}";
-            r = util.isElseTag(s);
+            r = util.isElseExpression(s);
             expect(r).to.equal(true);
             s = "{{else}} xxxx {{else}}";
-            r = util.isElseTag(s);
+            r = util.isElseExpression(s);
             expect(r).to.equal(true);
         });
 
-        it("handlebars-utils#isBranchTags test", function() {
+        it("handlebars-utils#isBranchExpressions test", function() {
             var s = "{{#if xxx}}";
-            var r = util.isBranchTags(s);
+            var r = util.isBranchExpressions(s);
             expect(r).to.equal(true);
 
             s = "{{#with}}";
-            r = util.isBranchTags(s);
+            r = util.isBranchExpressions(s);
             expect(r).to.equal(true);
 
             s = "{{#each}}";
-            r = util.isBranchTags(s);
+            r = util.isBranchExpressions(s);
             expect(r).to.equal(true);
 
             s = "{{#list}}";
-            r = util.isBranchTags(s);
+            r = util.isBranchExpressions(s);
             expect(r).to.equal(true);
 
             s = "{{#tag}}";
-            r = util.isBranchTags(s);
+            r = util.isBranchExpressions(s);
             expect(r).to.equal(true);
 
             s = "{{^msg}}";
-            r = util.isBranchTags(s);
+            r = util.isBranchExpressions(s);
             expect(r).to.equal(true);
 
             s = "{{#unless}}";
-            r = util.isBranchTags(s);
+            r = util.isBranchExpressions(s);
             expect(r).to.equal(true);
 
             s = "{{else}}";
-            r = util.isBranchTags(s);
+            r = util.isBranchExpressions(s);
             expect(r).to.equal(false);
         });
 

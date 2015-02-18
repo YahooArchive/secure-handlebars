@@ -45,6 +45,52 @@ HandlebarsUtils.generateNonce = function() {
     return nonce;
 };
 
+/* type of expression */
+HandlebarsUtils.NOT_EXPRESSION 		= 0;
+HandlebarsUtils.ESCAPE_EXPRESSION 	= 1;
+HandlebarsUtils.RAW_EXPRESSION 		= 2;
+
+/* RegExp to match expression */
+HandlebarsUtils.escapeExpressionRegExp 	  = /^\{\{[^\}\{]+?\}\}(?!})/;
+HandlebarsUtils.rawExpressionRegExp 	  = /^\{\{\{[^\}\{]+?\}\}\}(?!})/;
+/* '{{' '# or ^' 'space'* 'non-space,non-},non-{'+ first-'space or }' */
+HandlebarsUtils.branchExpressionRegExp 	  = /^\{\{[#|\\^]\s*([^\s\}\{]+)?[\s\}]/;
+/* '{{' '/' 'space'* 'non-space,non-},non-{'+ first-'space or }' */
+HandlebarsUtils.branchEndExpressionRegExp = /^\{\{\/\s*([^\s\}\{]+)?[\s\}]/;
+HandlebarsUtils.elseExpressionRegExp      = /^\{\{\s*else\s*?\}\}/;
+
+/**
+* @function HandlebarsUtils.isValidExpression
+*
+* @static
+*
+* @description
+* <p>This function is used to look ahead to check whether it is a valid expression.</p>
+*
+*/
+HandlebarsUtils.isValidExpression = function(input, i, type) {
+    var re = {};
+    re.result = false;
+    switch(type) {
+        case HandlebarsUtils.ESCAPE_EXPRESSION:
+            re = HandlebarsUtils.escapeExpressionRegExp.exec(input.slice(i));
+            break;
+        case HandlebarsUtils.RAW_EXPRESSION:
+            re = HandlebarsUtils.rawExpressionRegExp.exec(input.slice(i));
+            break;
+        default:
+            return re;
+    }
+
+    if (re !== null) {
+        re.result = true;
+    } else {
+        re = {};
+        re.result = false;
+    }
+    return re;
+};
+
 /**
 * @function HandlebarsUtils.isReservedChar
 *
@@ -54,8 +100,8 @@ HandlebarsUtils.generateNonce = function() {
 * @returns {boolean} true or false.
 *
 * @description
-* <p>Check whether the Handlebars markup is a reserved markup.
-* The reserved markup includes block expression, partial template expression etc.</p>
+* <p>Check whether the Handlebars expression is a reserved expression.
+* The reserved expression includes block expression, partial template expression etc.</p>
 *
 * <p>For reference, please check https://github.com/mustache/spec/tree/master/specs</p>
 *
@@ -69,21 +115,18 @@ HandlebarsUtils.isReservedChar = function(ch) {
 };
 
 /**
-* @function HandlebarsUtils.isBranchTag
+* @function HandlebarsUtils.isBranchExpression
 *
 * @static
 *
 * @returns {boolean} true or false.
 *
 * @description
-* <p>Check whether the Handlebars markup is {{#\w*}} and {{^\w*}} markup.</p>
+* <p>Check whether the Handlebars expression is {{#\w*}} and {{^\w*}} expression.</p>
 *
 */
-HandlebarsUtils.isBranchTag = function(input, i) {
-    // TODO: regular expression and slice is slow
-    /* '{{' '# ot ^' 'space'* 'non-space and non-}'+ first-'space or }' */
-    var p = /^{{[#|\\^]\s*([^\s\}]+)?[\s\}]/g;
-    var re = p.exec(input.slice(i));
+HandlebarsUtils.isBranchExpression = function(input, i) {
+    var re = HandlebarsUtils.branchExpressionRegExp.exec(input.slice(i));
     if (re === null) {
         return false;
     } else {
@@ -93,22 +136,18 @@ HandlebarsUtils.isBranchTag = function(input, i) {
 };
 
 /**
-* @function HandlebarsUtils.isBranchEndTag
+* @function HandlebarsUtils.isBranchEndExpression
 *
 * @static
 *
 * @returns {boolean} true or false.
 *
 * @description
-* <p>Check whether the Handlebars markup is {{/\w*}} markup.</p>
+* <p>Check whether the Handlebars expression is {{/\w*}} expression.</p>
 *
 */
-HandlebarsUtils.isBranchEndTag = function(input, i) {
-    // TODO: regular expression and slice is slow
-    /* '{{' '/' 'space'* 'non-space and non-}'+ first-'space or }' */
-    var p = /^{{\/\s*([^\s\}]+)?[\s\}]/g;
-    var re = p.exec(input.slice(i));
-
+HandlebarsUtils.isBranchEndExpression = function(input, i) {
+    var re = HandlebarsUtils.branchEndExpressionRegExp.exec(input.slice(i));
     if (re === null) {
         return false;
     } else {
@@ -118,21 +157,18 @@ HandlebarsUtils.isBranchEndTag = function(input, i) {
 };
 
 /**
-* @function HandlebarsUtils.isElseTag
+* @function HandlebarsUtils.isElseExpression
 *
 * @static
 *
 * @returns {boolean} true or false.
 *
 * @description
-* <p>Check whether the Handlebars markup is {{else}} markup.</p>
+* <p>Check whether the Handlebars expression is {{else}} expression.</p>
 *
 */
-HandlebarsUtils.isElseTag = function(input, i) {
-    // TODO: regular expression and slice is slow
-    var p = /^{{\s*else\s*?}}/g;
-    var re = p.exec(input.slice(i));
-
+HandlebarsUtils.isElseExpression = function(input, i) {
+    var re = HandlebarsUtils.elseExpressionRegExp.exec(input.slice(i));
     if (re === null) {
         return false;
     } else {
@@ -141,18 +177,18 @@ HandlebarsUtils.isElseTag = function(input, i) {
 };
 
 /**
-* @function HandlebarsUtils.isBranchTags
+* @function HandlebarsUtils.isBranchExpressions
 *
 * @static
 *
 * @returns {boolean} true or false.
 *
 * @description
-* <p>Check whether the Handlebars markup is "branching" markup.</p>
+* <p>Check whether the Handlebars expression is "branching" expression.</p>
 *
 */
-HandlebarsUtils.isBranchTags = function(input, i) {
-    var r = HandlebarsUtils.isBranchTag(input, i);
+HandlebarsUtils.isBranchExpressions = function(input, i) {
+    var r = HandlebarsUtils.isBranchExpression(input, i);
     if (r === false) {
         return false;
     } else {
@@ -197,6 +233,12 @@ HandlebarsUtils.handleError = function(msg, throwErr) {
 *
 */
 HandlebarsUtils.parseBranchStmt = function(s) {
+    if (!Handlebars.VERSION.match(/^2\./)) {
+        var msg = "[ERROR] ContextParserHandlebars: We support Handlebars 2.0 ONLY!";
+        HandlebarsUtils.handleError(msg, true);
+    }
+
+    // TODO: we should build our own data structure instead of using Handlebars directly.
     var ast = Handlebars.parse(s);
     if (ast.statements !== undefined) {
         return ast.statements;
@@ -211,12 +253,12 @@ HandlebarsUtils.parseBranchStmt = function(s) {
 * @static
 *
 * @param {string} input - The template input string.
-* @param {int} k - The pointer to the first char of the first brace markup of Handlebars template.
-* @param {boolean} masked - The flag to mask the non branching statement markup.
+* @param {int} k - The pointer to the first char of the first brace expression of Handlebars template.
+* @param {boolean} masked - The flag to mask the non branching statement expression.
 * @returns {Object} The object with branching statement and place holder.
 *
 * @description
-* <p>This function extracts a branching statement with balanced markup.</p>
+* <p>This function extracts a branching statement with balanced expression.</p>
 *
 */
 HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
@@ -234,7 +276,7 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
     /*
     * the reason for extracting the branching statement is to 
     * be used for building the AST for finding all the combination of strings,
-    * however the non-branching markup will make the AST more 
+    * however the non-branching expression will make the AST more 
     * complicated, so this function masks out all open/close brace
     * with a random nonce.
     */
@@ -243,22 +285,22 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
     r.closeBracePlaceHolder = HandlebarsUtils.generateNonce();
 
     for(var i=0;i<l;++i) {
-        var tag = HandlebarsUtils.isBranchTag(str, i),
-            endTag = HandlebarsUtils.isBranchEndTag(str, i);
+        var tag = HandlebarsUtils.isBranchExpression(str, i),
+            endExpression = HandlebarsUtils.isBranchEndExpression(str, i);
 
         /* push the branching tokens */
         if (tag !== false) {
             sp.push(tag);
 
         /* do nothing for 'else' token */
-        } else if (HandlebarsUtils.isElseTag(str, i)) {
+        } else if (HandlebarsUtils.isElseExpression(str, i)) {
 
         /* pop the branching tokens (TODO: not fast enough) */
-        } else if (endTag !== false) {
+        } else if (endExpression !== false) {
             if (sp.length > 0) {
-                var lastTag = sp[sp.length-1];
+                var lastExpression = sp[sp.length-1];
                 /* check for balanced branching statement */
-                if (lastTag === endTag) {
+                if (lastExpression === endExpression) {
                     sp.pop();
                     /* consume till the end of '}}' */
                     for(j=i;j<l;++j) {
@@ -271,17 +313,17 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
                         }
                     }
                 } else {
-                    /* broken template as the end markup does not match, throw exception before function returns */
-                    msg = "[ERROR] ContextParserHandlebars: Template markup mismatch (start_tag:"+lastTag+"/endTag:"+endTag+")";
+                    /* broken template as the end expression does not match, throw exception before function returns */
+                    msg = "[ERROR] ContextParserHandlebars: Template expression mismatch (startExpression:"+lastExpression+"/endExpression:"+endExpression+")";
                     HandlebarsUtils.handleError(msg, true);
                 }
             } else {
                 /* broken template, throw exception before function returns */
-                msg = "[ERROR] ContextParserHandlebars: cannot find the corresponding start markup (tag:"+endTag+")";
+                msg = "[ERROR] ContextParserHandlebars: Cannot find the corresponding start expression (tag:"+endExpression+")";
                 HandlebarsUtils.handleError(msg, true);
             }
 
-       /* non-branching markup */
+       /* non-branching expression */
        } else {
 
             /* {{{expression}}} case */
@@ -362,7 +404,7 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
     /* if all chars are consumed while the sp is not empty, the template is broken */
     if (sp.length > 0) {
         /* throw error on the template */
-        msg = "[ERROR] ContextParserHandlebars: Template does not have balanced branching markup.";
+        msg = "[ERROR] ContextParserHandlebars: Template does not have balanced branching expression.";
         HandlebarsUtils.handleError(msg, true);
     }
 
@@ -560,7 +602,7 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
     }
 
     if (r.lastStates[0] !== r.lastStates[1]) {
-        msg = "[ERROR] ContextParserHandlebars: Template parsing error, inconsitent HTML5 state after conditional branches. Please fix your template!";
+        msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsitent HTML5 state after conditional branches. Please fix your template!";
         HandlebarsUtils.handleError(msg, true);
     }
 
@@ -610,10 +652,11 @@ HandlebarsUtils._replaceFilterPlaceHolder = function(obj, str) {
     var filterPlaceHolders = obj.filterPlaceHolder.slice(0); 
 
     filterPlaceHolders.forEach(function(filterPlaceHolder) {
-        /* get the output markup from stmt */
-        var outputMarkup = new RegExp('{{' + filterPlaceHolder + '.*?}}', 'g');
+        /* get the output expression from masked stmt */
+        var outputMarkup = new RegExp('\{\{' + filterPlaceHolder + '.*?\}\}', 'g');
         var m1 = outputMarkup.exec(obj.stmt);
 
+        /* get the output filter expression from processed stmt */
         var i = str.indexOf(filterPlaceHolder);
         if (i !== -1 && m1 !== null && m1[0]) {
             var s = str.substr(0,i).lastIndexOf('{');
@@ -623,7 +666,7 @@ HandlebarsUtils._replaceFilterPlaceHolder = function(obj, str) {
 
             if (m1 !== null && m1[0] &&
                 m2 !== null && m2) {
-                /* Replace the output markup with filter markup */
+                /* Replace the output expression with filter expression */
                 obj.stmt = obj.stmt.replace(m1[0], m2);
                 /* Replace the filterPlaceHolder with empty string */
                 obj.stmt = obj.stmt.replace(filterPlaceHolder, "");
