@@ -5,7 +5,7 @@ Handlebars Pre-compiler with Context Parser. This npm package provides a handy c
 
 ## Overview 
 
-- This pre-compiler processes the Handlebars template file by analyzing the execution context of output markup of the Handlebars based on the WHATWG HTML5 Specification. With the knowledge of the execution context, our pre-compiler can add the correct output filters to the Handlebars template file to defense XSS automatically.
+- This pre-compiler processes the Handlebars template file by analyzing the execution context of output markup of the Handlebars based on the WHATWG HTML5 Specification. With the knowledge of the execution context, our pre-compiler can add the correct output filters to the Handlebars template file to defend against XSS automatically.
 
 ## Quick Start
 
@@ -30,7 +30,7 @@ Run the handlebars template file with our Handlebars Pre-compiler and context fi
 
 The new pre-compiled template file is compatible with vanilla Handlebars and those can be used in the vanilla Handlebars with our new <a href="https://github.com/yahoo/secure-handlebars-helpers">secure-handlebars-helpers</a> in the client side!
 
-Note: the default 'h' filter in Handlebars is disable with raw {{{expression}}}.
+Note: the default 'h' filter in Handlebars is disabled with raw {{{expression}}}.
 
 ### Server-side (nodejs)
 
