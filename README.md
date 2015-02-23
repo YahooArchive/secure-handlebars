@@ -58,15 +58,9 @@ try {
 
 ## Development
 
-### How to build
-```
-npm install
-grunt
-```
-
 ### How to test
 ```
-grunt test
+npm test
 ```
 
 ## Build
