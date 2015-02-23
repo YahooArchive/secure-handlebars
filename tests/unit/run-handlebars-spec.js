@@ -13,7 +13,123 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         expect = require('expect.js'),
         handlebars = require('handlebars');
 
-    describe("Vanillia Handlebars parsing test suite", function() {
+    describe("Vanilla Handlebars parsing test suite", function() {
+
+        it("handlebars {{expression}} test", function() {
+            var t = '{{expression}}';
+            var ast = handlebars.parse(t);
+            expect(ast.statements[0].type).to.equal('mustache');
+
+            t = '{{expression}} }';
+            ast = handlebars.parse(t);
+	    expect(ast.statements[0].type).to.equal('mustache');
+
+            t = '{ {expression}}';
+            ast = handlebars.parse(t);
+	    expect(ast.statements[0].type).to.equal('content');
+
+            t = '{{express\rion}}';
+            ast = handlebars.parse(t);
+	    expect(ast.statements[0].type).to.equal('mustache');
+	    expect(ast.statements[0].params[0].string).to.equal('ion');
+	    expect(ast.statements[0].isHelper).to.equal(true);
+
+            t = '{{express\nion}}';
+            ast = handlebars.parse(t);
+	    expect(ast.statements[0].type).to.equal('mustache');
+	    expect(ast.statements[0].params[0].string).to.equal('ion');
+	    expect(ast.statements[0].isHelper).to.equal(true);
+        });
+
+        it("handlebars invalid {{expression}} test", function() {
+            var t = '{{expression}}}';
+            try {
+                var ast = handlebars.parse(t);
+                expect(false).to.equal(true);
+            } catch (err) {
+                expect(true).to.equal(true);
+            }
+            t = '{{expression} }';
+            try {
+                var ast = handlebars.parse(t);
+                expect(false).to.equal(true);
+            } catch (err) {
+                expect(true).to.equal(true);
+            }
+            t = '{{}}';
+            try {
+                var ast = handlebars.parse(t);
+                expect(false).to.equal(true);
+            } catch (err) {
+                expect(true).to.equal(true);
+            }
+            t = '{{   {expression}}';
+            try {
+                var ast = handlebars.parse(t);
+                expect(false).to.equal(true);
+            } catch (err) {
+                expect(true).to.equal(true);
+            }
+            t = '{{   }expression}}';
+            try {
+                var ast = handlebars.parse(t);
+                expect(false).to.equal(true);
+            } catch (err) {
+                expect(true).to.equal(true);
+            }
+        });
+
+        it("handlebars {{{raw expression}}} test", function() {
+            var t = '{{{expression}}}';
+            var ast = handlebars.parse(t);
+            expect(ast.statements[0].type).to.equal('mustache');
+
+            t = '{{{expression}}} }';
+            ast = handlebars.parse(t);
+	    expect(ast.statements[0].type).to.equal('mustache');
+
+            t = '{ { {expression}}}';
+            ast = handlebars.parse(t);
+	    expect(ast.statements[0].type).to.equal('content');
+        });
+
+        it("handlebars invalid {{{raw expression}}} test", function() {
+            var t = '{{ {expression}}}';
+            try {
+                var ast = handlebars.parse(t);
+                expect(false).to.equal(true);
+            } catch (err) {
+                expect(true).to.equal(true);
+            }
+            t = '{ {{expression}}}';
+            try {
+                var ast = handlebars.parse(t);
+                expect(false).to.equal(true);
+            } catch (err) {
+                expect(true).to.equal(true);
+            }
+            t = '{{{expression}} }';
+            try {
+                var ast = handlebars.parse(t);
+                expect(false).to.equal(true);
+            } catch (err) {
+                expect(true).to.equal(true);
+            }
+            t = '{{{expression} }}';
+            try {
+                var ast = handlebars.parse(t);
+                expect(false).to.equal(true);
+            } catch (err) {
+                expect(true).to.equal(true);
+            }
+            t = '{{{}}}';
+            try {
+                var ast = handlebars.parse(t);
+                expect(false).to.equal(true);
+            } catch (err) {
+                expect(true).to.equal(true);
+            }
+        });
 
         it("handlebars {{#if}} {{!-- comment --}} {{/if}} parsing test", function() {
             var t = '{{#if}}xxx{{!-- comment --}}yyy{{/if}}';
@@ -107,6 +223,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         it("handlebars {{#if}} {{else}} {{/if}} parsing test 2", function() {
             var t = '{{# if}}xxx{{ else }}yyy{{/ if}}';
             var ast = handlebars.parse(t);
+            expect(ast.statements[0].mustache.id.string).to.equal('if');
+            expect(ast.statements[0].program.statements[0].string).to.equal('xxx');
+            expect(ast.statements[0].inverse.statements[0].string).to.equal('yyy');
+
+            t = '{{# if }}xxx{{ else }}yyy{{/ if}}';
+            ast = handlebars.parse(t);
             expect(ast.statements[0].mustache.id.string).to.equal('if');
             expect(ast.statements[0].program.statements[0].string).to.equal('xxx');
             expect(ast.statements[0].inverse.statements[0].string).to.equal('yyy');
