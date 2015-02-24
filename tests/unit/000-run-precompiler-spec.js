@@ -9,10 +9,10 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 */
 (function () {
 
-    var mocha = require("mocha"),
-        promise = require('bluebird'),
+    require("mocha");
+    var promise = require('bluebird'),
         fs = require('fs'),
-        expect = require('expect.js'),
+        expect = require('chai').expect,
         ContextParserHandlebars = require("../../src/context-parser-handlebars");
 
     var NO_OF_TEMPLATE = 22,

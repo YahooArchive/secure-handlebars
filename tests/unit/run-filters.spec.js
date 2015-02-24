@@ -9,9 +9,10 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 */
 (function () {
 
-    var mocha = require("mocha"),
-        fs = require('fs'),
-        expect = require('expect.js'),
+    require("mocha");
+    var fs = require('fs'),
+        expect = require('chai').expect,
+        utils = require('../utils.js'),
         ContextParserHandlebars = require("../../src/context-parser-handlebars");
 
     /* 
@@ -22,492 +23,389 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         it("Filter 000 - add yd filters test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_000.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yd name}}}/);
+            var arr = [ 
+                /{{{yd name}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 001 - add yd and yc filters test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_001.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yc comment}}}/);
-            expect(data).to.match(/{{{yd name}}}/);
+            var arr = [ 
+                /{{{yc comment}}}/, /{{{yd name}}}/ 
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 002 - add href filters test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_002.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yubl \(yavd \(yufull url11\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavs \(yufull url12\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavd \(yufull url13\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavs \(yufull url14\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavu \(yufull url15\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavu \(yufull url16\)\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu path11\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu path12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu path13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu path14\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu path15\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu path16\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu kv11\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu kv12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu kv13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu kv14\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu kv15\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu kv16\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q11\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q14\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q15\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q16\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q17\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q18\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q19\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q20\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q21\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q22\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q23\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q24\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q25\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc hash11\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc hash12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc hash13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc hash14\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc hash15\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc hash16\)}}}/);
+            var arr = [ 
+                // test against double quoted, single quoted and unquoted URL in attribute href
+                /{{{yubl \(yavd \(yufull url11\)\)}}}/, /{{{yubl \(yavs \(yufull url12\)\)}}}/, /{{{yubl \(yavd \(yufull url13\)\)}}}/,
+                /{{{yubl \(yavs \(yufull url14\)\)}}}/, /{{{yubl \(yavu \(yufull url15\)\)}}}/, /{{{yubl \(yavu \(yufull url16\)\)}}}/,
+                // test against double quoted, single quoted and unquoted URL Path in attribute href
+                /{{{yavd \(yu path11\)}}}/, /{{{yavs \(yu path12\)}}}/, /{{{yavd \(yu path13\)}}}/,
+                /{{{yavs \(yu path14\)}}}/, /{{{yavu \(yu path15\)}}}/, /{{{yavu \(yu path16\)}}}/,
+                // test against double quoted, single quoted and unquoted after URL ? in attribute href
+                /{{{yavd \(yu kv11\)}}}/, /{{{yavs \(yu kv12\)}}}/, /{{{yavd \(yu kv13\)}}}/,
+                /{{{yavs \(yu kv14\)}}}/, /{{{yavu \(yu kv15\)}}}/, /{{{yavu \(yu kv16\)}}}/,
+                // test against double quoted, single quoted and unquoted URL query string in attribute href
+                /{{{yavd \(yuc q11\)}}}/, /{{{yavd \(yuc q12\)}}}/, /{{{yavd \(yuc q13\)}}}/,
+                /{{{yavs \(yuc q14\)}}}/, /{{{yavs \(yuc q15\)}}}/, /{{{yavs \(yuc q16\)}}}/,
+                /{{{yavd \(yuc q17\)}}}/, /{{{yavd \(yuc q18\)}}}/, /{{{yavs \(yuc q19\)}}}/,
+                /{{{yavs \(yuc q20\)}}}/, /{{{yavu \(yuc q21\)}}}/, /{{{yavu \(yuc q22\)}}}/,
+                /{{{yavu \(yuc q22\)}}}/, /{{{yavu \(yuc q23\)}}}/, /{{{yavu \(yuc q24\)}}}/,
+                /{{{yavu \(yuc q25\)}}}/,
+                // test against double quoted, single quoted and unquoted URL hash in attribute href
+                /{{{yavd \(yuc hash11\)}}}/, /{{{yavs \(yuc hash12\)}}}/, /{{{yavd \(yuc hash13\)}}}/,
+                /{{{yavs \(yuc hash14\)}}}/, /{{{yavu \(yuc hash15\)}}}/, /{{{yavu \(yuc hash16\)}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 003 - add href filters to <form> test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_003.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yubl \(yavd \(yufull url11\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavs \(yufull url12\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavd \(yufull url13\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavs \(yufull url14\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavu \(yufull url15\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavu \(yufull url16\)\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu path11\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu path12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu path13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu path14\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu path15\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu path16\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu kv11\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu kv12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu kv13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu kv14\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu kv15\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu kv16\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q11\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q14\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q15\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q16\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q17\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q18\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q19\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q20\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q21\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q22\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q23\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q24\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q25\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc hash11\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc hash12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc hash13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc hash14\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc hash15\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc hash16\)}}}/);
+            var arr = [ 
+                // test against double quoted, single quoted and unquoted URL in attribute form's action 
+                /{{{yubl \(yavd \(yufull url11\)\)}}}/, /{{{yubl \(yavs \(yufull url12\)\)}}}/, /{{{yubl \(yavd \(yufull url13\)\)}}}/,
+                /{{{yubl \(yavs \(yufull url14\)\)}}}/, /{{{yubl \(yavu \(yufull url15\)\)}}}/, /{{{yubl \(yavu \(yufull url16\)\)}}}/,
+                // test against double quoted, single quoted and unquoted URL Path in attribute form's action 
+                /{{{yavd \(yu path11\)}}}/, /{{{yavs \(yu path12\)}}}/, /{{{yavd \(yu path13\)}}}/,
+                /{{{yavs \(yu path14\)}}}/, /{{{yavu \(yu path15\)}}}/, /{{{yavu \(yu path16\)}}}/,
+                // test against double quoted, single quoted and unquoted after URL ? in attribute form's action
+                /{{{yavd \(yu kv11\)}}}/, /{{{yavs \(yu kv12\)}}}/, /{{{yavd \(yu kv13\)}}}/,
+                /{{{yavs \(yu kv14\)}}}/, /{{{yavu \(yu kv15\)}}}/, /{{{yavu \(yu kv16\)}}}/,
+                // test against double quoted, single quoted and unquoted URL query string in attribute form's action
+                /{{{yavd \(yuc q11\)}}}/, /{{{yavd \(yuc q12\)}}}/, /{{{yavd \(yuc q13\)}}}/,
+                /{{{yavs \(yuc q14\)}}}/, /{{{yavs \(yuc q15\)}}}/, /{{{yavs \(yuc q16\)}}}/,
+                /{{{yavd \(yuc q17\)}}}/, /{{{yavd \(yuc q18\)}}}/, /{{{yavs \(yuc q19\)}}}/,
+                /{{{yavs \(yuc q20\)}}}/, /{{{yavu \(yuc q21\)}}}/, /{{{yavu \(yuc q22\)}}}/,
+                /{{{yavu \(yuc q22\)}}}/, /{{{yavu \(yuc q23\)}}}/, /{{{yavu \(yuc q24\)}}}/,
+                /{{{yavu \(yuc q25\)}}}/,
+                // test against double quoted, single quoted and unquoted URL hash in attribute form's action
+                /{{{yavd \(yuc hash11\)}}}/, /{{{yavs \(yuc hash12\)}}}/, /{{{yavd \(yuc hash13\)}}}/,
+                /{{{yavs \(yuc hash14\)}}}/, /{{{yavu \(yuc hash15\)}}}/, /{{{yavu \(yuc hash16\)}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 004 - add href filters to <img> test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_004.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yubl \(yavd \(yufull url11\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavs \(yufull url12\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavd \(yufull url13\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavs \(yufull url14\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavu \(yufull url15\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavu \(yufull url16\)\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu path11\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu path12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu path13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu path14\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu path15\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu path16\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu kv11\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu kv12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu kv13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu kv14\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu kv15\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu kv16\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q11\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q14\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q15\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q16\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q17\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q18\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q19\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q20\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q21\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q22\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q23\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q24\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q25\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc hash11\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc hash12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc hash13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc hash14\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc hash15\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc hash16\)}}}/);
+            var arr = [ 
+                // test against double quoted, single quoted and unquoted URL in attribute img's src
+                /{{{yubl \(yavd \(yufull url11\)\)}}}/, /{{{yubl \(yavs \(yufull url12\)\)}}}/, /{{{yubl \(yavd \(yufull url13\)\)}}}/,
+                /{{{yubl \(yavs \(yufull url14\)\)}}}/, /{{{yubl \(yavu \(yufull url15\)\)}}}/, /{{{yubl \(yavu \(yufull url16\)\)}}}/,
+                // test against double quoted, single quoted and unquoted URL Path in attribute img's src
+                /{{{yavd \(yu path11\)}}}/, /{{{yavs \(yu path12\)}}}/, /{{{yavd \(yu path13\)}}}/,
+                /{{{yavs \(yu path14\)}}}/, /{{{yavu \(yu path15\)}}}/, /{{{yavu \(yu path16\)}}}/,
+                // test against double quoted, single quoted and unquoted after URL ? in attribute img's src
+                /{{{yavd \(yu kv11\)}}}/, /{{{yavs \(yu kv12\)}}}/, /{{{yavd \(yu kv13\)}}}/,
+                /{{{yavs \(yu kv14\)}}}/, /{{{yavu \(yu kv15\)}}}/, /{{{yavu \(yu kv16\)}}}/,
+                // test against double quoted, single quoted and unquoted URL query string in attribute img's src
+                /{{{yavd \(yuc q11\)}}}/, /{{{yavd \(yuc q12\)}}}/, /{{{yavd \(yuc q13\)}}}/,
+                /{{{yavs \(yuc q14\)}}}/, /{{{yavs \(yuc q15\)}}}/, /{{{yavs \(yuc q16\)}}}/,
+                /{{{yavd \(yuc q17\)}}}/, /{{{yavd \(yuc q18\)}}}/, /{{{yavs \(yuc q19\)}}}/,
+                /{{{yavs \(yuc q20\)}}}/, /{{{yavu \(yuc q21\)}}}/, /{{{yavu \(yuc q22\)}}}/,
+                /{{{yavu \(yuc q22\)}}}/, /{{{yavu \(yuc q23\)}}}/, /{{{yavu \(yuc q24\)}}}/,
+                /{{{yavu \(yuc q25\)}}}/,
+                // test against double quoted, single quoted and unquoted URL hash in attribute img's src
+                /{{{yavd \(yuc hash11\)}}}/, /{{{yavs \(yuc hash12\)}}}/, /{{{yavd \(yuc hash13\)}}}/,
+                /{{{yavs \(yuc hash14\)}}}/, /{{{yavu \(yuc hash15\)}}}/, /{{{yavu \(yuc hash16\)}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 005 - add href filters to <button formaction> test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_005.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yubl \(yavd \(yufull url11\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavs \(yufull url12\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavd \(yufull url13\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavs \(yufull url14\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavu \(yufull url15\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavu \(yufull url16\)\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu path11\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu path12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu path13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu path14\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu path15\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu path16\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu kv11\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu kv12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yu kv13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yu kv14\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu kv15\)}}}/);
-            expect(data).to.match(/{{{yavu \(yu kv16\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q11\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q14\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q15\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q16\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q17\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc q18\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q19\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc q20\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q21\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q22\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q23\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q24\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc q25\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc hash11\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc hash12\)}}}/);
-            expect(data).to.match(/{{{yavd \(yuc hash13\)}}}/);
-            expect(data).to.match(/{{{yavs \(yuc hash14\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc hash15\)}}}/);
-            expect(data).to.match(/{{{yavu \(yuc hash16\)}}}/);
+            var arr = [ 
+                // test against double quoted, single quoted and unquoted URL in attribute button's formaction 
+                /{{{yubl \(yavd \(yufull url11\)\)}}}/, /{{{yubl \(yavs \(yufull url12\)\)}}}/, /{{{yubl \(yavd \(yufull url13\)\)}}}/,
+                /{{{yubl \(yavs \(yufull url14\)\)}}}/, /{{{yubl \(yavu \(yufull url15\)\)}}}/, /{{{yubl \(yavu \(yufull url16\)\)}}}/,
+                // test against double quoted, single quoted and unquoted URL Path in attribute button's formaction
+                /{{{yavd \(yu path11\)}}}/, /{{{yavs \(yu path12\)}}}/, /{{{yavd \(yu path13\)}}}/,
+                /{{{yavs \(yu path14\)}}}/, /{{{yavu \(yu path15\)}}}/, /{{{yavu \(yu path16\)}}}/,
+                // test against double quoted, single quoted and unquoted after URL ? in attribute button's formaction
+                /{{{yavd \(yu kv11\)}}}/, /{{{yavs \(yu kv12\)}}}/, /{{{yavd \(yu kv13\)}}}/,
+                /{{{yavs \(yu kv14\)}}}/, /{{{yavu \(yu kv15\)}}}/, /{{{yavu \(yu kv16\)}}}/,
+                // test against double quoted, single quoted and unquoted URL query string in attribute button's formaction
+                /{{{yavd \(yuc q11\)}}}/, /{{{yavd \(yuc q12\)}}}/, /{{{yavd \(yuc q13\)}}}/,
+                /{{{yavs \(yuc q14\)}}}/, /{{{yavs \(yuc q15\)}}}/, /{{{yavs \(yuc q16\)}}}/,
+                /{{{yavd \(yuc q17\)}}}/, /{{{yavd \(yuc q18\)}}}/, /{{{yavs \(yuc q19\)}}}/,
+                /{{{yavs \(yuc q20\)}}}/, /{{{yavu \(yuc q21\)}}}/, /{{{yavu \(yuc q22\)}}}/,
+                /{{{yavu \(yuc q22\)}}}/, /{{{yavu \(yuc q23\)}}}/, /{{{yavu \(yuc q24\)}}}/,
+                /{{{yavu \(yuc q25\)}}}/,
+                // test against double quoted, single quoted and unquoted URL hash in attribute button's formaction
+                /{{{yavd \(yuc hash11\)}}}/, /{{{yavs \(yuc hash12\)}}}/, /{{{yavd \(yuc hash13\)}}}/,
+                /{{{yavs \(yuc hash14\)}}}/, /{{{yavu \(yuc hash15\)}}}/, /{{{yavu \(yuc hash16\)}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
-        it("Filter 006 - add style filters test", function() {
+        it("Filter 006 - add y filters to style attribute test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_006.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{y color11}}}/);
-            expect(data).to.match(/{{{y color12}}}/);
-            expect(data).to.match(/{{{y color21}}}/);
-            expect(data).to.match(/{{{y color22}}}/);
-            expect(data).to.match(/{{{y color31}}}/);
-            expect(data).to.match(/{{{y color32}}}/);
-            expect(data).to.match(/{{{y color41}}}/);
-            expect(data).to.match(/{{{y color42}}}/);
-            expect(data).to.match(/{{{y color43}}}/);
-            expect(data).to.match(/{{{y color5}}}/);
-            expect(data).to.match(/{{{y color6}}}/);
-            expect(data).to.match(/{{{y color7}}}/);
-            expect(data).to.match(/{{{y bgcolor1}}}/);
-            expect(data).to.match(/{{{y bgcolor2}}}/);
-            expect(data).to.match(/{{{y bgcolor3}}}/);
-            expect(data).to.match(/{{{y bgcolor5}}}/);
-            expect(data).to.match(/{{{y bgcolor6}}}/);
-            expect(data).to.match(/{{{y bgcolor7}}}/);
+            var arr = [
+                // double quoted
+                /{{{y color11}}}/, /{{{y color12}}}/, /{{{y bgcolor1}}}/, /{{{y color41}}}/,
+                /{{{y color5}}}/, /{{{y bgcolor5}}}/,
+                // single quoted
+                /{{{y color21}}}/, /{{{y color22}}}/, /{{{y bgcolor2}}}/, /{{{y color42}}}/,
+                /{{{y color6}}}/, /{{{y bgcolor6}}}/,
+                // unquoted
+                /{{{y color31}}}/, /{{{y color32}}}/, /{{{y bgcolor3}}}/, /{{{y color43}}}/,
+                /{{{y color7}}}/, /{{{y bgcolor7}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
-        it("Filter 007 - add ycss_quoted and ycss_unquoted filters test", function() {
+        it("Filter 007 - add y filters to style attribute test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_007.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{y style1}}}/);
-            expect(data).to.match(/{{{y style2}}}/);
-            expect(data).to.match(/{{{y style3}}}/);
-            expect(data).to.match(/{{{y style4}}}/);
-            expect(data).to.match(/{{{y style5}}}/);
-            expect(data).to.match(/{{{y style6}}}/);
+            var arr = [
+                // double quoted
+                /{{{y style1}}}/, /{{{y style4}}}/,
+                // single quoted
+                /{{{y style2}}}/, /{{{y style5}}}/,
+                // unquoted
+                /{{{y style3}}}/, /{{{y style6}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 008 - add y filters to <script> tag test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_008.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{y arg11}}}/);
-            expect(data).to.match(/{{{y arg12}}}/);
-            expect(data).to.match(/{{{y arg13}}}/);
+            var arr = [
+                // single quoted
+                /{{{y arg11}}}/,
+                // double quoted
+                /{{{y arg12}}}/,
+                // unquoted
+                /{{{y arg13}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
-        it("Filter 009 - add yav_xxx filters test", function() {
+        it("Filter 009 - add yavX filters to class attribute test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_009.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yavd class1}}}/);
-            expect(data).to.match(/{{{yavs class2}}}/);
-            expect(data).to.match(/{{{yavu class3}}}/);
-            expect(data).to.match(/{{{yavd class4}}}/);
-            expect(data).to.match(/{{{yavs class5}}}/);
-            expect(data).to.match(/{{{yavu class6}}}/);
-            expect(data).to.match(/{{{yavu class7}}}/);
+            var arr = [
+                // double quoted
+                /{{{yavd class1}}}/, /{{{yavd class4}}}/,
+                // single quoted
+                /{{{yavs class2}}}/, /{{{yavs class5}}}/,
+                // unquoted
+                /{{{yavu class3}}}/, /{{{yavu class6}}}/, /{{{yavu class7}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 010 - add yavu filters to border test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_010.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yavu border}}}/);
+            var arr = [
+                /{{{yavu border}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 011 - add y filter to onclick test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_011.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{y arg1}}}/);
-            expect(data).to.match(/{{{y arg2}}}/);
-            expect(data).to.match(/{{{y arg3}}}/);
-            expect(data).to.match(/{{{y arg4}}}/);
-            expect(data).to.match(/{{{y arg5}}}/);
-            expect(data).to.match(/{{{y arg6}}}/);
-            expect(data).to.match(/{{{y arg7}}}/);
-            expect(data).to.match(/{{{y arg8}}}/);
-            expect(data).to.match(/{{{y arg9}}}/);
+            var arr = [
+                // double quoted
+                /{{{y arg1}}}/, /{{{y arg4}}}/,
+                // single quoted
+                /{{{y arg2}}}/, /{{{y arg5}}}/,
+                // unquoted
+                /{{{y arg3}}}/, /{{{y arg6}}}/,
+                // double/single/unqouted line break 
+                /{{{y arg7}}}/, /{{{y arg8}}}/, /{{{y arg9}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 012 - add y filters to onclick test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_012.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{y arg1}}}/);
-            expect(data).to.match(/{{{y arg2}}}/);
-            expect(data).to.match(/{{{y arg3}}}/);
-            expect(data).to.match(/{{{y arg4}}}/);
-            expect(data).to.match(/{{{y arg5}}}/);
-            expect(data).to.match(/{{{y arg6}}}/);
-            expect(data).to.match(/{{{y arg7}}}/);
-            expect(data).to.match(/{{{y arg8}}}/);
-            expect(data).to.match(/{{{y arg9}}}/);
-            expect(data).to.match(/{{{y arg10}}}/);
-            expect(data).to.match(/{{{y arg11}}}/);
-            expect(data).to.match(/{{{y arg12}}}/);
-            expect(data).to.match(/{{{y arg13}}}/);
-            expect(data).to.match(/{{{y arg14}}}/);
-            expect(data).to.match(/{{{y arg15}}}/);
-            expect(data).to.match(/{{{y arg16}}}/);
-            expect(data).to.match(/{{{y arg17}}}/);
-            expect(data).to.match(/{{{y arg18}}}/);
-            expect(data).to.match(/{{{y arg19}}}/);
-            expect(data).to.match(/{{{y arg20}}}/);
-            expect(data).to.match(/{{{y arg21}}}/);
-            expect(data).to.match(/{{{y arg22}}}/);
-            expect(data).to.match(/{{{y arg23}}}/);
-            expect(data).to.match(/{{{y arg24}}}/);
-            expect(data).to.match(/{{{y arg25}}}/);
-            expect(data).to.match(/{{{y arg26}}}/);
-            expect(data).to.match(/{{{y arg27}}}/);
+            var arr = [
+                // double quoted with parameter unquoted
+                /{{{y arg1}}}/, /{{{y arg2}}}/, /{{{y arg3}}}/, /{{{y arg4}}}/, /{{{y arg5}}}/, /{{{y arg6}}}/, /{{{y arg7}}}/, /{{{y arg8}}}/, /{{{y arg9}}}/,
+                // single quoted with parameter unquoted
+                /{{{y arg10}}}/, /{{{y arg11}}}/, /{{{y arg12}}}/, /{{{y arg13}}}/, /{{{y arg14}}}/, /{{{y arg15}}}/, /{{{y arg16}}}/, /{{{y arg17}}}/, /{{{y arg18}}}/,
+                // unquoted with parameter unquoted
+                /{{{y arg19}}}/, /{{{y arg20}}}/, /{{{y arg21}}}/, /{{{y arg22}}}/, /{{{y arg23}}}/, /{{{y arg24}}}/, /{{{y arg25}}}/, /{{{y arg26}}}/, /{{{y arg27}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 013 - add y filters to quoted onclick test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_013.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-
-            expect(data).to.match(/{{{y arg10}}}/);
-            expect(data).to.match(/{{{y arg11}}}/);
-            expect(data).to.match(/{{{y arg12}}}/);
-            expect(data).to.match(/{{{y arg13}}}/);
-            expect(data).to.match(/{{{y arg14}}}/);
-            expect(data).to.match(/{{{y arg15}}}/);
-            expect(data).to.match(/{{{y arg16}}}/);
-            expect(data).to.match(/{{{y arg17}}}/);
-            expect(data).to.match(/{{{y arg18}}}/);
-            expect(data).to.match(/{{{y arg19}}}/);
-
-            expect(data).to.match(/{{{y arg20}}}/);
-            expect(data).to.match(/{{{y arg21}}}/);
-            expect(data).to.match(/{{{y arg22}}}/);
-            expect(data).to.match(/{{{y arg23}}}/);
-            expect(data).to.match(/{{{y arg24}}}/);
-            expect(data).to.match(/{{{y arg25}}}/);
-            expect(data).to.match(/{{{y arg26}}}/);
-            expect(data).to.match(/{{{y arg27}}}/);
-            expect(data).to.match(/{{{y arg28}}}/);
-            expect(data).to.match(/{{{y arg29}}}/);
-
-            expect(data).to.match(/{{{y arg30}}}/);
-            expect(data).to.match(/{{{y arg31}}}/);
-            expect(data).to.match(/{{{y arg32}}}/);
-            expect(data).to.match(/{{{y arg33}}}/);
-            expect(data).to.match(/{{{y arg34}}}/);
-            expect(data).to.match(/{{{y arg35}}}/);
-
-            expect(data).to.match(/{{{y arg36}}}/);
-            expect(data).to.match(/{{{y arg37}}}/);
-            expect(data).to.match(/{{{y arg38}}}/);
-            expect(data).to.match(/{{{y arg39}}}/);
-
-            expect(data).to.match(/{{{y arg40}}}/);
-            expect(data).to.match(/{{{y arg41}}}/);
-            expect(data).to.match(/{{{y arg42}}}/);
-            expect(data).to.match(/{{{y arg43}}}/);
-            expect(data).to.match(/{{{y arg44}}}/);
-            expect(data).to.match(/{{{y arg45}}}/);
+            var arr = [
+                // double quoted with parameter unquoted
+                /{{{y arg10}}}/, /{{{y arg11}}}/, /{{{y arg12}}}/,
+                // single quoted with parameter unquoted
+                /{{{y arg13}}}/, /{{{y arg14}}}/, /{{{y arg15}}}/,
+                // double quoted with parameter unquoted (with space)
+                /{{{y arg16}}}/, /{{{y arg17}}}/,
+                // single quoted with parameter unquoted (with space)
+                /{{{y arg18}}}/, /{{{y arg19}}}/,
+                // double quoted with parameter quoted
+                /{{{y arg20}}}/, /{{{y arg21}}}/, /{{{y arg22}}}/,
+                // single quoted with parameter quoted
+                /{{{y arg23}}}/, /{{{y arg24}}}/, /{{{y arg25}}}/,
+                // double quoted with parameter quoted (with space)
+                /{{{y arg26}}}/, /{{{y arg27}}}/,
+                // single quoted with parameter quoted (with space)
+                /{{{y arg28}}}/, /{{{y arg29}}}/,
+                // double quoted with parameter slash quoted
+                /{{{y arg30}}}/, /{{{y arg31}}}/, /{{{y arg32}}}/,
+                // single quoted with parameter slash quoted
+                /{{{y arg33}}}/, /{{{y arg34}}}/, /{{{y arg35}}}/,
+                // double quoted with parameter slash quoted (with space)
+                /{{{y arg36}}}/, /{{{y arg37}}}/,
+                // single quoted with parameter slash quoted (with space)
+                /{{{y arg38}}}/, /{{{y arg39}}}/,
+                // double quoted 
+                /{{{y arg40}}}/, /{{{y arg43}}}/,
+                // single quoted 
+                /{{{y arg41}}}/, /{{{y arg44}}}/,
+                // unquoted 
+                /{{{y arg42}}}/, /{{{y arg45}}}/,
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 014 - add y filters unquoted onclick test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_014.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{y arg10}}}/);
-            expect(data).to.match(/{{{y arg11}}}/);
-            expect(data).to.match(/{{{y arg12}}}/);
-            expect(data).to.match(/{{{y arg13}}}/);
-            expect(data).to.match(/{{{y arg14}}}/);
-
-            expect(data).to.match(/{{{y arg20}}}/);
-            expect(data).to.match(/{{{y arg21}}}/);
-            expect(data).to.match(/{{{y arg22}}}/);
-            expect(data).to.match(/{{{y arg23}}}/);
-            expect(data).to.match(/{{{y arg24}}}/);
-            expect(data).to.match(/{{{y arg25}}}/);
-            expect(data).to.match(/{{{y arg26}}}/);
+            var arr = [
+                // unquoted with parameter unquoted
+                /{{{y arg10}}}/, /{{{y arg11}}}/, /{{{y arg12}}}/, /{{{y arg13}}}/, /{{{y arg14}}}/,
+                // unquoted with parameter single / double quoted
+                /{{{y arg20}}}/, /{{{y arg21}}}/, /{{{y arg22}}}/, 
+                // unquoted with parameter single quoted
+                /{{{y arg23}}}/, /{{{y arg24}}}/,
+                // unquoted with parameter double quoted
+                /{{{y arg25}}}/, /{{{y arg26}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 015 - add y filters to <script> block", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_015.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{y value1}}}/);
-            expect(data).to.match(/{{{y value2}}}/);
-            expect(data).to.match(/{{{y value3}}}/);
+            var arr = [
+                // double quoted
+                /{{{y value1}}}/, 
+                // single quoted
+                /{{{y value2}}}/, 
+                // unquoted
+                /{{{y value3}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 016 - add y filter to <style> block", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_016.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{y fontsize}}}/);
+            var arr = [
+                /{{{y fontsize}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 018 - add y filters to quoted href test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_018.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-
-            expect(data).to.match(/{{{y arg10}}}/);
-            expect(data).to.match(/{{{y arg11}}}/);
-            expect(data).to.match(/{{{y arg12}}}/);
-            expect(data).to.match(/{{{y arg13}}}/);
-            expect(data).to.match(/{{{y arg14}}}/);
-            expect(data).to.match(/{{{y arg15}}}/);
-            expect(data).to.match(/{{{y arg16}}}/);
-            expect(data).to.match(/{{{y arg17}}}/);
-            expect(data).to.match(/{{{y arg18}}}/);
-            expect(data).to.match(/{{{y arg19}}}/);
-
-            expect(data).to.match(/{{{y arg20}}}/);
-            expect(data).to.match(/{{{y arg21}}}/);
-            expect(data).to.match(/{{{y arg22}}}/);
-            expect(data).to.match(/{{{y arg23}}}/);
-            expect(data).to.match(/{{{y arg24}}}/);
-            expect(data).to.match(/{{{y arg25}}}/);
-            expect(data).to.match(/{{{y arg26}}}/);
-            expect(data).to.match(/{{{y arg27}}}/);
-            expect(data).to.match(/{{{y arg28}}}/);
-            expect(data).to.match(/{{{y arg29}}}/);
-
-            expect(data).to.match(/{{{y arg30}}}/);
-            expect(data).to.match(/{{{y arg31}}}/);
-            expect(data).to.match(/{{{y arg32}}}/);
-            expect(data).to.match(/{{{y arg33}}}/);
-            expect(data).to.match(/{{{y arg34}}}/);
-            expect(data).to.match(/{{{y arg35}}}/);
-
-            expect(data).to.match(/{{{y arg36}}}/);
-            expect(data).to.match(/{{{y arg37}}}/);
-            expect(data).to.match(/{{{y arg38}}}/);
-            expect(data).to.match(/{{{y arg39}}}/);
-
-            expect(data).to.match(/{{{y vbarg10}}}/);
-            expect(data).to.match(/{{{y vbarg11}}}/);
-            expect(data).to.match(/{{{y vbarg12}}}/);
-            expect(data).to.match(/{{{y vbarg13}}}/);
-            expect(data).to.match(/{{{y vbarg14}}}/);
-            expect(data).to.match(/{{{y vbarg15}}}/);
-            expect(data).to.match(/{{{y vbarg16}}}/);
-            expect(data).to.match(/{{{y vbarg17}}}/);
-            expect(data).to.match(/{{{y vbarg18}}}/);
-            expect(data).to.match(/{{{y vbarg19}}}/);
-
-            expect(data).to.match(/{{{y vbarg20}}}/);
-            expect(data).to.match(/{{{y vbarg21}}}/);
-            expect(data).to.match(/{{{y vbarg22}}}/);
-            expect(data).to.match(/{{{y vbarg23}}}/);
-            expect(data).to.match(/{{{y vbarg24}}}/);
-            expect(data).to.match(/{{{y vbarg25}}}/);
-            expect(data).to.match(/{{{y vbarg26}}}/);
-            expect(data).to.match(/{{{y vbarg27}}}/);
-            expect(data).to.match(/{{{y vbarg28}}}/);
-            expect(data).to.match(/{{{y vbarg29}}}/);
-
-            expect(data).to.match(/{{{y vbarg30}}}/);
-            expect(data).to.match(/{{{y vbarg31}}}/);
-            expect(data).to.match(/{{{y vbarg32}}}/);
-            expect(data).to.match(/{{{y vbarg33}}}/);
-            expect(data).to.match(/{{{y vbarg34}}}/);
-            expect(data).to.match(/{{{y vbarg35}}}/);
-
-            expect(data).to.match(/{{{y vbarg36}}}/);
-            expect(data).to.match(/{{{y vbarg37}}}/);
-            expect(data).to.match(/{{{y vbarg38}}}/);
-            expect(data).to.match(/{{{y vbarg39}}}/);
-
-            expect(data).to.match(/{{{yubl \(yavd \(yufull arg40\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavs \(yufull arg41\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavu \(yufull arg42\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavd \(yufull arg43\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavs \(yufull arg44\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavu \(yufull arg45\)\)}}}/);
+            var arr = [
+                // double quoted with parameter unquoted
+                /{{{y arg10}}}/, /{{{y arg11}}}/, /{{{y arg12}}}/,
+                // single quoted with parameter unquoted
+                /{{{y arg13}}}/, /{{{y arg14}}}/, /{{{y arg15}}}/,
+                // double quoted with parameter unquoted (with space)
+                /{{{y arg16}}}/, /{{{y arg17}}}/,
+                // single quoted with parameter unquoted (with space)
+                /{{{y arg18}}}/, /{{{y arg19}}}/,
+                // double quoted with parameter quoted
+                /{{{y arg20}}}/, /{{{y arg21}}}/, /{{{y arg22}}}/,
+                // single quoted with parameter quoted
+                /{{{y arg23}}}/, /{{{y arg24}}}/, /{{{y arg25}}}/,
+                // double quoted with parameter quoted (with space)
+                /{{{y arg26}}}/, /{{{y arg27}}}/,
+                // single quoted with parameter quoted (with space)
+                /{{{y arg28}}}/, /{{{y arg29}}}/,
+                // double quoted with parameter slash quoted
+                /{{{y arg30}}}/, /{{{y arg31}}}/, /{{{y arg32}}}/,
+                // single quoted with parameter slash quoted
+                /{{{y arg33}}}/, /{{{y arg34}}}/, /{{{y arg35}}}/,
+                // double quoted with parameter slash quoted (with space)
+                /{{{y arg36}}}/, /{{{y arg37}}}/,
+                // single quoted with parameter slash quoted (with space)
+                /{{{y arg38}}}/, /{{{y arg39}}}/,
+                // double quoted with parameter unquoted
+                /{{{y vbarg10}}}/, /{{{y vbarg11}}}/, /{{{y vbarg12}}}/,
+                // single quoted with parameter unquoted
+                /{{{y vbarg13}}}/, /{{{y vbarg14}}}/, /{{{y vbarg15}}}/,
+                // double quoted with parameter unquoted (with space)
+                /{{{y vbarg16}}}/, /{{{y vbarg17}}}/,
+                // single quoted with parameter unquoted (with space)
+                /{{{y vbarg18}}}/, /{{{y vbarg19}}}/,
+                // double quoted with parameter quoted
+                /{{{y vbarg20}}}/, /{{{y vbarg21}}}/, /{{{y vbarg22}}}/,
+                // single quoted with parameter quoted
+                /{{{y vbarg23}}}/, /{{{y vbarg24}}}/, /{{{y vbarg25}}}/,
+                // double quoted with parameter quoted (with space)
+                /{{{y vbarg26}}}/, /{{{y vbarg27}}}/,
+                // single quoted with parameter quoted (with space)
+                /{{{y vbarg28}}}/, /{{{y vbarg29}}}/,
+                // double quoted with parameter slash quoted
+                /{{{y vbarg30}}}/, /{{{y vbarg31}}}/, /{{{y vbarg32}}}/,
+                // single quoted with parameter slash quoted
+                /{{{y vbarg33}}}/, /{{{y vbarg34}}}/, /{{{y vbarg35}}}/,
+                // double quoted with parameter slash quoted (with space)
+                /{{{y vbarg36}}}/, /{{{y vbarg37}}}/,
+                // single quoted with parameter slash quoted (with space)
+                /{{{y vbarg38}}}/, /{{{y vbarg39}}}/,
+                // double quoted
+                /{{{yubl \(yavd \(yufull arg40\)\)}}}/, /{{{yubl \(yavd \(yufull arg43\)\)}}}/,
+                // single quoted
+                /{{{yubl \(yavs \(yufull arg41\)\)}}}/, /{{{yubl \(yavs \(yufull arg44\)\)}}}/,
+                // unquoted
+                /{{{yubl \(yavu \(yufull arg42\)\)}}}/, /{{{yubl \(yavu \(yufull arg45\)\)}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 019 - add y filters unquoted href test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_019.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{y arg10}}}/);
-            expect(data).to.match(/{{{y arg11}}}/);
-            expect(data).to.match(/{{{y arg12}}}/);
-            expect(data).to.match(/{{{y arg13}}}/);
-            expect(data).to.match(/{{{y arg14}}}/);
-
-            expect(data).to.match(/{{{y arg20}}}/);
-            expect(data).to.match(/{{{y arg21}}}/);
-            expect(data).to.match(/{{{y arg22}}}/);
-            expect(data).to.match(/{{{y arg23}}}/);
-            expect(data).to.match(/{{{y arg24}}}/);
-            expect(data).to.match(/{{{y arg25}}}/);
-            expect(data).to.match(/{{{y arg26}}}/);
-
-            expect(data).to.match(/{{{y vbarg10}}}/);
-            expect(data).to.match(/{{{y vbarg11}}}/);
-            expect(data).to.match(/{{{y vbarg12}}}/);
-            expect(data).to.match(/{{{y vbarg13}}}/);
-            expect(data).to.match(/{{{y vbarg14}}}/);
-
-            expect(data).to.match(/{{{y vbarg20}}}/);
-            expect(data).to.match(/{{{y vbarg21}}}/);
-            expect(data).to.match(/{{{y vbarg22}}}/);
-            expect(data).to.match(/{{{y vbarg23}}}/);
-            expect(data).to.match(/{{{y vbarg24}}}/);
-            expect(data).to.match(/{{{y vbarg25}}}/);
-            expect(data).to.match(/{{{y vbarg26}}}/);
+            var arr = [
+                // unquoted with parameter unquoted
+                /{{{y arg10}}}/, /{{{y arg11}}}/, /{{{y arg12}}}/, /{{{y arg13}}}/, /{{{y arg14}}}/,
+                // unquoted with parameter double / single unquoted
+                /{{{y arg20}}}/, /{{{y arg21}}}/, /{{{y arg22}}}/, /{{{y arg23}}}/, /{{{y arg24}}}/, /{{{y arg25}}}/, /{{{y arg26}}}/,
+                // unquoted with parameter unquoted (vbscript)
+                /{{{y vbarg10}}}/, /{{{y vbarg11}}}/, /{{{y vbarg12}}}/, /{{{y vbarg13}}}/, /{{{y vbarg14}}}/,
+                // unquoted with parameter double / single unquoted (vbscript)
+                /{{{y vbarg20}}}/, /{{{y vbarg21}}}/, /{{{y vbarg22}}}/, /{{{y vbarg23}}}/, /{{{y vbarg24}}}/, /{{{y vbarg25}}}/, /{{{y vbarg26}}}/,
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter 020 - add yd filters to RCDATA test", function() {
             var file = "./tests/samples/files/handlebarsjs_filter_020.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yd title}}}/);
+            var arr = [
+                /{{{yd title}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Filter - subexpression format test", function() {
@@ -515,14 +413,19 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var data = "<html><title>{{title}}</title></html>";
             t1.contextualize(data);
             var output = t1.getBuffer().join('');
-            expect(output).to.match(/{{{yd title}}}/);
+            var arr = [
+                /{{{yd title}}}/
+            ];
+            utils.testArrMatch(output, arr);
 
             var t2 = new ContextParserHandlebars(false);
             var data = "<a href='{{url}}'>link</a>";
             t2.contextualize(data);
             var output = t2.getBuffer().join('');
-            expect(output).to.match(/{{{yubl \(yavs \(yufull url\)\)}}}/);
+            var arr = [
+                /{{{yubl \(yavs \(yufull url\)\)}}}/
+            ];
+            utils.testArrMatch(output, arr);
         });
     });
-
 }());

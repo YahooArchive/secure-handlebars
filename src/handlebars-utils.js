@@ -19,7 +19,7 @@ var debugBranch = require('debug')('cph-branching');
 */
 var HandlebarsUtils = {};
 
-/* vanillia Handlebars */
+/* vanilla Handlebars */
 var Handlebars = require("handlebars");
 
 /**
@@ -46,18 +46,21 @@ HandlebarsUtils.generateNonce = function() {
 };
 
 /* type of expression */
-HandlebarsUtils.NOT_EXPRESSION 		= 0;
-HandlebarsUtils.ESCAPE_EXPRESSION 	= 1;
-HandlebarsUtils.RAW_EXPRESSION 		= 2;
+HandlebarsUtils.NOT_EXPRESSION = 0;
+HandlebarsUtils.ESCAPE_EXPRESSION = 1;
+HandlebarsUtils.RAW_EXPRESSION = 2;
 
 /* RegExp to match expression */
-HandlebarsUtils.escapeExpressionRegExp 	  = /^\{\{[^\}\{]+?\}\}(?!})/;
-HandlebarsUtils.rawExpressionRegExp 	  = /^\{\{\{[^\}\{]+?\}\}\}(?!})/;
+/* '{{' 'non-{,non-}'+ '}}' and not follow by '}' */
+HandlebarsUtils.escapeExpressionRegExp = /^\{\{[^\}\{]+?\}\}(?!})/;
+/* '{{{' 'non-{,non-}'+ '}}}' and not follow by '}' */
+HandlebarsUtils.rawExpressionRegExp = /^\{\{\{[^\}\{]+?\}\}\}(?!})/;
 /* '{{' '# or ^' 'space'* 'non-space,non-},non-{'+ first-'space or }' */
-HandlebarsUtils.branchExpressionRegExp 	  = /^\{\{[#|\\^]\s*([^\s\}\{]+)?[\s\}]/;
+HandlebarsUtils.branchExpressionRegExp = /^\{\{[#|\\^]\s*([^\s\}\{]+)?[\s\}]/;
 /* '{{' '/' 'space'* 'non-space,non-},non-{'+ first-'space or }' */
 HandlebarsUtils.branchEndExpressionRegExp = /^\{\{\/\s*([^\s\}\{]+)?[\s\}]/;
-HandlebarsUtils.elseExpressionRegExp      = /^\{\{\s*else\s*?\}\}/;
+/* '{{' 'space'* 'else' 'space'* '}}' */
+HandlebarsUtils.elseExpressionRegExp = /^\{\{\s*else\s*?\}\}/;
 
 /**
 * @function HandlebarsUtils.isValidExpression

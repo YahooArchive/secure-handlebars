@@ -10,7 +10,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 (function () {
 
     require("mocha");
-    var assert = require("assert"),
+    var expect = require("chai").expect,
         Parser = require("context-parser").Parser;
 
     describe('HTML5 Context Parser html5 state test suite', function(){
@@ -28,7 +28,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 	    var html = '<div id="1" {';
             p1.contextualize(html);
             var states = p1.getStates();
-            assert.equal(states.toString(), '1,8,10,10,10,34,35,35,37,38,38,42,34,35');
+            expect(states.toString()).to.equal('1,8,10,10,10,34,35,35,37,38,38,42,34,35');
         });
 
         /* 
@@ -44,7 +44,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 	    var html = '<option value="1" selected {';
             p1.contextualize(html);
             var states = p1.getStates();
-            assert.equal(states.toString(), '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,42,34,35,35,35,35,35,35,35,35,36,35');
+            expect(states.toString()).to.equal('1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,42,34,35,35,35,35,35,35,35,35,36,35');
         });
 
         /* 
@@ -60,7 +60,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 	    var html = '<option value={';
             p1.contextualize(html);
             var states = p1.getStates();
-            assert.equal(states.toString(), '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,40');
+            expect(states.toString()).to.equal('1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,40');
         });
 
         /* 
@@ -76,7 +76,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 	    var html = '<option value="{';
             p1.contextualize(html);
             var states = p1.getStates();
-            assert.equal(states.toString(), '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38');
+            expect(states.toString()).to.equal('1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38');
         });
 
         /* 
@@ -92,7 +92,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 	    var html = '<option value=\'{';
             p1.contextualize(html);
             var states = p1.getStates();
-            assert.equal(states.toString(), '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,39,39');
+            expect(states.toString()).to.equal('1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,39,39');
         });
 
         /* 
@@ -109,7 +109,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 	    var html = '<div id="1"{';
             p1.contextualize(html);
             var states = p1.getStates();
-            assert.equal(states.toString(), '1,8,10,10,10,34,35,35,37,38,38,34,35');
+            expect(states.toString()).to.equal('1,8,10,10,10,34,35,35,37,38,38,34,35');
         });
 
     });
