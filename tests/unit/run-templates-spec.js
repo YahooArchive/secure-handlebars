@@ -9,82 +9,113 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 */
 (function () {
 
-    var mocha = require("mocha"),
-        fs = require('fs'),
-        expect = require('expect.js');
+    require("mocha");
+    var fs = require('fs'),
+        utils = require('../utils.js'),
+        expect = require('chai').expect;
 
     describe("Handlebars Context Parser template test suite", function() {
 
         it("Template 000 - basic {{expression}} test", function() {
             var file = "./tests/samples/files/handlebarsjs_template_000.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yd name}}}/);
+            var arr = [
+                /{{{yd name}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 001 - basic raw {{{expression}}} test", function() {
             var file = "./tests/samples/files/handlebarsjs_template_001.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{name}}}/);
+            var arr = [
+                /{{{name}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 002 - basic block {{#expression}} {{/expression}} test", function() {
             var file = "./tests/samples/files/handlebarsjs_template_002.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{#list people}}{{{yd firstName}}} {{{yd lastName}}}{{\/list}}/);
+            var arr = [
+                /{{#list people}}{{{yd firstName}}} {{{yd lastName}}}{{\/list}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 003 - {{ expression}} with space test", function() {
             var file = "./tests/samples/files/handlebarsjs_template_003.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yd  name}}}/);
+            var arr = [
+                /{{{yd  name}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 004 - broken open brace {  {expression}} test", function() {
             var file = "./tests/samples/files/handlebarsjs_template_004.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{  {name}}/);
+            var arr = [
+                /{  {name}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 005 - {{#with}} helper test", function() {
             var file = "./tests/samples/files/handlebarsjs_template_005.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{#with story}}/);
-            expect(data).to.match(/<div class="intro">{{{yd intro}}}<\/div>/);
-            expect(data).to.match(/<div class="body">{{{yd body}}}<\/div>/);
-            expect(data).to.match(/{{\/with}}/);
+            var arr = [
+                /{{#with story}}/,
+                /<div class="intro">{{{yd intro}}}<\/div>/,
+                /<div class="body">{{{yd body}}}<\/div>/,
+                /{{\/with}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 006 - {{#with}} helper with space test", function() {
             var file = "./tests/samples/files/handlebarsjs_template_006.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{#   with story}}/);
-            expect(data).to.match(/<div class="intro">{{{yd intro}}}<\/div>/);
-            expect(data).to.match(/<div class="body">{{{yd body}}}<\/div>/);
-            expect(data).to.match(/{{\/with}}/);
+            var arr = [
+                /{{#   with story}}/,
+                /<div class="intro">{{{yd intro}}}<\/div>/,
+                /<div class="body">{{{yd body}}}<\/div>/,
+                /{{\/with}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 007 - comment markup test", function() {
             var file = "./tests/samples/files/handlebarsjs_template_007.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{!--    comment1  --}}/);
-            expect(data).to.match(/{{!--    comment2  }}/);
-            expect(data).to.match(/{{! comment3 }}/);
+            var arr = [
+                /{{!--    comment1  --}}/,
+                /{{!--    comment2  }}/,
+                /{{! comment3 }}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 008 - {{>partial}} template test", function() {
             var file = "./tests/samples/files/handlebarsjs_template_008.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{>html_header}}/);
-            expect(data).to.match(/{{>header}}/);
-            expect(data).to.match(/{{>footer}}/);
-            expect(data).to.match(/{{>html_footer}}/);
+            var arr = [
+                /{{>html_header}}/,
+                /{{>header}}/,
+                /{{>footer}}/,
+                /{{>html_footer}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 009 - subexpression test", function() {
             var file = "./tests/samples/files/handlebarsjs_template_009.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yd \(outer-helper1 \(inner-helper1 'abc'\) 'def'\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavd \(yufull \(outer-helper2 \(inner-helper2 'abc'\) 'def'\)\)\)}}}/);
+            var arr = [
+                /{{{yd \(outer-helper1 \(inner-helper1 'abc'\) 'def'\)}}}/,
+                /{{{yubl \(yavd \(yufull \(outer-helper2 \(inner-helper2 'abc'\) 'def'\)\)\)}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 010 - {{#if}} statement with yd, yattribute_value_quoted, yURI and y test", function() {
@@ -108,99 +139,103 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         it("Template 010 - known filter {{else}} test", function() {
             var file = "./tests/samples/files/handlebarsjs_template_010.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{else}}/);
+            var arr = [
+                /{{else}}/
+            ];
+            utils.testArrMatch(data, arr);
             expect(data).to.not.match(/{{{else}}}/);
         });
 
         it("Template 011 - attribute name state test", function() {
             var file = "./tests/samples/files/handlebarsjs_template_011.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yavd classname}}}/);
-            expect(data).to.match(/{{{yavd index_active}}}/);
-            expect(data).to.match(/{{{yavd safejstemplating_active1}}}/);
-            expect(data).to.match(/{{{y safejstemplating_active2}}}/);
+            var arr = [
+                /{{{yavd classname}}}/,
+                /{{{yavd index_active}}}/,
+                /{{{yavd safejstemplating_active1}}}/,
+                /{{{y safejstemplating_active2}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 012 - quoted attribute value after unquoted attribute test ", function() {
             var file = "./tests/samples/files/handlebarsjs_template_012.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yd html}}/);
-            expect(data).to.match(/{{{yavu SELECTED1}}}/);
-            expect(data).to.match(/{{{yavu SELECTED21}}}/);
-            expect(data).to.match(/{{{yavu SELECTED22}}}/);
-            expect(data).to.match(/{{{yavd SELECTED3}}}/);
-            expect(data).to.match(/{{{yavd SELECTED4}}}/);
-            expect(data).to.match(/{{{yd NAME1}}}/);
-            expect(data).to.match(/{{{yd NAME2}}}/);
-            expect(data).to.match(/{{{yd NAME3}}}/);
-            expect(data).to.match(/{{{yd NAME4}}}/);
-            expect(data).to.match(/{{{yubl \(yavd \(yufull URL1\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavd \(yufull URL2\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavu \(yufull URL3\)\)}}}/);
-            expect(data).to.match(/{{{yubl \(yavu \(yufull URL4\)\)}}}/);
-            expect(data).to.match(/{{{yc COMMENT1}}}/);
-            expect(data).to.match(/{{{yc COMMENT2}}}/);
-            expect(data).to.match(/{{{y ATTR1}}}/);
+            var arr = [
+                /{{{yd html}}}/,
+                /{{{yavu SELECTED1}}}/,
+                /{{{yavu SELECTED21}}}/,
+                /{{{yavu SELECTED22}}}/,
+                /{{{yavd SELECTED3}}}/,
+                /{{{yavd SELECTED4}}}/,
+                /{{{yd NAME1}}}/, /{{{yd NAME2}}}/, /{{{yd NAME3}}}/, /{{{yd NAME4}}}/,
+                /{{{yubl \(yavd \(yufull URL1\)\)}}}/, /{{{yubl \(yavd \(yufull URL2\)\)}}}/, /{{{yubl \(yavu \(yufull URL3\)\)}}}/, /{{{yubl \(yavu \(yufull URL4\)\)}}}/,
+                /{{{yc COMMENT1}}}/, /{{{yc COMMENT2}}}/,
+                /{{{y ATTR1}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 013 - {{#if}} statement test with correct filter", function() {
             var file = "./tests/samples/files/handlebarsjs_template_013.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
             expect(data).to.match(/{{{yd placeholder3}}}/);
+            var arr = [
+                /{{{yd placeholder3}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 014 - {{#if}} statement test with output markup within if statement", function() {
             var file = "./tests/samples/files/handlebarsjs_template_014.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yd placeholder1}}}/);
-            expect(data).to.match(/{{{yd placeholder2}}}/);
-            expect(data).to.match(/{{{yd placeholder3}}}/);
+            var arr = [
+                /{{{yd placeholder1}}}/,
+                /{{{yd placeholder2}}}/,
+                /{{{yd placeholder3}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 015 - {{#if}} statement test with raw expression markup within if statement", function() {
             var file = "./tests/samples/files/handlebarsjs_template_015.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{placeholder1}}}/);
-            expect(data).to.match(/{{{placeholder2}}}/);
-            expect(data).to.match(/{{{yd placeholder3}}}/);
+            var arr = [
+                /{{{placeholder1}}}/,
+                /{{{placeholder2}}}/,
+                /{{{yd placeholder3}}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 016 - {{#if}} statement test with iteration expression markup within if statement", function() {
             var file = "./tests/samples/files/handlebarsjs_template_016.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yavd valueA}}}/);
-            expect(data).to.match(/{{{yd firstName11}}}/);
-            expect(data).to.match(/{{{yd lastName12}}}/);
-            expect(data).to.match(/{{{yd placeholderA}}}/);
-
-            expect(data).to.match(/{{{yavd valueB}}}/);
-            expect(data).to.match(/{{{yd firstName21}}}/);
-            expect(data).to.match(/{{{yd lastName22}}}/);
-            expect(data).to.match(/{{{yd placeholderB}}}/);
-
-            expect(data).to.match(/{{{yavd valueC}}}/);
-            expect(data).to.match(/{{{yd firstName31}}}/);
-            expect(data).to.match(/{{{yd lastName32}}}/);
-            expect(data).to.match(/{{{yd placeholderC}}}/);
-
-            expect(data).to.match(/{{{yavd valueD}}}/);
-            expect(data).to.match(/{{{yd firstName41}}}/);
-            expect(data).to.match(/{{{yd lastName42}}}/);
-            expect(data).to.match(/{{{yd placeholderD}}}/);
-
-            expect(data).to.match(/{{{yavd valueE}}}/);
-            expect(data).to.match(/{{{yd firstName51}}}/);
-            expect(data).to.match(/{{{yd lastName52}}}/);
-            expect(data).to.match(/{{{yd placeholderE}}}/);
+            var arr = [
+                // {{{#list}}
+                /{{{yavd valueA}}}/, /{{{yd firstName11}}}/, /{{{yd lastName12}}}/, /{{{yd placeholderA}}}/,
+                // {{{#each}}
+                /{{{yavd valueB}}}/, /{{{yd firstName21}}}/, /{{{yd lastName22}}}/, /{{{yd placeholderB}}}/,
+                // {{{#with}}
+                /{{{yavd valueC}}}/, /{{{yd firstName31}}}/, /{{{yd lastName32}}}/, /{{{yd placeholderC}}}/,
+                // {{{#tag}}
+                /{{{yavd valueD}}}/, /{{{yd firstName41}}}/, /{{{yd lastName42}}}/, /{{{yd placeholderD}}}/,
+                // {{{#unless}}
+                /{{{yavd valueE}}}/, /{{{yd firstName51}}}/, /{{{yd lastName52}}}/, /{{{yd placeholderE}}}/,
+            ];
+            utils.testArrMatch(data, arr);
         });
 
         it("Template 020 - {{^msg}} statement test with correct filter", function() {
             var file = "./tests/samples/files/handlebarsjs_template_020.hbs.precompiled";
             var data = fs.readFileSync(file, 'utf-8');
-            expect(data).to.match(/{{{yavd nomsg}}}/);
-            expect(data).to.match(/{{{yd name}}}/);
-            expect(data).to.match(/{{\^msg}}/);
-            expect(data).to.match(/{{\/msg}}/);
+            var arr = [
+                /{{{yavd nomsg}}}/,
+                /{{{yd name}}}/,
+                /{{\^msg}}/,
+                /{{\/msg}}/
+            ];
+            utils.testArrMatch(data, arr);
         });
 
     });

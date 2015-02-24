@@ -9,11 +9,88 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 */
 (function () {
 
-    var mocha = require("mocha"),
-        expect = require('expect.js'),
+    mocha = require("mocha");
+    var expect = require('chai').expect,
         handlebars = require('handlebars');
 
-    describe("Vanillia Handlebars parsing test suite", function() {
+    describe("Vanilla Handlebars parsing test suite", function() {
+
+        it("handlebars {{expression}} test", function() {
+            [
+                '{{expression}}',
+                '{{expression}} }',
+            ].forEach(function(t) {
+                var ast = handlebars.parse(t);
+	        expect(ast.statements[0].type).to.equal('mustache');
+            });
+            [
+                '{ {expression}}',
+            ].forEach(function(t) {
+                var ast = handlebars.parse(t);
+	        expect(ast.statements[0].type).to.equal('content');
+            });
+        });
+
+        it("handlebars {{expression}} subexpression with \r\n test", function() {
+            [
+                '{{expression\rion}}',
+                '{{expression\nion}}',
+                '{{expression\r\nion}}',
+            ].forEach(function(t) {
+                var ast = handlebars.parse(t);
+	        expect(ast.statements[0].type).to.equal('mustache');
+	        expect(ast.statements[0].params[0].string).to.equal('ion');
+	        expect(ast.statements[0].isHelper).to.equal(true);
+            });
+        });
+
+        it("handlebars invalid {{expression}} test", function() {
+            [
+                '{ {anything}}', 
+                '{{anything}', '{{anything} }', '{{anything}}}',
+                '{{    {anything}}', '{{    }anything}}',
+                '{{}}'
+            ].forEach(function(e) {
+                try {
+                    var ast = handlebars.parse(e);
+                    expect(false).to.equal(true);
+                } catch (err) {
+                    expect(true).to.equal(true);
+                }
+            });
+        });
+
+        it("handlebars {{{raw expression}}} test", function() {
+            [
+                '{{{expression}}}',
+                '{{{expression}}} }',
+            ].forEach(function(t) {
+                var ast = handlebars.parse(t);
+	        expect(ast.statements[0].type).to.equal('mustache');
+            });
+            [
+                '{ { {expression}}}',
+            ].forEach(function(t) {
+                var ast = handlebars.parse(t);
+	        expect(ast.statements[0].type).to.equal('content');
+            });
+        });
+
+        it("handlebars invalid {{{raw expression}}} test", function() {
+            [
+                '{ {{anything}}}', '{{ {anything}}}',
+                '{{{anything}', '{{{anything}}', '{{{anything}}}}',
+                '{{{    {anything}}}', '{{{    }anything}}}',
+                '{{{}}}'
+            ].forEach(function(e) {
+                try {
+                    var ast = handlebars.parse(e);
+                    expect(false).to.equal(true);
+                } catch (err) {
+                    expect(true).to.equal(true);
+                }
+            });
+        });
 
         it("handlebars {{#if}} {{!-- comment --}} {{/if}} parsing test", function() {
             var t = '{{#if}}xxx{{!-- comment --}}yyy{{/if}}';
@@ -107,6 +184,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         it("handlebars {{#if}} {{else}} {{/if}} parsing test 2", function() {
             var t = '{{# if}}xxx{{ else }}yyy{{/ if}}';
             var ast = handlebars.parse(t);
+            expect(ast.statements[0].mustache.id.string).to.equal('if');
+            expect(ast.statements[0].program.statements[0].string).to.equal('xxx');
+            expect(ast.statements[0].inverse.statements[0].string).to.equal('yyy');
+
+            t = '{{# if }}xxx{{ else }}yyy{{/ if}}';
+            ast = handlebars.parse(t);
             expect(ast.statements[0].mustache.id.string).to.equal('if');
             expect(ast.statements[0].program.statements[0].string).to.equal('xxx');
             expect(ast.statements[0].inverse.statements[0].string).to.equal('yyy');

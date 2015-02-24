@@ -9,13 +9,13 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 */
 (function () {
 
-    var mocha = require("mocha"),
-        promise = require('bluebird'),
+    require("mocha");
+    var promise = require('bluebird'),
         fs = require('fs'),
-        expect = require('expect.js'),
+        expect = require('chai').expect,
         ContextParserHandlebars = require("../../src/context-parser-handlebars");
 
-    var NO_OF_TEMPLATE = 20,
+    var NO_OF_TEMPLATE = 22,
         NO_OF_FILTER_TEMPLATE = 20;
 
     describe("Handlebars pre-compiler test suite", function() {
@@ -107,9 +107,30 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var exec = promise.promisify(require("child_process").exec);
             exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_019.hbs')
             .timeout(300)
-            .then(function(streams){
+            .then(function(e){
                 done();
             });
         });
+
+        /* this test will throw exception, and the vanilla handlebars will complain */
+        it("./bin/handlebarspc conditional/iteration mismatch template test", function(done) {
+            var exec = promise.promisify(require("child_process").exec);
+            exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_021.hbs')
+            .timeout(300)
+            .catch(function(e){
+                done();
+            });
+        });
+
+        /* this test will throw exception, and the vanilla handlebars will complain */
+        it("./bin/handlebarspc conditional/iteration mismatch template test", function(done) {
+            var exec = promise.promisify(require("child_process").exec);
+            exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_022.hbs')
+            .timeout(300)
+            .catch(function(e){
+                done();
+            });
+        });
+
     });
 }());
