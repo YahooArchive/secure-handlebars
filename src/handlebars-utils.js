@@ -58,29 +58,29 @@ HandlebarsUtils.DATA_VAR_EXPRESSION = 8; // {{@.*}}
 HandlebarsUtils.ELSE_EXPRESSION = 9; // {{else}}, {{^}}
 HandlebarsUtils.RAW_BLOCK = 10; // {{{{block}}}}
 
-/* '{{' '~'* 'non-{,non-}'+ greedy '}}' and not follow by '}' */
+/* '{{' '~'? 'non-{,non-}'+ greedy '}}' and not follow by '}' */
 HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?[^\}\{]+?\}\}(?!})/;
-/* '{{{' '~'* 'non-{,non-}'+ greedy '}}}' and not follow by '}' */
+/* '{{{' '~'? 'non-{,non-}'+ greedy '}}}' and not follow by '}' */
 HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?[^\}\{]+?\}\}\}(?!})/;
-/* '{{>' '~'* 'non-{,non-}'+ greedy '}}' and not follow by '}' */
+/* '{{>' '~'? 'non-{,non-}'+ greedy '}}' and not follow by '}' */
 HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>[^\}\{]+?\}\}(?!})/;
-/* '{{@' '~'* 'non-{,non-}'+ greedy '}}' and not follow by '}' */
+/* '{{@' '~'? 'non-{,non-}'+ greedy '}}' and not follow by '}' */
 HandlebarsUtils.dataVarExpressionRegExp = /^\{\{~?@[^\}\{]+?\}\}(?!})/;
-/* '{{{{' '~'* 'non-{,non-}'+ greedy '}}}}' and not follow by '}' */
+/* '{{{{' '~'? 'non-{,non-}'+ greedy '}}}}' and not follow by '}' */
 HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{~?[^\}\{]+?\}\}\}\}(?!})/;
 // need to capture the first non-whitespace string and capture the rest
-/* '{{' '~'* '# or ^' 'space'* ('non-space,non-{,non-},non-~'+) 'space'* 'non-{,non-}'* greedy '}}' and not follow by '}' */
+/* '{{' '~'? '# or ^' 'space'* ('non-space,non-{,non-},non-~'+) 'space'* ('non-{,non-}')* greedy '}}' and not follow by '}' */
 HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\\^]\s*([^\s\}\{~]+)\s*([^\}\{]*)?\}\}(?!})/;
-/* '{{' '~'* '/' 'space'* ('non-space,non-{,non-},non-~'+) 'space'* 'non-{,non-}'* greedy '}}' and not follow by '}' */
+/* '{{' '~'? '/' 'space'* ('non-space,non-{,non-},non-~'+) 'space'* ('non-{,non-}')* greedy '}}' and not follow by '}' */
 HandlebarsUtils.branchEndExpressionRegExp = /^\{\{~?\/\s*([^\s\}\{~]+)\s*([^\}\{]*)?\}\}(?!})/;
-/* '{{' '~'* 'space'* 'else' 'space'* greedy '~'? '}}' and not follow by '}' */
+/* '{{' '~'? 'space'* 'else' 'space'* greedy '~'? '}}' and not follow by '}' */
 HandlebarsUtils.elseExpressionRegExp = /^\{\{~?\s*else\s*~?\}\}(?!})/;
-/* '{{' '~'* 'space'* '^'{1} 'space'* greedy '~'? '}}' and not follow by '}' */
+/* '{{' '~'? 'space'* '^'{1} 'space'* greedy '~'? '}}' and not follow by '}' */
 HandlebarsUtils.elseShortFormExpressionRegExp = /^\{\{~?\s*\^{1}\s*~?\}\}(?!})/;
-/* NOT BEING USED YET */
-/* '{{!--' 'non-{,non-}'+ '--}}' and not follow by '}' */ 
+/* NOT BEING USED YET, this RegExp is incorrect */
+/* '{{!--' '~'? 'non-{,non-}'+ '--}}' and not follow by '}' */ 
 HandlebarsUtils.commentExpressionLongRegExp = /^\{\{~?!--[^\}\{]+?--\}\}(?!})/;
-/* '{{!' 'non-{,non-}'+ '}}' and not follow by '}' */ 
+/* '{{!' '~'? 'non-{,non-}'+ '}}' and not follow by '}' */ 
 HandlebarsUtils.commentExpressionShortRegExp = /^\{\{~?!--[^\}\{]+?--\}\}(?!})/;
 
 /**

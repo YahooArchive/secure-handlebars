@@ -128,8 +128,8 @@ ContextParserHandlebars.prototype.printCharWithState = function() {
 * FILTERS LOGIC
 **********************************/
 
-/* being used for capturing the first non whitepsace string */
-ContextParserHandlebars.expressionRegExp = /^{~?\s*([^\s~]+)\s*([^\}~]*)?~?}/;
+/* '{{' '~'? 'space'* ('non-space,non-{,non-},non-~'+) 'space'* ('non-{,non-}')* greedy '}' */
+ContextParserHandlebars.expressionRegExp = /^\{~?\s*([^\s\}\{~]+)\s*([^\}\{]*)?\}/;
 
 /** 
 * @function module:ContextParserHandlebars._parseExpression
@@ -155,7 +155,7 @@ ContextParserHandlebars.prototype._parseExpression = function(input, i) {
         };
 
     /*
-    * Note: the expected format is "{.*}" and check against isValidExpression.
+    * Note: convert the format to "{.*}".
     */
     var str = input.slice(i);
     var j = str.indexOf('}');
@@ -164,29 +164,28 @@ ContextParserHandlebars.prototype._parseExpression = function(input, i) {
     var m = ContextParserHandlebars.expressionRegExp.exec(str);
 
     if (m !== null) {
-        var isReservedChar;
         if (m[1] !== undefined) {
-            firststr = m[1];
-            isReservedChar = handlebarsUtil.isReservedChar(m[1], 0);
-            /* special handling for {else} */
-            if (firststr === 'else' || firststr === '^') {
+            if (handlebarsUtil.isReservedChar(m[1], 0)) {
+                return obj;
+            }
+            if (m[1] === 'else' || m[1] === '^') {
                 obj.isSingleIdentifier = false;
                 obj.isPrefixWithKnownFilter = true;
                 return obj;
             }
-            if (isReservedChar) {
-                return obj;
-            }
         }
-
-        if (m[2] === undefined) {
-            obj.isSingleIdentifier = true;
-        } else {
-            obj.filter = firststr;
-            var k = this._knownFilters.indexOf(obj.filter);
-            if (k !== -1) {
-                obj.isPrefixWithKnownFilter = true;
+        if (m[2] !== undefined) {
+            if (m[2] === '~') {
+                obj.isSingleIdentifier = true;
+            } else {
+                obj.filter = m[1];
+                var k = this._knownFilters.indexOf(obj.filter);
+                if (k !== -1) {
+                    obj.isPrefixWithKnownFilter = true;
+                }
             }
+        } else {
+            obj.isSingleIdentifier = true;
         }
     }
     debug("_parseExpression:"+obj);
