@@ -24,7 +24,7 @@ cat <handlebars template file>
 
 Run the handlebars template file with our Handlebars Pre-compiler and context filter is added.
 ```
-./bin/handlebarspc <handlebars template file>
+./node_modules/context-parser-handlebars/bin/handlebarspc <handlebars template file>
 <html><title>{{{yd title}}}</title></html>
 ```
 
