@@ -124,6 +124,27 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
+        it("handlebars-utils#isValidExpression partialExpressionRegExp test", function() {
+            var arr = [
+                // basic
+                {str:'{{>anything}}', type:handlebarsUtils.PARTIAL_EXPRESSION, result:true, rstr:'{{>anything}}'},
+                {str:'{{>   anything   }}', type:handlebarsUtils.PARTIAL_EXPRESSION, result:true, rstr:'{{>   anything   }}'},
+                // with \r and \n
+                {str:'{{>any\rthing}}', type:handlebarsUtils.PARTIAL_EXPRESSION, result:true, rstr:'{{>any\rthing}}'},
+                {str:'{{>any\nthing}}', type:handlebarsUtils.PARTIAL_EXPRESSION, result:true, rstr:'{{>any\nthing}}'},
+                {str:'{{>any\r\nthing}}', type:handlebarsUtils.PARTIAL_EXPRESSION, result:true, rstr:'{{>any\r\nthing}}'},
+
+                // with ~
+                {str:'{{~>anything}}', type:handlebarsUtils.PARTIAL_EXPRESSION, result:true, rstr:'{{~>anything}}'},
+                {str:'{{~>anything~}}', type:handlebarsUtils.PARTIAL_EXPRESSION, result:true, rstr:'{{~>anything~}}'},
+                {str:'{{~>  anything  ~}}', type:handlebarsUtils.PARTIAL_EXPRESSION, result:true, rstr:'{{~>  anything  ~}}'},
+            ];
+            arr.forEach(function(obj) {
+                var r = handlebarsUtils.isValidExpression(obj.str, 0, obj.type);
+                utils.testIsValidExpression(r, obj); 
+            });
+        });
+
         it("handlebars-utils#isReservedChar test", function() {
             [
                 '#', '/', '>', '@', '^', '!',
@@ -147,6 +168,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {str: '{{~#if xxx}}x{{#if xxx}}', rstr: 'if'},
                 {str: '{{~#if xxx}} x {{#if xxx}}', rstr: 'if'},
                 {str: '{{~#   if   xxx}}', rstr: 'if'},
+                {str: '{{~#if xxx~}}', rstr: 'if'},
+                {str: '{{~#if xxx~}}{{#if xxx}}', rstr: 'if'},
+                {str: '{{~#if xxx~}}x{{#if xxx}}', rstr: 'if'},
+                {str: '{{~#if xxx~}} x {{#if xxx}}', rstr: 'if'},
+                {str: '{{~#   if   xxx~}}', rstr: 'if'},
 
                 {str: '{{#with xxx}}', rstr: 'with'},
                 {str: '{{#each xxx}}', rstr: 'each'},
@@ -157,9 +183,10 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
                 {str: '{{~^msg xxx}}', rstr: 'msg'},
 
-                {str: '{{^}}', rstr: undefined},
-                {str: '{{~^}}', rstr: undefined},
-                // {str: '{{~^~}}', rstr: undefined},
+                {str: '{{^}}', rstr: false},
+                {str: '{{~^}}', rstr: false},
+                {str: '{{~^~}}', rstr: false},
+                {str: '{{~  ^  ~}}', rstr: false},
 
                 // illegal handlebars format
                 {str: '{{#t-ag xxx}}', rstr: 't-ag'}
@@ -182,6 +209,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {str: '{{~/if}}x{{/if}}', rstr: 'if'},
                 {str: '{{~/if}} x {{/if}}', rstr: 'if'},
                 {str: '{{~/   if   }}', rstr: 'if'},
+                {str: '{{~/if~}}', rstr: 'if'},
+                {str: '{{~/if~}}{{/if}}', rstr: 'if'},
+                {str: '{{~/if~}}x{{/if}}', rstr: 'if'},
+                {str: '{{~/if~}} x {{/if}}', rstr: 'if'},
+                {str: '{{~/   if   ~}}', rstr: 'if'},
 
                 {str: '{{/with}}', rstr: 'with'},
                 {str: '{{/each}}', rstr: 'each'},
@@ -248,7 +280,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {str: '{{^msg xxx}}', result:true},
 
                 {str: '{{else}}', result:false},
+                {str: '{{^}}', result:false},
                 {str: '{{expression}}', result:false},
+                {str: '{{@partial}}', result:false},
                 {str: '{{{expression}}}', result:false},
             ].forEach(function(obj) {
                 var r = handlebarsUtils.isBranchExpressions(obj.str);
@@ -585,6 +619,13 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             } catch (err) {
                 expect(true).to.equal(true);
             }
+        });
+
+        it("handlebars-utils - build basic branch AST test", function() {
+            var s = "{{#if xxx}} a {{else}} b {{/if}}";
+            var ast = {};
+            ast = handlebarsUtils.buildBranchAst(s, 0, ast);
+console.log(ast);
         });
 
     });

@@ -58,34 +58,30 @@ HandlebarsUtils.DATA_VAR_EXPRESSION = 8; // {{@.*}}
 HandlebarsUtils.ELSE_EXPRESSION = 9; // {{else}}, {{^}}
 HandlebarsUtils.RAW_BLOCK = 10; // {{{{block}}}}
 
-/* '{{' 'non-{,non-}'+ '}}' and not follow by '}' */
+/* '{{' '~'* 'non-{,non-}'+ greedy '}}' and not follow by '}' */
 HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?[^\}\{]+?\}\}(?!})/;
-/* '{{{' 'non-{,non-}'+ '}}}' and not follow by '}' */
+/* '{{{' '~'* 'non-{,non-}'+ greedy '}}}' and not follow by '}' */
 HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?[^\}\{]+?\}\}\}(?!})/;
-
-// need to capture the first non-whitespace string
-/* '{{' '# or ^' 'space'* 'non-space,non-},non-{'+ first-'space or }' */
-HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\\^]\s*([^\s\}\{]+)?[\s\}]/;
-/* '{{' '/' 'space'* 'non-space,non-},non-{'+ first-'space or }' */
-HandlebarsUtils.branchEndExpressionRegExp = /^\{\{~?\/\s*([^\s\}\{]+)?[\s\}]/;
-
-/* '{{>' 'non-{,non-}'+ '}}' and not follow by '}' */ /* NOT BEING USED YET */
+/* '{{>' '~'* 'non-{,non-}'+ greedy '}}' and not follow by '}' */
 HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>[^\}\{]+?\}\}(?!})/;
-
-/* '{{!--' 'non-{,non-}'+ '--}}' and not follow by '}' */ /* NOT BEING USED YET */
-HandlebarsUtils.commentExpressionLongRegExp = /^\{\{~?!--[^\}\{]+?--\}\}(?!})/;
-/* '{{!' 'non-{,non-}'+ '}}' and not follow by '}' */ /* NOT BEING USED YET */
-HandlebarsUtils.commentExpressionShortRegExp = /^\{\{~?!--[^\}\{]+?--\}\}(?!})/;
-
-/* '{{@' 'non-{,non-}'+ '}}' and not follow by '}' */ /* NOT BEING USED YET */
-HandlebarsUtils.partialExpressionRegExp = /^\{\{~?@[^\}\{]+?\}\}(?!})/;
-
-/* '{{' 'space'* 'else or ^' 'space'* '~'? '}}' and not follow by '}' */
-HandlebarsUtils.elseExpressionRegExp = /^\{\{~?\s*else\s*~?\}\}(?!})/;
-HandlebarsUtils.elseShortFormExpressionRegExp = /^\{\{~?\s*\^{1}\s*~?\}\}(?!})/;
-
-/* '{{{{' 'non-{,non-}'+ '}}}}' and not follow by '}' */
+/* '{{@' '~'* 'non-{,non-}'+ greedy '}}' and not follow by '}' */
+HandlebarsUtils.dataVarExpressionRegExp = /^\{\{~?@[^\}\{]+?\}\}(?!})/;
+/* '{{{{' '~'* 'non-{,non-}'+ greedy '}}}}' and not follow by '}' */
 HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{~?[^\}\{]+?\}\}\}\}(?!})/;
+// need to capture the first non-whitespace string and capture the rest
+/* '{{' '~'* '# or ^' 'space'* ('non-space,non-{,non-},non-~'+) 'space'* 'non-{,non-}'* greedy '}}' and not follow by '}' */
+HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\\^]\s*([^\s\}\{~]+)\s*([^\}\{]*)?\}\}(?!})/;
+/* '{{' '~'* '/' 'space'* ('non-space,non-{,non-},non-~'+) 'space'* 'non-{,non-}'* greedy '}}' and not follow by '}' */
+HandlebarsUtils.branchEndExpressionRegExp = /^\{\{~?\/\s*([^\s\}\{~]+)\s*([^\}\{]*)?\}\}(?!})/;
+/* '{{' '~'* 'space'* 'else' 'space'* greedy '~'? '}}' and not follow by '}' */
+HandlebarsUtils.elseExpressionRegExp = /^\{\{~?\s*else\s*~?\}\}(?!})/;
+/* '{{' '~'* 'space'* '^'{1} 'space'* greedy '~'? '}}' and not follow by '}' */
+HandlebarsUtils.elseShortFormExpressionRegExp = /^\{\{~?\s*\^{1}\s*~?\}\}(?!})/;
+/* NOT BEING USED YET */
+/* '{{!--' 'non-{,non-}'+ '--}}' and not follow by '}' */ 
+HandlebarsUtils.commentExpressionLongRegExp = /^\{\{~?!--[^\}\{]+?--\}\}(?!})/;
+/* '{{!' 'non-{,non-}'+ '}}' and not follow by '}' */ 
+HandlebarsUtils.commentExpressionShortRegExp = /^\{\{~?!--[^\}\{]+?--\}\}(?!})/;
 
 /**
 * @function HandlebarsUtils.getExpressionType
@@ -102,6 +98,7 @@ HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{~?[^\}\{]+?\}\}\}\}(?!})/;
 *
 */
 HandlebarsUtils.getExpressionType = function(input, i, len) {
+    // TODO: can optimize
     if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '#') ||
         (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '#') 
     ) {
@@ -146,15 +143,34 @@ HandlebarsUtils.getExpressionType = function(input, i, len) {
 HandlebarsUtils.isValidExpression = function(input, i, type) {
     var re = {};
     re.result = false;
+    var s = input.slice(i);
     switch(type) {
         case HandlebarsUtils.ESCAPE_EXPRESSION:
-            re = HandlebarsUtils.escapeExpressionRegExp.exec(input.slice(i));
+            re = HandlebarsUtils.escapeExpressionRegExp.exec(s);
             break;
         case HandlebarsUtils.RAW_EXPRESSION:
-            re = HandlebarsUtils.rawExpressionRegExp.exec(input.slice(i));
+            re = HandlebarsUtils.rawExpressionRegExp.exec(s);
+            break;
+        case HandlebarsUtils.PARTIAL_EXPRESSION:
+            re = HandlebarsUtils.partialExpressionRegExp.exec(s);
+            break;
+        case HandlebarsUtils.BRANCH_EXPRESSION:
+            re = HandlebarsUtils.branchExpressionRegExp.exec(s);
+            break;
+        case HandlebarsUtils.BRANCH_END_EXPRESSION:
+            re = HandlebarsUtils.branchEndExpressionRegExp.exec(s);
+            break;
+        case HandlebarsUtils.ELSE_EXPRESSION:
+            re = HandlebarsUtils.elseExpressionRegExp.exec(s);
+            if (re === null) {
+                re = HandlebarsUtils.elseShortFormExpressionRegExp.exec(s);
+            }
+            break;
+        case HandlebarsUtils.DATA_VAR_EXPRESSION:
+            re = HandlebarsUtils.dataVarExpressionRegExp.exec(s);
             break;
         case HandlebarsUtils.RAW_BLOCK:
-            re = HandlebarsUtils.rawBlockRegExp.exec(input.slice(i));
+            re = HandlebarsUtils.rawBlockRegExp.exec(s);
             break;
         default:
             return re;
@@ -498,6 +514,52 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
     r.stmt = stmt;
     debugBranch("extractBranchStmt:"+stmt);
     return r;
+};
+
+/*
+ * obj.program = [];
+ * obj.program[0].type = string | node
+ * obj.program[0].childs = []
+ * obj.program[0].childs[0].type = string | node
+ * obj.program[0].childs[0].childs = []
+ *
+ * obj.inverse = [];
+ */
+HandlebarsUtils.buildBranchAst = function(input, k, ast) {
+
+    /* init */
+    var str = input.slice(k);
+    var l = str.length;
+    var sp = [];
+
+    for(var i=0;i<l;++i) {
+        var exp = HandlebarsUtils.isBranchExpression(str, i),
+            endExpression = HandlebarsUtils.isBranchEndExpression(str, i);
+        
+        /* build program */
+        if (exp !== false) {
+            sp.push(exp);
+            ast.program = [];
+
+        /* do nothing for 'else' token */
+        } else if (HandlebarsUtils.isElseExpression(str, i)) {
+            ast.inverse = [];
+
+        /* pop the branching tokens (TODO: not fast enough) */
+        } else if (endExpression !== false) {
+            var t = sp.pop();
+            if (t === endExpression) {
+                   break;
+            } else {
+                    /* broken template as the end expression does not match, throw exception before function returns */
+                    msg = "[ERROR] ContextParserHandlebars: Template expression mismatch (startExpression:"+lastExpression+"/endExpression:"+endExpression+")";
+                    HandlebarsUtils.handleError(msg, true);
+            }
+        } else {
+        }
+    }
+
+    return ast;
 };
 
 /**

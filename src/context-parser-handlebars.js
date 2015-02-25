@@ -672,8 +672,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
         handlebarsExpressionType = handlebarsUtil.getExpressionType(input, i, len);
         switch (handlebarsExpressionType) {
             case handlebarsUtil.ESCAPE_EXPRESSION:
-                // handlebarsUtil.ESCAPE_EXPRESSION is a strict validation
-                re = handlebarsUtil.isValidExpression(input, i, handlebarsUtil.ESCAPE_EXPRESSION);
+                re = handlebarsUtil.isValidExpression(input, i, handlebarsExpressionType);
                 if (re.result === false) {
                     msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid expression. ["+this._lineNo+":"+this._charNo+"]";
                     handlebarsUtil.handleError(msg, true);
@@ -688,8 +687,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                 debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
                 return this._handleEscapeExpression(input, i, len, state);
             case handlebarsUtil.BRANCH_EXPRESSION:
-                // handlebarsUtil.ESCAPE_EXPRESSION is a strict validation
-                re = handlebarsUtil.isValidExpression(input, i, handlebarsUtil.ESCAPE_EXPRESSION);
+                re = handlebarsUtil.isValidExpression(input, i, handlebarsExpressionType);
                 if (re.result === false) {
                     msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid expression. ["+this._lineNo+":"+this._charNo+"]";
                     handlebarsUtil.handleError(msg, true);
@@ -702,8 +700,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                 handlebarsUtil.handleError(msg, true);
                 break;
             case handlebarsUtil.PARTIAL_EXPRESSION:
-                // handlebarsUtil.ESCAPE_EXPRESSION is a strict validation
-                re = handlebarsUtil.isValidExpression(input, i, handlebarsUtil.ESCAPE_EXPRESSION);
+                re = handlebarsUtil.isValidExpression(input, i, handlebarsExpressionType);
                 if (re.result === false) {
                     msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid expression. ["+this._lineNo+":"+this._charNo+"]";
                     handlebarsUtil.handleError(msg, true);
@@ -720,8 +717,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                 debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
                 return this._handleCommentExpression(input, i, len, handlebarsExpressionType);
             case handlebarsUtil.DATA_VAR_EXPRESSION:
-                // handlebarsUtil.ESCAPE_EXPRESSION is a strict validation
-                re = handlebarsUtil.isValidExpression(input, i, handlebarsUtil.ESCAPE_EXPRESSION);
+                re = handlebarsUtil.isValidExpression(input, i, handlebarsExpressionType);
                 if (re.result === false) {
                     msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid expression. ["+this._lineNo+":"+this._charNo+"]";
                     handlebarsUtil.handleError(msg, true);
