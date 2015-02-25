@@ -622,12 +622,65 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         it("handlebars-utils - build basic branch AST test", function() {
+            var s = "{{#if xxx}} a b {{/if}}";
+            var ast = handlebarsUtils.buildBranchAst(s, 0);
+            expect(ast.program[0].type).to.equal('content');
+            expect(ast.program[0].content).to.equal(' a b ');
+            expect(ast.inverse).to.deep.equal([]);
+        });
+
+        it("handlebars-utils - build basic branch AST test", function() {
             var s = "{{#if xxx}} a {{else}} b {{/if}}";
-            var ast = {};
-            ast = handlebarsUtils.buildBranchAst(s, 0, ast);
-console.log(ast);
+            var ast = handlebarsUtils.buildBranchAst(s, 0);
+            expect(ast.program[0].type).to.equal('content');
+            expect(ast.program[0].content).to.equal(' a ');
+            expect(ast.inverse[0].type).to.equal('content');
+            expect(ast.inverse[0].content).to.equal(' b ');
+        });
+
+        it("handlebars-utils - build nested branch AST test", function() {
+            var s = "{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{else}} e {{#if}} f {{else}} g {{/if}} h {{/if}}";
+            var ast = handlebarsUtils.buildBranchAst(s, 0);
+            expect(ast.program[0].type).to.equal('content');
+            expect(ast.program[0].content).to.equal(' a ');
+            expect(ast.program[1].type).to.equal('node');
+            expect(ast.program[1].content.program[0].type).to.equal('content');
+            expect(ast.program[1].content.program[0].content).to.equal(' b ');
+            expect(ast.program[1].content.inverse[0].type).to.equal('content');
+            expect(ast.program[1].content.inverse[0].content).to.equal(' c ');
+            expect(ast.program[2].type).to.equal('content');
+            expect(ast.program[2].content).to.equal(' d ');
+            expect(ast.inverse[0].type).to.equal('content');
+            expect(ast.inverse[0].content).to.equal(' e ');
+            expect(ast.inverse[1].type).to.equal('node');
+            expect(ast.inverse[1].content.program[0].type).to.equal('content');
+            expect(ast.inverse[1].content.program[0].content).to.equal(' f ');
+            expect(ast.inverse[1].content.inverse[0].type).to.equal('content');
+            expect(ast.inverse[1].content.inverse[0].content).to.equal(' g ');
+            expect(ast.inverse[2].type).to.equal('content');
+            expect(ast.inverse[2].content).to.equal(' h ');
+        });
+
+        it("handlebars-utils - build parallel branch AST test", function() {
+            var s = "{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{#if}} e {{else}} f {{/if}} g {{/if}}";
+            var ast = handlebarsUtils.buildBranchAst(s, 0);
+            expect(ast.program[0].type).to.equal('content');
+            expect(ast.program[0].content).to.equal(' a ');
+            expect(ast.program[1].type).to.equal('node');
+            expect(ast.program[1].content.program[0].type).to.equal('content');
+            expect(ast.program[1].content.program[0].content).to.equal(' b ');
+            expect(ast.program[1].content.inverse[0].type).to.equal('content');
+            expect(ast.program[1].content.inverse[0].content).to.equal(' c ');
+            expect(ast.program[2].type).to.equal('content');
+            expect(ast.program[2].content).to.equal(' d ');
+            expect(ast.program[3].type).to.equal('node');
+            expect(ast.program[3].content.program[0].type).to.equal('content');
+            expect(ast.program[3].content.program[0].content).to.equal(' e ');
+            expect(ast.program[3].content.inverse[0].type).to.equal('content');
+            expect(ast.program[3].content.inverse[0].content).to.equal(' f ');
+            expect(ast.program[4].type).to.equal('content');
+            expect(ast.program[4].content).to.equal(' g ');
         });
 
     });
-
 }());

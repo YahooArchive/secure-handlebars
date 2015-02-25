@@ -516,52 +516,6 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
     return r;
 };
 
-/*
- * obj.program = [];
- * obj.program[0].type = string | node
- * obj.program[0].childs = []
- * obj.program[0].childs[0].type = string | node
- * obj.program[0].childs[0].childs = []
- *
- * obj.inverse = [];
- */
-HandlebarsUtils.buildBranchAst = function(input, k, ast) {
-
-    /* init */
-    var str = input.slice(k);
-    var l = str.length;
-    var sp = [];
-
-    for(var i=0;i<l;++i) {
-        var exp = HandlebarsUtils.isBranchExpression(str, i),
-            endExpression = HandlebarsUtils.isBranchEndExpression(str, i);
-        
-        /* build program */
-        if (exp !== false) {
-            sp.push(exp);
-            ast.program = [];
-
-        /* do nothing for 'else' token */
-        } else if (HandlebarsUtils.isElseExpression(str, i)) {
-            ast.inverse = [];
-
-        /* pop the branching tokens (TODO: not fast enough) */
-        } else if (endExpression !== false) {
-            var t = sp.pop();
-            if (t === endExpression) {
-                   break;
-            } else {
-                    /* broken template as the end expression does not match, throw exception before function returns */
-                    msg = "[ERROR] ContextParserHandlebars: Template expression mismatch (startExpression:"+lastExpression+"/endExpression:"+endExpression+")";
-                    HandlebarsUtils.handleError(msg, true);
-            }
-        } else {
-        }
-    }
-
-    return ast;
-};
-
 /**
 * @function HandlebarsUtils.parseAstTreeState
 *
@@ -780,6 +734,115 @@ HandlebarsUtils.blacklistProtocol = function(s) {
         }
     }
     return true;
+};
+
+/**
+* @function HandlebarsUtils.buildBranchAst
+*
+* @static
+*
+*/
+HandlebarsUtils.buildBranchAst = function(input, k) {
+
+    /* init */
+    var ast = {};
+    ast.program = [];
+    ast.inverse = [];
+
+    var str = input.slice(k),
+        len = str.length,
+        sp = [],
+        branch = 0,
+        content = '',
+        obj = {},
+        k,i = 0;
+
+    for(i=0;i<len;++i) {
+        var exp = HandlebarsUtils.isBranchExpression(str, i),
+            endExpression = HandlebarsUtils.isBranchEndExpression(str, i);
+        
+        if (exp !== false) {
+            if (sp.length === 0) {
+                sp.push(exp);
+                branch = 1;
+                content = '';
+                for(k=i;k<len;++k) {
+                    if (str[k] === '}' && k+1 < len && str[k+1] === '}') {
+                        i=k+1;
+                        break;
+                    }
+                }
+            } else {
+                obj = {};
+                obj.type = 'content';
+                obj.content = content;
+                if (branch === 1) {
+                    ast.program.push(obj);
+                } else if (branch === 2) {
+                    ast.inverse.push(obj);
+                }
+                content = '';
+
+                var r = HandlebarsUtils.buildBranchAst(str, i);
+                obj = {};
+                obj.type = 'node';
+                obj.content = r;
+                i = i+r.index;
+                if (branch === 1) {
+                    ast.program.push(obj);
+                } else if (branch === 2) {
+                    ast.inverse.push(obj);
+                }
+            }
+        } else if (HandlebarsUtils.isElseExpression(str, i)) {
+            obj = {};
+            obj.type = 'content';
+            obj.content = content;
+            if (branch === 1) {
+                ast.program.push(obj);
+            } else if (branch === 2) {
+                ast.inverse.push(obj);
+            }
+
+            branch = 2;
+            content = '';
+            for(k=i;k<len;++k) {
+                if (str[k] === '}' && k+1 < len && str[k+1] === '}') {
+                    i=k+1;
+                    break;
+                }
+            }
+        } else if (endExpression !== false) {
+            var t = sp.pop();
+            if (t === endExpression) {
+                obj = {};
+                obj.type = 'content';
+                obj.content = content;
+                if (branch === 1) {
+                    ast.program.push(obj);
+                } else if (branch === 2) {
+                    ast.inverse.push(obj);
+                }
+
+                for(k=i;k<len;++k) {
+                    if (str[k] === '}' && k+1 < len && str[k+1] === '}') {
+                        i=k+1;
+                        break;
+                    }
+                }
+                break;
+            } else {
+                /* broken template as the end expression does not match, throw exception before function returns */
+                msg = "[ERROR] ContextParserHandlebars: Template expression mismatch (startExpression:"+t+"/endExpression:"+endExpression+")";
+                HandlebarsUtils.handleError(msg, true);
+            }
+        } else {
+            content += str[i];    
+        }
+    }
+
+    ast.index = i;
+    return ast;
 };
 
 module.exports = HandlebarsUtils;
