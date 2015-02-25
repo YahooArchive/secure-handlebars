@@ -31,7 +31,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
-        it("handlebars {{expression}} subexpression with \r\n test", function() {
+        it("handlebars {{expression}} subexpression with \\r\\n test", function() {
             [
                 '{{expression\rion}}',
                 '{{expression\nion}}',
@@ -83,6 +83,37 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 '{{{    {anything}}}', '{{{    }anything}}}',
                 '{{{}}}'
             ].forEach(function(e) {
+                try {
+                    var ast = handlebars.parse(e);
+                    expect(false).to.equal(true);
+                } catch (err) {
+                    expect(true).to.equal(true);
+                }
+            });
+        });
+
+        it("handlebars white space control test", function() {
+            [
+                '{{#each nav ~}}\
+                    xxx\
+                {{~/each}}',
+                '{{#each nav ~}}\
+                    xxx\
+                {{~/   each}}'
+            ].forEach(function(t) {
+                var ast = handlebars.parse(t);
+                expect(ast.statements[0].program.statements[0].string).to.equal('xxx');
+            });
+            [
+                // cannot have space between ~ and }}
+                '{{#each nav ~   }}\
+                    xxx\
+                {{~/each}}',
+                // cannot have space between ~ and /
+                '{{#each nav ~}}\
+                    xxx\
+                {{~  /   each}}'
+            ].forEach(function(t) {
                 try {
                     var ast = handlebars.parse(e);
                     expect(false).to.equal(true);
@@ -179,6 +210,32 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.statements[0].mustache.id.string).to.equal('if');
             expect(ast.statements[0].program.statements[0].string).to.equal('xxx');
             expect(ast.statements[0].inverse.statements[0].string).to.equal('yyy');
+
+            t = '{{~#   if}}xxx{{~  else  ~}}yyy{{/if}}';
+            ast = handlebars.parse(t);
+            expect(ast.statements[0].mustache.id.string).to.equal('if');
+            expect(ast.statements[0].program.statements[0].string).to.equal('xxx');
+            expect(ast.statements[0].inverse.statements[0].string).to.equal('yyy');
+
+            t = '{{#if}}xxx{{^}}yyy{{/if}}';
+            ast = handlebars.parse(t);
+            expect(ast.statements[0].mustache.id.string).to.equal('if');
+            expect(ast.statements[0].program.statements[0].string).to.equal('xxx');
+            expect(ast.statements[0].inverse.statements[0].string).to.equal('yyy');
+
+            t = '{{#if}}xxx{{^   }}yyy{{/if}}';
+            ast = handlebars.parse(t);
+            expect(ast.statements[0].mustache.id.string).to.equal('if');
+            expect(ast.statements[0].program.statements[0].string).to.equal('xxx');
+            expect(ast.statements[0].inverse.statements[0].string).to.equal('yyy');
+
+            t = '{{#if}}xxx{{  ^  }}yyy{{/if}}';
+            try {
+                ast = handlebars.parse(t);
+                expect(false).to.equal(true);
+            } catch (err) {
+                expect(true).to.equal(true);
+            }
         });
 
         it("handlebars {{#if}} {{else}} {{/if}} parsing test 2", function() {

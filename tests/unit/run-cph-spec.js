@@ -31,15 +31,21 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 // test for {{else}} with space before/after else
                 {str:'{    else   }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
 
-/*
-                // test for {{else}} with whitespace control
+                // with ~
                 {str:'{~else}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                // {str:'{~else~}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
+                {str:'{~else~}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
                 {str:'{~  else}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
+                {str:'{~  else  ~}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
 
                 {str:'{^}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
+                {str:'{^    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
+                {str:'{    ^    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
+
+                // with ~
                 {str:'{~^}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-*/
+                {str:'{~^~}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
+                {str:'{~    ^}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
+                {str:'{~    ^    ~}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
             ];
             arr.forEach(function(obj) {
                 var r = parser._parseExpression(obj.str, 0);
@@ -55,6 +61,14 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {str:'{y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
                 {str:'{y    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
                 {str:'{    y    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
+
+                // with ~
+                {str:'{~y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
+                {str:'{~y    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
+                {str:'{~    y    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
+                {str:'{~y~}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
+                {str:'{~y    ~}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
+                {str:'{~    y    ~}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
 
                 // test for single identifier with the same name as known default filter {h}}
                 {str:'{h}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
@@ -92,6 +106,14 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {str:'{h    output}}', isPrefixWithKnownFilter:false, filter:'h', isSingleIdentifier:false},
                 {str:'{    h    output}}', isPrefixWithKnownFilter:false, filter:'h', isSingleIdentifier:false},
 
+                // with ~
+                {str:'{~y output}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
+                {str:'{~y    output}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
+                {str:'{~     y    output}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
+                {str:'{~h output}}', isPrefixWithKnownFilter:false, filter:'h', isSingleIdentifier:false},
+                {str:'{~h    output}}', isPrefixWithKnownFilter:false, filter:'h', isSingleIdentifier:false},
+                {str:'{~    h    output}}', isPrefixWithKnownFilter:false, filter:'h', isSingleIdentifier:false},
+
                 // test for expression with dot notation filter
                 {str:'{people.name output}}', isPrefixWithKnownFilter:false, filter:'people.name', isSingleIdentifier:false},
                 // test for expression with ../ filter
@@ -122,10 +144,20 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {str:'{y   xxx   zzz}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
                 {str:'{   y    xxx    zzz}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
 
+                // with ~
+                {str:'{~y xxx zzz}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
+                {str:'{~y   xxx   zzz}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
+                {str:'{~   y    xxx    zzz}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
+
                 // test for expression with the same name as unknown filter
                 {str:'{unknown xxx zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
                 {str:'{unknown xxx   zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
-                {str:'{   unknown    xxx    zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false}
+                {str:'{   unknown    xxx    zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
+
+                // with ~
+                {str:'{~unknown xxx zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
+                {str:'{~unknown xxx   zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
+                {str:'{~   unknown    xxx    zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false}
             ];
             arr.forEach(function(obj) {
                 var r = parser._parseExpression(obj.str, 0);
@@ -142,10 +174,19 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {str:'{y article[0] article/name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
                 {str:'{y article.[0].[#comments] article/name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
 
+                // with ~
+                {str:'{~y people.name ../name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
+                {str:'{~y article[0] article/name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
+                {str:'{~y article.[0].[#comments] article/name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
+
                 // test for expression with the same name as known filter {unknown}} with different parameter format
                 {str:'{unknown people.name ../name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
                 {str:'{unknown article[0] article/name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
-                {str:'{unknown article.[0].[#comments] article/name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false}
+                {str:'{unknown article.[0].[#comments] article/name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
+
+                {str:'{~unknown people.name ../name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
+                {str:'{~unknown article[0] article/name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
+                {str:'{~unknown article.[0].[#comments] article/name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false}
             ];
             arr.forEach(function(obj) {
                 var r = parser._parseExpression(obj.str, 0);
@@ -160,21 +201,39 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 // test for reserved expression {{#.*}}
                 {str:'{#y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
                 {str:'{#   y   xxx}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
+                // with ~
+                {str:'{~#y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
+                {str:'{~#   y   xxx}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
                 // test for reserved expression {{/.*}}
                 {str:'{/y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
                 {str:'{/   y    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
+                // with ~
+                {str:'{~/y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
+                {str:'{~/   y    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
                 // test for reserved expression {{>.*}}
                 {str:'{>partial}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
                 {str:'{>   partial    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
+                // with ~
+                {str:'{~>partial}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
+                {str:'{~>   partial    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
                 // test for reserved expression {{^.*}}
                 {str:'{^negation}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
                 {str:'{^   negation   }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
+                // with ~
+                {str:'{~^negation}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
+                {str:'{~^   negation   }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
                 // test for reserved expression {{!.*}}
                 {str:'{!comment}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
                 {str:'{!   comment    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
+                // with ~
+                {str:'{~!comment}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
+                {str:'{~!   comment    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
                 // test for reserved expression {{@.*}}
                 {str:'{@var}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{@   var   }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false}
+                {str:'{@   var   }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
+                // with ~
+                {str:'{~@var}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
+                {str:'{~@   var   }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false}
             ];
             arr.forEach(function(obj) {
                 var r = parser._parseExpression(obj.str, 0);
@@ -217,10 +276,25 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {str:'{else}}{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
                 {str:'{y}}{{h    zzz    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
                 {str:'{y param}}{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
+
+                // with ~
+                {str:'{~else}}{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
+                {str:'{~else~}}{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
+                {str:'{~y}}{{h    zzz    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
+                {str:'{~y~}}{{h    zzz    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
+                {str:'{~y param}}{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
+
                 // not immediate after an expression
                 {str:'{else}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
                 {str:'{y}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{y param}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false}
+                {str:'{y param}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
+
+                // with ~
+                {str:'{~else}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
+                {str:'{~else~}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
+                {str:'{~y}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
+                {str:'{~y~}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
+                {str:'{~y param}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false}
             ];
             arr.forEach(function(obj) {
                 var r = parser._parseExpression(obj.str, 0);
@@ -237,6 +311,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {str: '{{!-- comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:18},
                 {str: '{{!-- comment --}}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:18},
                 {str: '{{!-- comment }}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:22},
+
+                {str: '{{~! comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:15},
+                {str: '{{~! comment }} }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:15},
+                {str: '{{~!-- comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:19},
+                {str: '{{~!-- comment --}}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:19},
+                {str: '{{~!-- comment }}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:23},
 
                 // these cases are guarded against by isCommentExpression
                 {str: '{{!-- comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:16},

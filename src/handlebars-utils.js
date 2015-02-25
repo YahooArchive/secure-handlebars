@@ -47,20 +47,92 @@ HandlebarsUtils.generateNonce = function() {
 
 /* type of expression */
 HandlebarsUtils.NOT_EXPRESSION = 0;
-HandlebarsUtils.ESCAPE_EXPRESSION = 1;
-HandlebarsUtils.RAW_EXPRESSION = 2;
+HandlebarsUtils.RAW_EXPRESSION = 1; // {{{expression}}}
+HandlebarsUtils.ESCAPE_EXPRESSION = 2; // {{expression}}
+HandlebarsUtils.BRANCH_EXPRESSION = 3; // {{#.*}}, {{^.*}}
+HandlebarsUtils.BRANCH_END_EXPRESSION = 4; // {{/.*}}
+HandlebarsUtils.PARTIAL_EXPRESSION = 5; // {{>.*}}
+HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM = 6; // {{!--.*--}}
+HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM = 7; // {{!.*}}
+HandlebarsUtils.DATA_VAR_EXPRESSION = 8; // {{@.*}}
+HandlebarsUtils.ELSE_EXPRESSION = 9; // {{else}}, {{^}}
+HandlebarsUtils.RAW_BLOCK = 10; // {{{{block}}}}
 
-/* RegExp to match expression */
 /* '{{' 'non-{,non-}'+ '}}' and not follow by '}' */
-HandlebarsUtils.escapeExpressionRegExp = /^\{\{[^\}\{]+?\}\}(?!})/;
+HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?[^\}\{]+?\}\}(?!})/;
 /* '{{{' 'non-{,non-}'+ '}}}' and not follow by '}' */
-HandlebarsUtils.rawExpressionRegExp = /^\{\{\{[^\}\{]+?\}\}\}(?!})/;
+HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?[^\}\{]+?\}\}\}(?!})/;
+
+// need to capture the first non-whitespace string
 /* '{{' '# or ^' 'space'* 'non-space,non-},non-{'+ first-'space or }' */
-HandlebarsUtils.branchExpressionRegExp = /^\{\{[#|\\^]\s*([^\s\}\{]+)?[\s\}]/;
+HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\\^]\s*([^\s\}\{]+)?[\s\}]/;
 /* '{{' '/' 'space'* 'non-space,non-},non-{'+ first-'space or }' */
-HandlebarsUtils.branchEndExpressionRegExp = /^\{\{\/\s*([^\s\}\{]+)?[\s\}]/;
-/* '{{' 'space'* 'else' 'space'* '}}' */
-HandlebarsUtils.elseExpressionRegExp = /^\{\{\s*else\s*?\}\}/;
+HandlebarsUtils.branchEndExpressionRegExp = /^\{\{~?\/\s*([^\s\}\{]+)?[\s\}]/;
+
+/* '{{>' 'non-{,non-}'+ '}}' and not follow by '}' */ /* NOT BEING USED YET */
+HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>[^\}\{]+?\}\}(?!})/;
+
+/* '{{!--' 'non-{,non-}'+ '--}}' and not follow by '}' */ /* NOT BEING USED YET */
+HandlebarsUtils.commentExpressionLongRegExp = /^\{\{~?!--[^\}\{]+?--\}\}(?!})/;
+/* '{{!' 'non-{,non-}'+ '}}' and not follow by '}' */ /* NOT BEING USED YET */
+HandlebarsUtils.commentExpressionShortRegExp = /^\{\{~?!--[^\}\{]+?--\}\}(?!})/;
+
+/* '{{@' 'non-{,non-}'+ '}}' and not follow by '}' */ /* NOT BEING USED YET */
+HandlebarsUtils.partialExpressionRegExp = /^\{\{~?@[^\}\{]+?\}\}(?!})/;
+
+/* '{{' 'space'* 'else or ^' 'space'* '~'? '}}' and not follow by '}' */
+HandlebarsUtils.elseExpressionRegExp = /^\{\{~?\s*else\s*~?\}\}(?!})/;
+HandlebarsUtils.elseShortFormExpressionRegExp = /^\{\{~?\s*\^{1}\s*~?\}\}(?!})/;
+
+/* '{{{{' 'non-{,non-}'+ '}}}}' and not follow by '}' */
+HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{~?[^\}\{]+?\}\}\}\}(?!})/;
+
+/**
+* @function HandlebarsUtils.getExpressionType
+*
+* @static
+*
+* @param {string} input - The input string of the HTML5 web page.
+* @param {integer} i - The current index of the input string.
+* @param {integer} len - The max len of the input.
+* @returns {integer} The expression type.
+* *
+* @description
+* <p>this method is to judge the type of expression</p>
+*
+*/
+HandlebarsUtils.getExpressionType = function(input, i, len) {
+    if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '#') ||
+        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '#') 
+    ) {
+        return HandlebarsUtils.BRANCH_EXPRESSION;
+    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '^') ||
+        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '^') 
+    ) {
+        return HandlebarsUtils.BRANCH_EXPRESSION;
+    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '/') ||
+        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '/') 
+    ) {
+        return HandlebarsUtils.BRANCH_END_EXPRESSION;
+    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '>') ||
+        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '>') 
+    ) {
+        return HandlebarsUtils.PARTIAL_EXPRESSION;
+    } else if ((input[i] === '{' && i+4<len && input[i+1] === '{' && input[i+2] === '!' && input[i+3] === '-' && input[i+4] === '-') ||
+        (input[i] === '{' && i+4<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '!' && input[i+4] === '-' && input[i+5] === '-')
+    ) {
+        return HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM;
+    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '!') ||
+        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '!') 
+    ) {
+        return HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM;
+    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '@') ||
+        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '@') 
+    ) {
+        return HandlebarsUtils.DATA_VAR_EXPRESSION;
+    }
+    return HandlebarsUtils.ESCAPE_EXPRESSION;
+};
 
 /**
 * @function HandlebarsUtils.isValidExpression
@@ -80,6 +152,9 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
             break;
         case HandlebarsUtils.RAW_EXPRESSION:
             re = HandlebarsUtils.rawExpressionRegExp.exec(input.slice(i));
+            break;
+        case HandlebarsUtils.RAW_BLOCK:
+            re = HandlebarsUtils.rawBlockRegExp.exec(input.slice(i));
             break;
         default:
             return re;
@@ -109,7 +184,12 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
 * <p>For reference, please check https://github.com/mustache/spec/tree/master/specs</p>
 *
 */
-HandlebarsUtils.isReservedChar = function(ch) {
+HandlebarsUtils.isReservedChar = function(input, i) {
+    var ch = input[i];
+    if (ch === '~' && input.length > i+1) {
+        ch = input[i+1];
+    }
+
     if (ch === '#' || ch === '/' || ch === '>' || ch === '@' || ch === '^' || ch === '!') {
         return true;
     } else {
@@ -171,12 +251,16 @@ HandlebarsUtils.isBranchEndExpression = function(input, i) {
 *
 */
 HandlebarsUtils.isElseExpression = function(input, i) {
-    var re = HandlebarsUtils.elseExpressionRegExp.exec(input.slice(i));
-    if (re === null) {
-        return false;
-    } else {
+    var s = input.slice(i);
+    var re = HandlebarsUtils.elseExpressionRegExp.exec(s);
+    if (re !== null) {
         return true;
     }
+    re = HandlebarsUtils.elseShortFormExpressionRegExp.exec(s);
+    if (re !== null) {
+        return true;
+    }
+    return false;
 };
 
 /**
@@ -351,7 +435,7 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
                 continue;
 
             /* {{[!@/>]expression}} */
-            } else if (str[i] === '{' && i+2<l && str[i+1] === '{' && masked && HandlebarsUtils.isReservedChar(str[i+2])) {
+            } else if (str[i] === '{' && i+2<l && str[i+1] === '{' && masked && HandlebarsUtils.isReservedChar(str, i+2)) {
                 /* masked the '{{' */
                 stmt += r.openBracePlaceHolder;
                 stmt += r.openBracePlaceHolder;
@@ -370,7 +454,7 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
                 continue;
 
             /* {{expression}} */
-            } else if (str[i] === '{' && i+2<l && str[i+1] === '{' && masked && !HandlebarsUtils.isReservedChar(str[i+2])) {
+            } else if (str[i] === '{' && i+2<l && str[i+1] === '{' && masked && !HandlebarsUtils.isReservedChar(str, i+2)) {
                 /* masked the '{{' */
                 stmt += r.openBracePlaceHolder;
                 stmt += r.openBracePlaceHolder;
