@@ -157,6 +157,10 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
                 {str: '{{~^msg xxx}}', rstr: 'msg'},
 
+                {str: '{{^}}', rstr: undefined},
+                {str: '{{~^}}', rstr: undefined},
+                // {str: '{{~^~}}', rstr: undefined},
+
                 // illegal handlebars format
                 {str: '{{#t-ag xxx}}', rstr: 't-ag'}
             ].forEach(function(obj) {

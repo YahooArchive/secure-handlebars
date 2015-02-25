@@ -517,25 +517,6 @@ HandlebarsUtils.extractBranchStmt = function(input, k, masked) {
 */
 HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
 
-    /*
-    * the expected data structure of branching statement from the AST tree
-    *     
-    *              ________________ branching _____________
-    *              |                                      |
-    *       1st branch (if etc.)                    2nd branch (else)
-    * -----------------------------------   ----------------------------------
-    * | context | sub-branch  | context |   | context | sub-branch | context |
-    *  1st node    2nd node    3rd node      1st node    2nd node    3rd node 
-    *
-    */
-
-    /* being used for which node is being handled next */
-    var nodeFlag = [];
-    /* true for first node, false for third node (1st branch) */
-    nodeFlag[0] = true;
-    /* true for first node, false for third node (2nd branch) */
-    nodeFlag[1] = true;
-
     /* indicating which branches have been handled before */
     var branchesFlag = [];
     /* true for 1st branch */
@@ -549,8 +530,8 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
     /* return object */
     var r = {};
     r.lastStates = [];
-    r.lastStates[0] = -1;
-    r.lastStates[1] = -1;
+    r.lastStates[0] = state;
+    r.lastStates[1] = state;
     r.stmt = obj.stmt;
 
     /* transitent variables */
@@ -566,41 +547,8 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
         /* if/with/each/list/tag/unless token */
         if (typeof o[i].program !== 'undefined') {
             branchesFlag[0] = true;
-
             for(j=0;j<o[i].program.statements.length;++j) {
-
-                /* 1st node */
-                if (o[i].program.statements[j].type === 'content' && nodeFlag[0]) { 
-                    nodeFlag[0] = false;
-                    str = o[i].program.statements[j].string;
-
-                    /* restore the open/close brace place holder */
-                    str = str.replace(new RegExp(obj.openBracePlaceHolder, 'g'), '{');
-                    str = str.replace(new RegExp(obj.closeBracePlaceHolder, 'g'), '}');
-
-                    /* parse the string */
-                    t = HandlebarsUtils._analyzeContext(state, str);
-                    newLastState = t.lastState;
-                    output = t.output;
-                    debugBranch("parseAstTreeState:if:1,["+state+"/"+newLastState+"],["+str+"],["+output+"]");
-                    r.lastStates[0] = newLastState;
-
-                    /* replace the filter place holder */
-                    obj = HandlebarsUtils._replaceFilterPlaceHolder(obj, output);
-
-                /* 2nd node */
-                } else if (o[i].program.statements[j].type === 'block') {
-
-                    s = [];
-                    s[0] = o[i].program.statements[j];
-                    t = HandlebarsUtils.parseAstTreeState(s, r.lastStates[0], obj);
-                    newLastState = t.lastStates[0]; // index 0 and 1 MUST be equal
-                    obj.stmt = t.stmt;
-                    debugBranch("parseAstTreeState:if:2,["+r.lastStates[0]+"/"+newLastState+"]");
-                    r.lastStates[0] = newLastState;
-
-                /* 3rd node */
-                } else if (o[i].program.statements[j].type === 'content' && !nodeFlag[0]) {
+                if (o[i].program.statements[j].type === 'content') {
                     str = o[i].program.statements[j].string;
 
                     /* restore the open/close brace place holder */
@@ -611,12 +559,19 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
                     t = HandlebarsUtils._analyzeContext(r.lastStates[0], str);
                     newLastState = t.lastState;
                     output = t.output;
-                    debugBranch("parseAstTreeState:if:3,["+r.lastStates[0]+"/"+newLastState+"],["+str+"],["+output+"]");
+                    debugBranch("parseAstTreeState:program:content,["+r.lastStates[0]+"/"+newLastState+"],["+str+"],["+output+"]");
                     r.lastStates[0] = newLastState;
 
                     /* replace the filter place holder */
                     obj = HandlebarsUtils._replaceFilterPlaceHolder(obj, output);
-
+                } else if (o[i].program.statements[j].type === 'block') {
+                    s = [];
+                    s[0] = o[i].program.statements[j];
+                    t = HandlebarsUtils.parseAstTreeState(s, r.lastStates[0], obj);
+                    newLastState = t.lastStates[0]; // index 0 and 1 MUST be equal
+                    obj.stmt = t.stmt;
+                    debugBranch("parseAstTreeState:program:block,["+r.lastStates[0]+"/"+newLastState+"]");
+                    r.lastStates[0] = newLastState;
                 }
             }
         }
@@ -624,41 +579,8 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
         /* else token */
         if (typeof o[i].inverse !== 'undefined') {
             branchesFlag[1] = true;
-
             for(j=0;j<o[i].inverse.statements.length;++j) {
-
-                /* 1st node */
-                if (o[i].inverse.statements[j].type === 'content' && nodeFlag[1]) {
-                    nodeFlag[1] = false;
-                    str = o[i].inverse.statements[j].string;
-
-                    /* restore the open/close brace place holder */
-                    str = str.replace(new RegExp(obj.openBracePlaceHolder, 'g'), '{');
-                    str = str.replace(new RegExp(obj.closeBracePlaceHolder, 'g'), '}');
-
-                    /* parse the string */
-                    t = HandlebarsUtils._analyzeContext(state, str);
-                    newLastState = t.lastState;
-                    output = t.output;
-                    debugBranch("parseAstTreeState:else:1,["+state+"/"+newLastState+"],["+str+"],["+output+"]");
-                    r.lastStates[1] = newLastState;
-
-                    /* replace the filter place holder */
-                    obj = HandlebarsUtils._replaceFilterPlaceHolder(obj, output);
-
-                /* 2nd node */
-                } else if (o[i].inverse.statements[j].type === 'block') {
-
-                    s = [];
-                    s[0] = o[i].inverse.statements[j];
-                    t = HandlebarsUtils.parseAstTreeState(s, r.lastStates[1], obj);
-                    newLastState = t.lastStates[0]; // index 0 and 1 MUST be equal
-                    obj.stmt = t.stmt;
-                    debugBranch("parseAstTreeState:else:2,["+r.lastStates[1]+"/"+newLastState+"]");
-                    r.lastStates[1] = newLastState;
-
-                /* 3rd node */
-                } else if (o[i].inverse.statements[j].type === 'content' && !nodeFlag[1]) {
+                if (o[i].inverse.statements[j].type === 'content') {
                     str = o[i].inverse.statements[j].string;
 
                     /* restore the open/close brace place holder */
@@ -669,23 +591,30 @@ HandlebarsUtils.parseAstTreeState = function(o, state, obj) {
                     t = HandlebarsUtils._analyzeContext(r.lastStates[1], str);
                     newLastState = t.lastState;
                     output = t.output;
-                    debugBranch("parseAstTreeState:else:3,["+r.lastStates[1]+"/"+newLastState+"],["+str+"],["+output+"]");
+                    debugBranch("parseAstTreeState:else:1,["+r.lastStates[1]+"/"+newLastState+"],["+str+"],["+output+"]");
                     r.lastStates[1] = newLastState;
 
                     /* replace the filter place holder */
                     obj = HandlebarsUtils._replaceFilterPlaceHolder(obj, output);
-
+                } else if (o[i].inverse.statements[j].type === 'block') {
+                    s = [];
+                    s[0] = o[i].inverse.statements[j];
+                    t = HandlebarsUtils.parseAstTreeState(s, r.lastStates[1], obj);
+                    newLastState = t.lastStates[0]; // index 0 and 1 MUST be equal
+                    obj.stmt = t.stmt;
+                    debugBranch("parseAstTreeState:else:2,["+r.lastStates[1]+"/"+newLastState+"]");
+                    r.lastStates[1] = newLastState;
                 }
             }
         }
     }
 
     if (branchesFlag[0] && !branchesFlag[1]) {
-        debugBranch("parseAstTreeState:else:0,["+state+"/"+state+"]");
-        r.lastStates[1] = state;
+        debugBranch("parseAstTreeState:["+r.lastStates[0]+"/"+r.lastStates[0]+"]");
+        r.lastStates[1] = r.lastStates[0];
     } else if (!branchesFlag[0] && branchesFlag[1]) {
-        debugBranch("parseAstTreeState:if:0,["+state+"/"+state+"]");
-        r.lastStates[0] = state;
+        debugBranch("parseAstTreeState:["+r.lastStates[1]+"/"+r.lastStates[1]+"]");
+        r.lastStates[0] = r.lastStates[1];
     }
 
     if (r.lastStates[0] !== r.lastStates[1]) {
