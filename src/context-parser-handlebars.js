@@ -712,9 +712,11 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                 debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
                 return this._handleExpression(input, i, len);
             case handlebarsUtil.COMMENT_EXPRESSION_LONG_FORM:
+                /* _handleCommentExpression */
                 debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
                 return this._handleCommentExpression(input, i, len, handlebarsExpressionType);
             case handlebarsUtil.COMMENT_EXPRESSION_SHORT_FORM:
+                /* _handleCommentExpression */
                 debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
                 return this._handleCommentExpression(input, i, len, handlebarsExpressionType);
             case handlebarsUtil.DATA_VAR_EXPRESSION:
