@@ -1,3 +1,8 @@
+Version 1.0.2
+- refactor the code to handle different type of expression.
+- support the whitespace control
+- support the syntax of {{^}} in else statement.
+
 Version 1.0.1
 - add validation/check of handlebars expression syntax.
 - add line no and char no in error message 
