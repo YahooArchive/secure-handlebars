@@ -296,7 +296,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.statements[0].inverse.statements[2].string).to.equal('777');
         });
 
-        it("handlebars nested {{#if}} / {{#with}} / {{else}}  parsing test", function() {
+        it("handlebars nested {{#if}} / {{#with}} / {{else}} parsing test", function() {
             var t = '{{#if}}111{{#with}}222{{else}}333{{/with}}444{{else}}555{{#if}}666{{else}}777{{/if}}888{{/if}}';
             var ast = handlebars.parse(t);
 
@@ -332,7 +332,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.statements[0].inverse.statements[2].string).to.equal('777');
         });
 
-        it("handlebars nested {{#if}} / {{#each}} / {{else}}  parsing test", function() {
+        it("handlebars nested {{#if}} / {{#each}} / {{else}} parsing test", function() {
             var t = '{{#if}}111{{#each}}222{{else}}333{{/each}}444{{else}}555{{#if}}666{{else}}777{{/if}}888{{/if}}';
             var ast = handlebars.parse(t);
 
@@ -368,7 +368,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.statements[0].inverse.statements[2].string).to.equal('777');
         });
 
-        it("handlebars nested {{#if}} / {{#list}} / {{else}}  parsing test", function() {
+        it("handlebars nested {{#if}} / {{#list}} / {{else}} parsing test", function() {
             var t = '{{#if}}111{{#list people}}people{{else}}no people{{/list}}444{{else}}555{{#if}}666{{else}}777{{/if}}888{{/if}}';
             var ast = handlebars.parse(t);
 
@@ -404,7 +404,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.statements[0].inverse.statements[2].string).to.equal('777');
         });
 
-        it("handlebars nested {{#if}} / {{#tag}} / {{else}}  parsing test", function() {
+        it("handlebars nested {{#if}} / {{#tag}} / {{else}} parsing test", function() {
             var t = '{{#if}}111{{#tag people}}people{{else}}no people{{/tag}}444{{else}}555{{#if}}666{{else}}777{{/if}}888{{/if}}';
             var ast = handlebars.parse(t);
 
@@ -440,7 +440,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.statements[0].inverse.statements[2].string).to.equal('777');
         });
 
-        it("handlebars nested {{#if}} / {{^msg}} / {{else}}  parsing test", function() {
+        it("handlebars nested {{#if}} / {{^msg}} / {{else}} parsing test", function() {
             var t = '{{#if}}111{{^msg}}222{{else}}333{{/msg}}444{{else}}555{{#if}}666{{else}}777{{/if}}888{{/if}}';
             var ast = handlebars.parse(t);
 
@@ -562,6 +562,23 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.statements[0].mustache.id.string).to.equal('msg');
             expect(ast.statements[0].program.statements[0].string).to.equal('no people');
             expect(ast.statements[0].inverse.statements[0].string).to.equal('has people');
+        });
+
+        it("handlebars parallel {{#if}} parsing test", function() {
+            var t = '{{#if}} a {{#if}} b {{else}} c {{/if}} d {{#if}} e {{else}} f {{/if}} g {{#if}} h {{else}} i {{/if}} j {{/if}}';
+            var ast = handlebars.parse(t);
+            expect(ast.statements[0].mustache.id.string).to.equal('if');
+            expect(ast.statements[0].program.statements[0].string).to.equal(' a ');
+            expect(ast.statements[0].program.statements[1].mustache.id.string).to.equal('if');
+            expect(ast.statements[0].program.statements[1].program.statements[0].string).to.equal(' b ');
+            expect(ast.statements[0].program.statements[1].inverse.statements[0].string).to.equal(' c ');
+            expect(ast.statements[0].program.statements[2].string).to.equal(' d ');
+            expect(ast.statements[0].program.statements[3].program.statements[0].string).to.equal(' e ');
+            expect(ast.statements[0].program.statements[3].inverse.statements[0].string).to.equal(' f ');
+            expect(ast.statements[0].program.statements[4].string).to.equal(' g ');
+            expect(ast.statements[0].program.statements[5].program.statements[0].string).to.equal(' h ');
+            expect(ast.statements[0].program.statements[5].inverse.statements[0].string).to.equal(' i ');
+            expect(ast.statements[0].program.statements[6].string).to.equal(' j ');
         });
 
     });
