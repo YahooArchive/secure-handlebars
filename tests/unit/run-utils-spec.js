@@ -62,7 +62,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {str:'{{    {anything}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:false},
                 {str:'{{    }anything}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:false},
                 {str:'{{    ~anything}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:false},
-                {str:'{{}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:false}
+                {str:'{{}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:false},
+
             ].forEach(function(obj) {
                 var r = handlebarsUtils.isValidExpression(obj.str, 0, obj.type);
                 utils.testIsValidExpression(r, obj); 

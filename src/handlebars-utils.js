@@ -862,7 +862,7 @@ HandlebarsUtils.buildBranchAst = function(input, i) {
 
                 r = HandlebarsUtils.buildBranchAst(str, j);
                 obj = HandlebarsUtils._saveAstObject('node', r);
-                j=j+r.index;
+                j = j + r.index;
                 if (!inverse) {
                     ast.program.push(obj);
                 } else if (inverse) {
@@ -929,6 +929,12 @@ HandlebarsUtils.buildBranchAst = function(input, i) {
                 content += str[j];    
             }
         }
+    }
+
+    if (sp.length > 0) {
+        /* throw error on the template */
+        msg = "[ERROR] ContextParserHandlebars: Template does not have balanced branching expression.";
+        HandlebarsUtils.handleError(msg, true);
     }
 
     ast.index = j;

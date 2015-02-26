@@ -54,10 +54,7 @@ function ContextParserHandlebars(printChar) {
     this._lineNo = 1;
     this._charNo = 1;
 
-    this._handlebarsVersion = require('handlebars').VERSION;
-
     debug("_printChar:"+this._printChar);
-    debug("_handlebarsVersion:"+this._handlebarsVersion);
 }
 
 /* inherit the prototype of contextParser.Parser */
@@ -393,11 +390,6 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, expressio
 // validate the Handlebars template before/after analysis.
 ContextParserHandlebars.prototype._validateTemplate = function(template) {
     var msg;
-    if (!Handlebars.VERSION.match(/^2\./)) {
-        msg = "[ERROR] ContextParserHandlebars: We support Handlebars 2.0 ONLY!";
-        handlebarsUtil.handleError(msg, true);
-    }
-
     try {
         Handlebars.parse(template);
     } catch (err) {
@@ -545,24 +537,14 @@ ContextParserHandlebars.prototype._handleExpression = function(input, i, len) {
 ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, state) {
     var msg;
     try {
-        /* Extract the branching statement, and subpress non-branching expression. */
-        var objMaskedStmt = handlebarsUtil.extractBranchStmt(input, i, true);
+        var ast = handlebarsUtil.buildBranchAst(input, i);
+        var result = handlebarsUtil.analyseBranchAst(ast, state);
 
-        /* Parse the branching statement. */
-        var ast = handlebarsUtil.parseBranchStmt(objMaskedStmt.stmt);
-
-        /* Restore the open/close_brace_nonce with {} for analysis */
-        objMaskedStmt.stmt = objMaskedStmt.stmt.replace(new RegExp(objMaskedStmt.openBracePlaceHolder, 'g'), '{');
-        objMaskedStmt.stmt = objMaskedStmt.stmt.replace(new RegExp(objMaskedStmt.closeBracePlaceHolder, 'g'), '}');
-
-        var result = handlebarsUtil.parseAstTreeState(ast, state, objMaskedStmt);
-
-        /* echo to output */
-        this.printChar(result.stmt);
+        /* print the output */
+        this.printChar(result.output);
 
         /* advance the index pointer i to the char after the last brace of branching expression. */
-        var objUnmaskedStmt = handlebarsUtil.extractBranchStmt(input, i, false);
-        i=i+objUnmaskedStmt.stmt.length;
+        i = i+ast.index+1;
         this.state = result.lastStates[0];
 
         debug("_handleBranchTemplate: state:"+this.state+",i:"+i);
