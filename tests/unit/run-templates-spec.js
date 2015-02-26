@@ -90,7 +90,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var data = fs.readFileSync(file, 'utf-8');
             var arr = [
                 /{{!--    comment1  --}}/,
-                /{{!--    comment2  }}/,
+                /{{!--    comment2  }}   --}}/,
                 /{{! comment3 }}/
             ];
             utils.testArrMatch(data, arr);

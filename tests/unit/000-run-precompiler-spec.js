@@ -102,12 +102,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
-        /* this test will not throw exception, but the vanilla handlebars will complain, no need to handle */
+        /* this test will throw exception, and the vanilla handlebars will complain */
         it("./bin/handlebarspc broken conditional {{/if}} template test", function(done) {
             var exec = promise.promisify(require("child_process").exec);
             exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_019.hbs')
             .timeout(300)
-            .then(function(e){
+            .catch(function(e){
                 done();
             });
         });
