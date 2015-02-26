@@ -14,6 +14,10 @@
     "Albert Yu <albertyu@yahoo-inc.com>"
   ],
   "description": "Handlebars Context PreCompiler",
+  "preferGlobal": "true",
+  "bin": {
+    "handlebarspc": "bin/handlebarspc"
+  },
   "repository": {
     "type": "git",
     "url": "git@github.com:yahoo/context-parser-handlebars.git"
@@ -37,10 +41,10 @@
     "test": "grunt test"
   },
   "dependencies": {
-    "debug": "^2.0",
-    "handlebars": "2.*",
-    "context-parser": "^1.*",
-    "xss-filters": "^1.*"
+    "context-parser": "^1.0.0",
+    "debug": "^2.1.1",
+    "handlebars": "2.0.0",
+    "xss-filters": "^1.0.4"
   },
   "devDependencies": {
     "bluebird": "*",
