@@ -17,12 +17,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     describe("handlebars-utils test suite", function() {
 
-        it("handlebars-utils#generateNonce test", function() {
-            var n1 = handlebarsUtils.generateNonce();
-            var n2 = handlebarsUtils.generateNonce();
-            expect(n1).not.to.equal(n2);
-        });
-
         it("handlebars-utils#isValidExpression escapeExpressionRegExp test", function() {
             [
                 // basic

@@ -22,29 +22,6 @@ var HandlebarsUtils = {};
 /* vanilla Handlebars */
 var Handlebars = require("handlebars");
 
-/**
-* @function HandlebarsUtils.generateNonce
-*
-* @static
-*
-* @returns {string} A random string in the length of 5 (10000 combinations).
-*
-* @description
-* <p>This function generates a random string for masking double open/close brace to simplify AST construction.</p>
-*
-*/
-HandlebarsUtils.generateNonce = function() {
-    var nonce = "";
-    /* this char set must be non-template reserved char set */
-    var str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-    var l = str.length;
-    for(var i=0;i<5;i++) {
-        nonce += str.charAt(Math.floor(Math.random()*l));
-    }
-    return nonce;
-};
-
 /* type of expression */
 HandlebarsUtils.NOT_EXPRESSION = 0;
 HandlebarsUtils.RAW_EXPRESSION = 1; // {{{expression}}}
