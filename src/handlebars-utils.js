@@ -38,26 +38,26 @@ HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM = 9; // {{!.*}}
 HandlebarsUtils.RAW_BLOCK = 10; // {{{{block}}}}
 
 /* reference: http://handlebarsjs.com/expressions.html */
-/* '{{{{' '~'? 'not {}~'+ '~'? greedy '}}}}' and not follow by '}' */
+/* '{{{{' '~'? 'not {}~'+ '~'? non-greedy '}}}}' and not follow by '}' */
 HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{~?([^\}\{~]+)~??\}\}\}\}(?!})/;
-/* '{{{' '~'? 'not {}~'+ '~'? greedy '}}}' and not follow by '}' */
+/* '{{{' '~'? 'not {}~'+ '~'? non-greedy '}}}' and not follow by '}' */
 HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?([^\}\{~]+)~??\}\}\}(?!})/;
 
-/* '{{' '~'? 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? greedy '}}' and not follow by '}' */
-HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
-/* '{{' '~'? '>' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? greedy '}}' and not follow by '}' */
-HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
-/* '{{' '~'? '@' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? greedy '}}' and not follow by '}' */
-HandlebarsUtils.dataVarExpressionRegExp = /^\{\{~?@\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
+/* '{{' '~'? 'space'* ('not {}~'+) '~'? non-greedy '}}' and not follow by '}' */
+HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?\s*([^\}\{~]+)~??\}\}(?!})/;
+/* '{{' '~'? '>' 'space'* ('not {}~'+) 'space'* '~'? non-greedy '}}' and not follow by '}' */
+HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>\s*([^\}\{~]+)\s*~??\}\}(?!})/;
+/* '{{' '~'? '@' 'space'* ('not {}~'+) 'space'* '~'? non-greedy '}}' and not follow by '}' */
+HandlebarsUtils.dataVarExpressionRegExp = /^\{\{~?@\s*([^\}\{~]+)\s*~??\}\}(?!})/;
 
 // need to capture the first non-whitespace string and capture the rest
-/* '{{' '~'? '# or ^' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? greedy '}}' and not follow by '}' */
+/* '{{' '~'? '# or ^' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\^]\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
-/* '{{' '~'? '/' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? greedy '}}' and not follow by '}' */
+/* '{{' '~'? '/' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.branchEndExpressionRegExp = /^\{\{~?\/\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
-/* '{{' '~'? 'space'* 'else' 'space'* '~'? greedy '}}' and not follow by '}' */
+/* '{{' '~'? 'space'* 'else' 'space'* '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.elseExpressionRegExp = /^\{\{~?\s*else\s*~??\}\}(?!})/;
-/* '{{' '~'? 'space'* '^'{1} 'space'* '~'? greedy '}}' and not follow by '}' */
+/* '{{' '~'? 'space'* '^'{1} 'space'* '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.elseShortFormExpressionRegExp = /^\{\{~?\s*\^{1}\s*~??\}\}(?!})/;
 
 /**
@@ -131,6 +131,12 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
             break;
         case HandlebarsUtils.ESCAPE_EXPRESSION:
             re = HandlebarsUtils.escapeExpressionRegExp.exec(s);
+            if (re !== null && re[1] !== undefined) {
+                if (HandlebarsUtils.isReservedChar(re[1], 0)) {
+                    re.result = false;
+                    return re;
+                }
+            }
             break;
         case HandlebarsUtils.PARTIAL_EXPRESSION:
             re = HandlebarsUtils.partialExpressionRegExp.exec(s);

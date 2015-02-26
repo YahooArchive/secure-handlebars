@@ -38,7 +38,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {str:'{{~  anything  ~}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:true, rstr:'{{~  anything  ~}}'},
 
                 // invalid reserved expression
-                /* this patten is guarded against by getExpressionType
                 {str:'{{#anything}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:false},
                 {str:'{{~#anything}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:false},
                 {str:'{{/anything}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:false},
@@ -53,7 +52,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {str:'{{~!--anything--}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:false},
                 {str:'{{>anything}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:false},
                 {str:'{{~>anything}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:false},
-                */
 
                 // invalid expression
                 {str:'{ {anything}}', type:handlebarsUtils.ESCAPE_EXPRESSION, result:false},
