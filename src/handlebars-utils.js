@@ -27,13 +27,13 @@ HandlebarsUtils.NOT_EXPRESSION = 0;
 HandlebarsUtils.RAW_EXPRESSION = 1; // {{{expression}}}
 
 HandlebarsUtils.ESCAPE_EXPRESSION = 2; // {{expression}}
-HandlebarsUtils.PARTIAL_EXPRESSION = 5; // {{>.*}}
-HandlebarsUtils.DATA_VAR_EXPRESSION = 8; // {{@.*}}
-HandlebarsUtils.BRANCH_EXPRESSION = 3; // {{#.*}}, {{^.*}}
-HandlebarsUtils.BRANCH_END_EXPRESSION = 4; // {{/.*}}
-HandlebarsUtils.ELSE_EXPRESSION = 9; // {{else}}, {{^}}
-HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM = 6; // {{!--.*--}}
-HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM = 7; // {{!.*}}
+HandlebarsUtils.PARTIAL_EXPRESSION = 3; // {{>.*}}
+HandlebarsUtils.DATA_VAR_EXPRESSION = 4; // {{@.*}}
+HandlebarsUtils.BRANCH_EXPRESSION = 5; // {{#.*}}, {{^.*}}
+HandlebarsUtils.BRANCH_END_EXPRESSION = 6; // {{/.*}}
+HandlebarsUtils.ELSE_EXPRESSION = 7; // {{else}}, {{^}}
+HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM = 8; // {{!--.*--}}
+HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM = 9; // {{!.*}}
 
 HandlebarsUtils.RAW_BLOCK = 10; // {{{{block}}}}
 
@@ -42,16 +42,17 @@ HandlebarsUtils.RAW_BLOCK = 10; // {{{{block}}}}
 HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{~?([^\}\{~]+)~??\}\}\}\}(?!})/;
 /* '{{{' '~'? 'not {}~'+ '~'? greedy '}}}' and not follow by '}' */
 HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?([^\}\{~]+)~??\}\}\}(?!})/;
-/* '{{' '~'? 'not {}~!-#^/@>'+ '~'? greedy '}}' and not follow by '}' */
-HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?([^\}\{~!-#\^\/@>]+)~??\}\}(?!})/;
-/* '{{' '~'? '>' 'not {}~!-#^/@>'+ '~'? greedy '}}' and not follow by '}' */
-HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>([^\}\{~!-#\^\/@>]+)~??\}\}(?!})/;
-/* '{{' '~'? '@' 'not {}~!-#^/@>'+ '~'? greedy '}}' and not follow by '}' */
-HandlebarsUtils.dataVarExpressionRegExp = /^\{\{~?@([^\}\{~!-#\^\/@>]+)~??\}\}(?!})/;
+
+/* '{{' '~'? 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? greedy '}}' and not follow by '}' */
+HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
+/* '{{' '~'? '>' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? greedy '}}' and not follow by '}' */
+HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
+/* '{{' '~'? '@' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? greedy '}}' and not follow by '}' */
+HandlebarsUtils.dataVarExpressionRegExp = /^\{\{~?@\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
 
 // need to capture the first non-whitespace string and capture the rest
 /* '{{' '~'? '# or ^' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? greedy '}}' and not follow by '}' */
-HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\\^]\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
+HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\^]\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
 /* '{{' '~'? '/' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? greedy '}}' and not follow by '}' */
 HandlebarsUtils.branchEndExpressionRegExp = /^\{\{~?\/\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
 /* '{{' '~'? 'space'* 'else' 'space'* '~'? greedy '}}' and not follow by '}' */
@@ -361,7 +362,7 @@ HandlebarsUtils.analyseBranchAst = function(ast, state) {
 
     var r = {},
         s = [],
-        t,
+        t, msg,
         newLastState;
     r.lastStates = [];
     r.lastStates[0] = state;
@@ -439,6 +440,7 @@ HandlebarsUtils.buildBranchAst = function(input, i) {
         len = str.length;
 
     var sp = [],
+        msg,
         content = '',
         inverse = false,
         obj = {},

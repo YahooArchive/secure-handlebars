@@ -592,9 +592,8 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
 
     /* handling different type of expression */
     if (ch === '{' && i+3 < len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{') {
-        //
-        // TODO
-        //
+        msg = "[ERROR] ContextParserHandlebars: Not yet support RAW BLOCK! ["+this._lineNo+":"+this._charNo+"]";
+        handlebarsUtil.handleError(msg, true);
     } else if (ch === '{' && i+2 < len && input[i+1] === '{' && input[i+2] === '{') {
         handlebarsExpressionType = handlebarsUtil.RAW_EXPRESSION;
         re = handlebarsUtil.isValidExpression(input, i, handlebarsExpressionType);
