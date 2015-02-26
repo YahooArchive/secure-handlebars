@@ -123,6 +123,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
+        /* we are not using handlebars to build the AST, so the following test can be skipped
+        *
         it("handlebars {{#if}} {{!-- comment --}} {{/if}} parsing test", function() {
             var t = '{{#if}}xxx{{!-- comment --}}yyy{{/if}}';
             var ast = handlebars.parse(t);
@@ -580,6 +582,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.statements[0].program.statements[5].inverse.statements[0].string).to.equal(' i ');
             expect(ast.statements[0].program.statements[6].string).to.equal(' j ');
         });
-
+        */
     });
 }());

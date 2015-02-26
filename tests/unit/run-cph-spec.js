@@ -188,8 +188,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         it("context-parser-handlebars#_parseExpression reserved tag test", function() {
             var parser = new ContextParserHandlebars();
-
-            var arr = [
+            [
                 // test for reserved expression {{#.*}}
                 {str:'{{#y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
                 {str:'{{#   y   xxx}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
