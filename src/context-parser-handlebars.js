@@ -47,19 +47,16 @@ function ContextParserHandlebars(printChar) {
     this._knownFilters.push(filter.FILTER_FULL_URI);
     this._knownFilters.push(filter.FILTER_NOT_HANDLE);
 
-    /* The flag is used to print out the char to console */
+    /* the flag is used to print out the char to console */
     this._printChar = typeof printChar !== undefined? printChar : true;
-
-    /* The flag is used to enable the output filter format as Handlebars 2.0.0 subexpression or not. */
-    this._enableSubexpression = true;
-    this._handlebarsVersion = require('handlebars').VERSION;
 
     /* save the line number being processed */
     this._lineNo = 1;
     this._charNo = 1;
 
+    this._handlebarsVersion = require('handlebars').VERSION;
+
     debug("_printChar:"+this._printChar);
-    debug("_enableSubexpression:"+this._enableSubexpression);
     debug("_handlebarsVersion:"+this._handlebarsVersion);
 }
 
@@ -128,8 +125,8 @@ ContextParserHandlebars.prototype.printCharWithState = function() {
 * FILTERS LOGIC
 **********************************/
 
-/* '{{' '~'? 'space'* ('non-space,non-{,non-},non-~'+) 'space'* ('non-{,non-}')* greedy '}' */
-ContextParserHandlebars.expressionRegExp = /^\{~?\s*([^\s\}\{~]+)\s*([^\}\{]*)?\}/;
+/* '{{' '~'? 'space'* ('not space{}~'+) 'space'* ('not {}~'*) '~'? greedy '}}' and not follow by '}' */
+ContextParserHandlebars.expressionRegExp = /^\{\{~?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
 
 /** 
 * @function module:ContextParserHandlebars._parseExpression
@@ -147,35 +144,33 @@ ContextParserHandlebars.expressionRegExp = /^\{~?\s*([^\s\}\{~]+)\s*([^\}\{]*)?\
 */
 ContextParserHandlebars.prototype._parseExpression = function(input, i) {
 
-    var firststr = "",
-        obj = {
+    var obj = {
             filter: '',
             isPrefixWithKnownFilter: false,
             isSingleIdentifier: false
         };
 
-    /*
-    * Note: convert the format to "{.*}".
-    */
     var str = input.slice(i);
-    var j = str.indexOf('}');
-    str = str.slice(0, j+1);
-
     var m = ContextParserHandlebars.expressionRegExp.exec(str);
 
     if (m !== null) {
-        if (m[1] !== undefined) {
-            if (handlebarsUtil.isReservedChar(m[1], 0)) {
-                return obj;
-            }
-            if (m[1] === 'else' || m[1] === '^') {
+        if (m[1] !== undefined && m[2] !== undefined) {
+            if (m[1] === 'else') {
                 obj.isSingleIdentifier = false;
                 obj.isPrefixWithKnownFilter = true;
                 return obj;
             }
-        }
-        if (m[2] !== undefined) {
-            if (m[2] === '~') {
+            if (m[1] === '^' && m[2] === '') {
+                obj.isSingleIdentifier = false;
+                obj.isPrefixWithKnownFilter = true;
+                return obj;
+            }
+            if (handlebarsUtil.isReservedChar(m[1], 0)) {
+                obj.isSingleIdentifier = false;
+                obj.isPrefixWithKnownFilter = false;
+                return obj;
+            }
+            if (m[2] === '') {
                 obj.isSingleIdentifier = true;
             } else {
                 obj.filter = m[1];
@@ -184,8 +179,6 @@ ContextParserHandlebars.prototype._parseExpression = function(input, i) {
                     obj.isPrefixWithKnownFilter = true;
                 }
             }
-        } else {
-            obj.isSingleIdentifier = true;
         }
     }
     debug("_parseExpression:"+obj);
@@ -197,26 +190,23 @@ ContextParserHandlebars.prototype._parseExpression = function(input, i) {
 *
 * @param {integer} state - The current HTML5 state of the current character before the Handlebars expression.
 * @param {string} input - The input string of HTML5 web page.
-* @param {integer} ptr - The index of the current character in the input string, it is pointing to the last brace of the open brace of the expression.
-* @param {string} extraInfo - The extra information for filters judgement.
+* @param {string} expressionInfo - The extra information for filters judgement.
 * @returns {Array} The Array of the customized filters.
 *
 * @description
 * <p>This function returns the customized filter based on the current HTML5 state with additional data parsing.</p>
 *
 */
-ContextParserHandlebars.prototype._addFilters = function(state, input, ptr, extraInfo) {
+ContextParserHandlebars.prototype._addFilters = function(state, input, expressionInfo) {
 
     /* transitent var */
-    var e,
-        f,
-        msg;
+    var e, f, msg;
 
     /* return filters */
     var filters = [];
 
-    var attributeName = extraInfo.attributeName,
-        attributeValue = extraInfo.attributeValue;
+    var attributeName = expressionInfo.attributeName,
+        attributeValue = expressionInfo.attributeValue;
 
     debug("_addFilters:state:"+state+",attrname:"+attributeName+",attrvalue:"+attributeValue);
 
@@ -421,12 +411,9 @@ ContextParserHandlebars.prototype._handleRawExpression = function(input, i, len,
     var msg;
     for(var j=i;j<len;++j) {
         if (input[j] === '}' && j+2<len && input[j+1] === '}' && input[j+2] === '}') {
-                this.printChar(input[j]);
-                j++;
-                this.printChar(input[j]);
-                j++;
-                this.printChar(input[j]);
-                j++;
+                this.printChar('}}}');
+                /* advance the index pointer j to the char after the last brace of expression. */
+                j=j+3;
 
                 /* update the Context Parser's state if it is raw expression */
                 this.state = state;
@@ -446,60 +433,47 @@ ContextParserHandlebars.prototype._handleRawExpression = function(input, i, len,
 
 // consume the escape expression.
 ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, len, state) {
-    var msg;
+    var msg,
+        str = '{{';
 
-    /* Consume 2 '{' chars */
-    this.printChar(input[i]);
-    i++;
-    this.printChar(input[i]);
-
-    /*
-    * Check whether there is a known filter being added, 
-    * if yes, then we will not add any customized filters.
-    */
+    /* parse expression */
     var extraExpressionInfo = this._parseExpression(input, i),
         isPrefixWithKnownFilter = extraExpressionInfo.isPrefixWithKnownFilter,
         filters = [];
 
+    /* add filters if it is not prefix with known filter */
     if (!isPrefixWithKnownFilter) {
-        /* We suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}} */
-        this.printChar('{');
+        /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}} */
+        str += '{';
 
-        /* Get the customized filter based on the current HTML5 state before the Handlebars template expression. */
-        var extraInfo = {
+        /* get the customized filter based on the current HTML5 state before the Handlebars template expression. */
+        var expressionInfo = {
             'attributeName': this.getAttributeName(),
             'attributeValue': this.getAttributeValue(),
         };
-        filters = this._addFilters(state, input, i, extraInfo);
+        filters = this._addFilters(state, input, expressionInfo);
         for(var k=filters.length-1;k>=0;--k) {
-            if (this._enableSubexpression) {
-                if (extraExpressionInfo.isSingleIdentifier && k === 0) {
-                    this.printChar(filters[k] + " ");
-                } else {
-                    this.printChar(filters[k] + " (");
-                }
+            if (extraExpressionInfo.isSingleIdentifier && k === 0) {
+                str += filters[k] + " ";
             } else {
-                this.printChar(filters[k] + " ");
+                str += filters[k] + " (";
             }
         }
     }
+    this.printChar(str);
 
-    for(var j=i+1;j<len;++j) {
+    for(var j=i+2;j<len;++j) {
         if (input[j] === '}' && j+1 < len && input[j+1] === '}') {
-            /* close the filters subexpression */
-            if (this._enableSubexpression) {
-                for(var l=filters.length-1;l>=0;--l) {
-                    if (extraExpressionInfo.isSingleIdentifier && l === 0) {
-                    } else {
-                        this.printChar(")");
-                    }
+            for(var l=filters.length-1;l>=0;--l) {
+                if (extraExpressionInfo.isSingleIdentifier && l === 0) {
+                } else {
+                    this.printChar(')');
                 }
             }
 
-            this.printChar(input[j]);
-            j++;
-            this.printChar(input[j]);
-            j++;
+            /* advance the index pointer j to the char after the last brace of expression. */
+            this.printChar('}}');
+            j=j+2;
 
             /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}} */
             if (!isPrefixWithKnownFilter) {
@@ -519,8 +493,7 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
             this.printChar(input[j]);
         }
     }
-
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace. ["+this._lineNo+":"+this._charNo+"]";
+    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of escape expression. ["+this._lineNo+":"+this._charNo+"]";
     handlebarsUtil.handleError(msg, true);
 };
 
@@ -530,23 +503,17 @@ ContextParserHandlebars.prototype._handleCommentExpression = function(input, i, 
     for(var j=i;j<len;++j) {
         if (type === handlebarsUtil.COMMENT_EXPRESSION_LONG_FORM) {
             if (input[j] === '-' && j+3<len && input[j+1] === '-' && input[j+2] === '}' && input[j+3] === '}') {
-                this.printChar(input[j]);
-                j++;
-                this.printChar(input[j]);
-                j++;
-                this.printChar(input[j]);
-                j++;
-                this.printChar(input[j]);
-                j++;
+                this.printChar('--}}');
+                /* advance the index pointer j to the char after the last brace of expression. */
+                j=j+4;
 
                 return j;
             }
         } else if (type === handlebarsUtil.COMMENT_EXPRESSION_SHORT_FORM) {
             if (input[j] === '}' && j+1<len && input[j+1] === '}') {
-                this.printChar(input[j]);
-                j++;
-                this.printChar(input[j]);
-                j++;
+                this.printChar('}}');
+                /* advance the index pointer j to the char after the last brace of expression. */
+                j=j+2;
 
                 return j;
             }
@@ -562,10 +529,9 @@ ContextParserHandlebars.prototype._handleExpression = function(input, i, len) {
     var msg;
     for(var j=i;j<len;++j) {
         if (input[j] === '}' && j+1<len && input[j+1] === '}') {
-            this.printChar(input[j]);
-            j++;
-            this.printChar(input[j]);
-            j++;
+            this.printChar('}}');
+            /* advance the index pointer j to the char after the last brace of expression. */
+            j=j+2;
 
             return j;
         }
@@ -594,7 +560,7 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
         /* echo to output */
         this.printChar(result.stmt);
 
-        /* Advance the index pointer i to the char after the last brace of branching expression. */
+        /* advance the index pointer i to the char after the last brace of branching expression. */
         var objUnmaskedStmt = handlebarsUtil.extractBranchStmt(input, i, false);
         i=i+objUnmaskedStmt.stmt.length;
         this.state = result.lastStates[0];
@@ -631,16 +597,14 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
 
     /* return object */
     var index = i;
-
-    /* error msg */
-    var msg;
     /* the length of the input */
     var len = input.length;
+
     /* regular expression validation result */
     var re;
+    /* error msg */
+    var msg;
 
-    /* Handlebars template context */
-    var isHandlebarsContext = false;
     /* Handlebars expression type */
     var handlebarsExpressionType = handlebarsUtil.NOT_EXPRESSION; 
 
@@ -650,11 +614,10 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
         // TODO
         //
     } else if (ch === '{' && i+2 < len && input[i+1] === '{' && input[i+2] === '{') {
-        isHandlebarsContext = true;
         handlebarsExpressionType = handlebarsUtil.RAW_EXPRESSION;
-        re = handlebarsUtil.isValidExpression(input, i, handlebarsUtil.RAW_EXPRESSION);
+        re = handlebarsUtil.isValidExpression(input, i, handlebarsExpressionType);
         if (re.result === false) {
-            msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid expression. ["+this._lineNo+":"+this._charNo+"]";
+            msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw expression. ["+this._lineNo+":"+this._charNo+"]";
             handlebarsUtil.handleError(msg, true);
         }
 
@@ -667,13 +630,13 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
         debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
         return this._handleRawExpression(input, i, len, state);
     } else if (ch === '{' && i+1 < len && input[i+1] === '{') {
-        isHandlebarsContext = true;
+        // this type may not be 100% correct (the case is BRANCH_EXPRESSION), so it need the isValidExpression call below.
         handlebarsExpressionType = handlebarsUtil.getExpressionType(input, i, len);
         switch (handlebarsExpressionType) {
             case handlebarsUtil.ESCAPE_EXPRESSION:
                 re = handlebarsUtil.isValidExpression(input, i, handlebarsExpressionType);
                 if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid expression. ["+this._lineNo+":"+this._charNo+"]";
+                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid escape expression. ["+this._lineNo+":"+this._charNo+"]";
                     handlebarsUtil.handleError(msg, true);
                 }
 
@@ -685,62 +648,68 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                 /* _handleEscapeExpression */
                 debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
                 return this._handleEscapeExpression(input, i, len, state);
+
+            case handlebarsUtil.PARTIAL_EXPRESSION:
+                re = handlebarsUtil.isValidExpression(input, i, handlebarsExpressionType);
+                if (re.result === false) {
+                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid partial expression. ["+this._lineNo+":"+this._charNo+"]";
+                    handlebarsUtil.handleError(msg, true);
+                }
+                /* _handleExpression */
+                debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
+                return this._handleExpression(input, i, len);
+
+            case handlebarsUtil.DATA_VAR_EXPRESSION:
+                re = handlebarsUtil.isValidExpression(input, i, handlebarsExpressionType);
+                if (re.result === false) {
+                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid data var expression. ["+this._lineNo+":"+this._charNo+"]";
+                    handlebarsUtil.handleError(msg, true);
+                }
+                /* _handleExpression */
+                debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
+                return this._handleExpression(input, i, len);
+
             case handlebarsUtil.BRANCH_EXPRESSION:
                 re = handlebarsUtil.isValidExpression(input, i, handlebarsExpressionType);
                 if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid expression. ["+this._lineNo+":"+this._charNo+"]";
+                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid branch expression. ["+this._lineNo+":"+this._charNo+"]";
                     handlebarsUtil.handleError(msg, true);
                 }
                 /* _handleBranchExpression */
                 debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
                 return this._handleBranchExpression(input, i, state);
+
             case handlebarsUtil.BRANCH_END_EXPRESSION:
                 msg = "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{/.*}} expression. ["+this._lineNo+":"+this._charNo+"]";
                 handlebarsUtil.handleError(msg, true);
                 break;
-            case handlebarsUtil.PARTIAL_EXPRESSION:
-                re = handlebarsUtil.isValidExpression(input, i, handlebarsExpressionType);
-                if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid expression. ["+this._lineNo+":"+this._charNo+"]";
-                    handlebarsUtil.handleError(msg, true);
-                }
-                /* _handleExpression */
-                debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
-                return this._handleExpression(input, i, len);
+
             case handlebarsUtil.COMMENT_EXPRESSION_LONG_FORM:
+                // no need to validate the comment expression as the content inside are skipped.
                 /* _handleCommentExpression */
                 debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
                 return this._handleCommentExpression(input, i, len, handlebarsExpressionType);
+
             case handlebarsUtil.COMMENT_EXPRESSION_SHORT_FORM:
+                // no need to validate the comment expression as the content inside are skipped.
                 /* _handleCommentExpression */
                 debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
                 return this._handleCommentExpression(input, i, len, handlebarsExpressionType);
-            case handlebarsUtil.DATA_VAR_EXPRESSION:
-                re = handlebarsUtil.isValidExpression(input, i, handlebarsExpressionType);
-                if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid expression. ["+this._lineNo+":"+this._charNo+"]";
-                    handlebarsUtil.handleError(msg, true);
-                }
-                /* _handleExpression */
-                debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
-                return this._handleExpression(input, i, len);
+
             case handlebarsUtil.ELSE_EXPRESSION:
-                msg = "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{else}} expression. ["+this._lineNo+":"+this._charNo+"]";
+                msg = "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{else}} or {{^}} expression. ["+this._lineNo+":"+this._charNo+"]";
                 handlebarsUtil.handleError(msg, true);
                 break;
+
             default:
                 msg = "[ERROR] ContextParserHandlebars: Parsing error! Unknown expression. ["+this._lineNo+":"+this._charNo+"]";
                 handlebarsUtil.handleError(msg, true);
                 break;
         }
     } else {
-        isHandlebarsContext = false;
-        handlebarsExpressionType = handlebarsUtil.NOT_EXPRESSION;
         /* return immediately for non template start char '{' */
         return index;
     }
-
-    return i;
 };
 
 /**********************************

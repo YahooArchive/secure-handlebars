@@ -14,7 +14,7 @@ exports.testArrMatch = function(data, arr) {
 };
 
 exports.testExpression = function(result, obj) {
-    expect(result.isPrefixWithKnowFilter).to.equal(obj.isPrefixWithKnowFilter);
+    expect(result.isPrefixWithKnownFilter).to.equal(obj.isPrefixWithKnownFilter);
     expect(result.filter).to.equal(obj.filter);
     expect(result.isSingleIdentifier).to.equal(obj.isSingleIdentifier);
 };

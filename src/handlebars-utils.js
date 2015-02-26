@@ -48,40 +48,39 @@ HandlebarsUtils.generateNonce = function() {
 /* type of expression */
 HandlebarsUtils.NOT_EXPRESSION = 0;
 HandlebarsUtils.RAW_EXPRESSION = 1; // {{{expression}}}
+
 HandlebarsUtils.ESCAPE_EXPRESSION = 2; // {{expression}}
+HandlebarsUtils.PARTIAL_EXPRESSION = 5; // {{>.*}}
+HandlebarsUtils.DATA_VAR_EXPRESSION = 8; // {{@.*}}
 HandlebarsUtils.BRANCH_EXPRESSION = 3; // {{#.*}}, {{^.*}}
 HandlebarsUtils.BRANCH_END_EXPRESSION = 4; // {{/.*}}
-HandlebarsUtils.PARTIAL_EXPRESSION = 5; // {{>.*}}
+HandlebarsUtils.ELSE_EXPRESSION = 9; // {{else}}, {{^}}
 HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM = 6; // {{!--.*--}}
 HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM = 7; // {{!.*}}
-HandlebarsUtils.DATA_VAR_EXPRESSION = 8; // {{@.*}}
-HandlebarsUtils.ELSE_EXPRESSION = 9; // {{else}}, {{^}}
+
 HandlebarsUtils.RAW_BLOCK = 10; // {{{{block}}}}
 
-/* '{{' '~'? 'non-{,non-}'+ greedy '}}' and not follow by '}' */
-HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?[^\}\{]+?\}\}(?!})/;
-/* '{{{' '~'? 'non-{,non-}'+ greedy '}}}' and not follow by '}' */
-HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?[^\}\{]+?\}\}\}(?!})/;
-/* '{{>' '~'? 'non-{,non-}'+ greedy '}}' and not follow by '}' */
-HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>[^\}\{]+?\}\}(?!})/;
-/* '{{@' '~'? 'non-{,non-}'+ greedy '}}' and not follow by '}' */
-HandlebarsUtils.dataVarExpressionRegExp = /^\{\{~?@[^\}\{]+?\}\}(?!})/;
-/* '{{{{' '~'? 'non-{,non-}'+ greedy '}}}}' and not follow by '}' */
-HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{~?[^\}\{]+?\}\}\}\}(?!})/;
+/* reference: http://handlebarsjs.com/expressions.html */
+/* '{{{{' '~'? 'not {}~'+ '~'? greedy '}}}}' and not follow by '}' */
+HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{~?([^\}\{~]+)~??\}\}\}\}(?!})/;
+/* '{{{' '~'? 'not {}~'+ '~'? greedy '}}}' and not follow by '}' */
+HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?([^\}\{~]+)~??\}\}\}(?!})/;
+/* '{{' '~'? 'not {}~!-#^/@>'+ '~'? greedy '}}' and not follow by '}' */
+HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?([^\}\{~!-#\^\/@>]+)~??\}\}(?!})/;
+/* '{{' '~'? '>' 'not {}~!-#^/@>'+ '~'? greedy '}}' and not follow by '}' */
+HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>([^\}\{~!-#\^\/@>]+)~??\}\}(?!})/;
+/* '{{' '~'? '@' 'not {}~!-#^/@>'+ '~'? greedy '}}' and not follow by '}' */
+HandlebarsUtils.dataVarExpressionRegExp = /^\{\{~?@([^\}\{~!-#\^\/@>]+)~??\}\}(?!})/;
+
 // need to capture the first non-whitespace string and capture the rest
-/* '{{' '~'? '# or ^' 'space'* ('non-space,non-{,non-},non-~'+) 'space'* ('non-{,non-}')* greedy '}}' and not follow by '}' */
-HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\\^]\s*([^\s\}\{~]+)\s*([^\}\{]*)?\}\}(?!})/;
-/* '{{' '~'? '/' 'space'* ('non-space,non-{,non-},non-~'+) 'space'* ('non-{,non-}')* greedy '}}' and not follow by '}' */
-HandlebarsUtils.branchEndExpressionRegExp = /^\{\{~?\/\s*([^\s\}\{~]+)\s*([^\}\{]*)?\}\}(?!})/;
-/* '{{' '~'? 'space'* 'else' 'space'* greedy '~'? '}}' and not follow by '}' */
-HandlebarsUtils.elseExpressionRegExp = /^\{\{~?\s*else\s*~?\}\}(?!})/;
-/* '{{' '~'? 'space'* '^'{1} 'space'* greedy '~'? '}}' and not follow by '}' */
-HandlebarsUtils.elseShortFormExpressionRegExp = /^\{\{~?\s*\^{1}\s*~?\}\}(?!})/;
-/* NOT BEING USED YET, this RegExp is incorrect */
-/* '{{!--' '~'? 'non-{,non-}'+ '--}}' and not follow by '}' */ 
-HandlebarsUtils.commentExpressionLongRegExp = /^\{\{~?!--[^\}\{]+?--\}\}(?!})/;
-/* '{{!' '~'? 'non-{,non-}'+ '}}' and not follow by '}' */ 
-HandlebarsUtils.commentExpressionShortRegExp = /^\{\{~?!--[^\}\{]+?--\}\}(?!})/;
+/* '{{' '~'? '# or ^' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? greedy '}}' and not follow by '}' */
+HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\\^]\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
+/* '{{' '~'? '/' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? greedy '}}' and not follow by '}' */
+HandlebarsUtils.branchEndExpressionRegExp = /^\{\{~?\/\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
+/* '{{' '~'? 'space'* 'else' 'space'* '~'? greedy '}}' and not follow by '}' */
+HandlebarsUtils.elseExpressionRegExp = /^\{\{~?\s*else\s*~??\}\}(?!})/;
+/* '{{' '~'? 'space'* '^'{1} 'space'* '~'? greedy '}}' and not follow by '}' */
+HandlebarsUtils.elseShortFormExpressionRegExp = /^\{\{~?\s*\^{1}\s*~??\}\}(?!})/;
 
 /**
 * @function HandlebarsUtils.getExpressionType
@@ -99,22 +98,27 @@ HandlebarsUtils.commentExpressionShortRegExp = /^\{\{~?!--[^\}\{]+?--\}\}(?!})/;
 */
 HandlebarsUtils.getExpressionType = function(input, i, len) {
     // TODO: can optimize
-    if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '#') ||
+    if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '>') ||
+        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '>') 
+    ) {
+        return HandlebarsUtils.PARTIAL_EXPRESSION;
+    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '@') ||
+        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '@') 
+    ) {
+        return HandlebarsUtils.DATA_VAR_EXPRESSION;
+    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '#') ||
         (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '#') 
     ) {
         return HandlebarsUtils.BRANCH_EXPRESSION;
     } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '^') ||
         (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '^') 
     ) {
+        // this one is not exact, {{~?^}} will pass!
         return HandlebarsUtils.BRANCH_EXPRESSION;
     } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '/') ||
         (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '/') 
     ) {
         return HandlebarsUtils.BRANCH_END_EXPRESSION;
-    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '>') ||
-        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '>') 
-    ) {
-        return HandlebarsUtils.PARTIAL_EXPRESSION;
     } else if ((input[i] === '{' && i+4<len && input[i+1] === '{' && input[i+2] === '!' && input[i+3] === '-' && input[i+4] === '-') ||
         (input[i] === '{' && i+4<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '!' && input[i+4] === '-' && input[i+5] === '-')
     ) {
@@ -123,10 +127,6 @@ HandlebarsUtils.getExpressionType = function(input, i, len) {
         (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '!') 
     ) {
         return HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM;
-    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '@') ||
-        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '@') 
-    ) {
-        return HandlebarsUtils.DATA_VAR_EXPRESSION;
     }
     return HandlebarsUtils.ESCAPE_EXPRESSION;
 };
@@ -145,14 +145,20 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
     re.result = false;
     var s = input.slice(i);
     switch(type) {
-        case HandlebarsUtils.ESCAPE_EXPRESSION:
-            re = HandlebarsUtils.escapeExpressionRegExp.exec(s);
+        case HandlebarsUtils.RAW_BLOCK:
+            re = HandlebarsUtils.rawBlock.exec(s);
             break;
         case HandlebarsUtils.RAW_EXPRESSION:
             re = HandlebarsUtils.rawExpressionRegExp.exec(s);
             break;
+        case HandlebarsUtils.ESCAPE_EXPRESSION:
+            re = HandlebarsUtils.escapeExpressionRegExp.exec(s);
+            break;
         case HandlebarsUtils.PARTIAL_EXPRESSION:
             re = HandlebarsUtils.partialExpressionRegExp.exec(s);
+            break;
+        case HandlebarsUtils.DATA_VAR_EXPRESSION:
+            re = HandlebarsUtils.dataVarExpressionRegExp.exec(s);
             break;
         case HandlebarsUtils.BRANCH_EXPRESSION:
             re = HandlebarsUtils.branchExpressionRegExp.exec(s);
@@ -165,12 +171,6 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
             if (re === null) {
                 re = HandlebarsUtils.elseShortFormExpressionRegExp.exec(s);
             }
-            break;
-        case HandlebarsUtils.DATA_VAR_EXPRESSION:
-            re = HandlebarsUtils.dataVarExpressionRegExp.exec(s);
-            break;
-        case HandlebarsUtils.RAW_BLOCK:
-            re = HandlebarsUtils.rawBlockRegExp.exec(s);
             break;
         default:
             return re;
@@ -737,99 +737,179 @@ HandlebarsUtils.blacklistProtocol = function(s) {
 };
 
 /**
-* @function HandlebarsUtils.buildBranchAst
-*
-* @static
-*
+* @function HandlebarsUtils.analyseBranchAst
 */
-HandlebarsUtils.buildBranchAst = function(input, k) {
+HandlebarsUtils.analyseBranchAst = function(ast, state) {
+    var obj = {},
+        len = ast.program.length;
 
-    /* init */
+    var r = {},
+        s = [],
+        t,
+        newLastState;
+    r.lastStates = [];
+    r.lastStates[0] = state;
+    r.lastStates[1] = state;
+    r.output = '';
+
+    for(var i=0;i<len;++i) {
+        obj = ast.program[i];
+        if (obj.type === 'content') {
+            t = HandlebarsUtils._analyzeContext(r.lastStates[0], obj.content);
+            newLastState = t.lastState;
+            r.output += t.output;
+            debugBranch("analyseBranchAst:program:content,["+r.lastStates[0]+"/"+newLastState+"],["+obj.content+"],["+r.output+"]");
+            r.lastStates[0] = newLastState;
+        } else if (obj.type === 'node') {
+            t = HandlebarsUtils.analyseBranchAst(obj.content, r.lastStates[0]);
+            newLastState = t.lastStates[0]; // index 0 and 1 MUST be equal
+            debugBranch("analyseBranchAst:program:node,["+r.lastStates[0]+"/"+newLastState+"]");
+            r.lastStates[0] = newLastState;
+            r.output += t.output;
+        } else if (obj.type === 'branch' ||
+            obj.type === 'branchelse' ||
+            obj.type === 'branchend') {
+            r.output += obj.content;
+        }
+    }
+    len = ast.inverse.length;
+    for(i=0;i<len;++i) {
+        obj = ast.inverse[i];
+        if (obj.type === 'content') {
+            t = HandlebarsUtils._analyzeContext(r.lastStates[1], obj.content);
+            newLastState = t.lastState;
+            r.output += t.output;
+            debugBranch("analyseBranchAst:inverse:content,["+r.lastStates[1]+"/"+newLastState+"],["+obj.content+"],["+r.output+"]");
+            r.lastStates[1] = newLastState;
+        } else if (obj.type === 'node') {
+            t = HandlebarsUtils.analyseBranchAst(obj.content, r.lastStates[1]);
+            newLastState = t.lastStates[1]; // index 0 and 1 MUST be equal
+            debugBranch("analyseBranchAst:inverse:node,["+r.lastStates[1]+"/"+newLastState+"]");
+            r.lastStates[1] = newLastState;
+            r.output += t.output;
+        } else if (obj.type === 'branch' ||
+            obj.type === 'branchelse' ||
+            obj.type === 'branchend') {
+            r.output += obj.content;
+        }
+    }
+
+    if (ast.program.length > 0 && ast.inverse.length === 0) {
+        debugBranch("panalyseBranchAst:["+r.lastStates[0]+"/"+r.lastStates[0]+"]");
+        r.lastStates[1] = r.lastStates[0];
+    } else if (ast.program.length === 0 && ast.inverse.length > 0) {
+        debugBranch("analyseBranchAst:["+r.lastStates[1]+"/"+r.lastStates[1]+"]");
+        r.lastStates[0] = r.lastStates[1];
+    }
+
+    if (r.lastStates[0] !== r.lastStates[1]) {
+        msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsitent HTML5 state after conditional branches. Please fix your template!";
+        HandlebarsUtils.handleError(msg, true);
+    }
+    return r;
+};
+/**
+* @function HandlebarsUtils.buildBranchAst
+*/
+HandlebarsUtils.buildBranchAst = function(input, i) {
+
+    /* init the data structure */
     var ast = {};
     ast.program = [];
     ast.inverse = [];
 
-    var str = input.slice(k),
-        len = str.length,
-        sp = [],
-        branch = 0,
-        content = '',
-        obj = {},
-        k,i = 0;
+    var str = input.slice(i),
+        len = str.length;
 
-    for(i=0;i<len;++i) {
-        var exp = HandlebarsUtils.isBranchExpression(str, i),
-            endExpression = HandlebarsUtils.isBranchEndExpression(str, i);
+    var sp = [],
+        content = '',
+        inverse = false,
+        obj = {},
+        k,j,r = 0;
+
+    for(j=0;j<len;++j) {
+        var exp = HandlebarsUtils.isBranchExpression(str, j),
+            endExpression = HandlebarsUtils.isBranchEndExpression(str, j);
         
         if (exp !== false) {
+            /* encounter the first branch expression */
             if (sp.length === 0) {
+                /* save the branch expression name */
                 sp.push(exp);
-                branch = 1;
+
                 content = '';
-                for(k=i;k<len;++k) {
-                    if (str[k] === '}' && k+1 < len && str[k+1] === '}') {
-                        i=k+1;
-                        break;
-                    }
-                }
-            } else {
-                obj = {};
-                obj.type = 'content';
-                obj.content = content;
-                if (branch === 1) {
+                inverse = false;
+
+                /* consume till the end of expression */
+                r = HandlebarsUtils._consumeTillCloseBrace(str, j, len);
+                j = r.index;
+                obj = HandlebarsUtils._saveAstObject('branch', r.str);
+                if (!inverse) {
                     ast.program.push(obj);
-                } else if (branch === 2) {
+                } else if (inverse) {
+                    ast.inverse.push(obj);
+                }
+
+            } else {
+                /* encounter another branch expression, save the previous string */
+                obj = HandlebarsUtils._saveAstObject('content', content);
+                if (!inverse) {
+                    ast.program.push(obj);
+                } else if (inverse) {
                     ast.inverse.push(obj);
                 }
                 content = '';
 
-                var r = HandlebarsUtils.buildBranchAst(str, i);
-                obj = {};
-                obj.type = 'node';
-                obj.content = r;
-                i = i+r.index;
-                if (branch === 1) {
+                r = HandlebarsUtils.buildBranchAst(str, j);
+                obj = HandlebarsUtils._saveAstObject('node', r);
+                j=j+r.index;
+                if (!inverse) {
                     ast.program.push(obj);
-                } else if (branch === 2) {
+                } else if (inverse) {
                     ast.inverse.push(obj);
                 }
             }
-        } else if (HandlebarsUtils.isElseExpression(str, i)) {
-            obj = {};
-            obj.type = 'content';
-            obj.content = content;
-            if (branch === 1) {
+        } else if (HandlebarsUtils.isElseExpression(str, j)) {
+            obj = HandlebarsUtils._saveAstObject('content', content);
+            if (!inverse) {
                 ast.program.push(obj);
-            } else if (branch === 2) {
+            } else if (inverse) {
                 ast.inverse.push(obj);
             }
 
-            branch = 2;
+            inverse = true;
             content = '';
-            for(k=i;k<len;++k) {
-                if (str[k] === '}' && k+1 < len && str[k+1] === '}') {
-                    i=k+1;
-                    break;
-                }
+
+            /* consume till the end of expression */
+            r = HandlebarsUtils._consumeTillCloseBrace(str, j, len);
+            j = r.index;
+            obj = HandlebarsUtils._saveAstObject('branchelse', r.str);
+            if (!inverse) {
+                ast.program.push(obj);
+            } else if (inverse) {
+                ast.inverse.push(obj);
             }
+
         } else if (endExpression !== false) {
             var t = sp.pop();
             if (t === endExpression) {
-                obj = {};
-                obj.type = 'content';
-                obj.content = content;
-                if (branch === 1) {
+                obj = HandlebarsUtils._saveAstObject('content', content);
+                if (!inverse) {
                     ast.program.push(obj);
-                } else if (branch === 2) {
+                } else if (inverse) {
                     ast.inverse.push(obj);
                 }
 
-                for(k=i;k<len;++k) {
-                    if (str[k] === '}' && k+1 < len && str[k+1] === '}') {
-                        i=k+1;
-                        break;
-                    }
+                /* consume till the end of expression */
+                r = HandlebarsUtils._consumeTillCloseBrace(str, j, len);
+                j = r.index;
+                obj = HandlebarsUtils._saveAstObject('branchend', r.str);
+                if (!inverse) {
+                    ast.program.push(obj);
+                } else if (inverse) {
+                    ast.inverse.push(obj);
                 }
+
                 break;
             } else {
                 /* broken template as the end expression does not match, throw exception before function returns */
@@ -837,12 +917,72 @@ HandlebarsUtils.buildBranchAst = function(input, k) {
                 HandlebarsUtils.handleError(msg, true);
             }
         } else {
-            content += str[i];    
+            var expressionType = HandlebarsUtils.getExpressionType(str, j, len);
+            if (expressionType === HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM ||
+                expressionType === HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM) {
+                /* capturing the string till the end of comment */
+                r = HandlebarsUtils._consumeTillCommentCloseBrace(str, j, len, expressionType);
+                j = r.index;
+                content += r.str;
+            } else {
+                /* capturing the string */
+                content += str[j];    
+            }
         }
     }
 
-    ast.index = i;
+    ast.index = j;
     return ast;
+};
+HandlebarsUtils._saveAstObject = function(type, content) {
+    var obj = {};
+    obj.type = type;
+    obj.content = content;
+    return obj;
+};
+HandlebarsUtils._consumeTillCloseBrace = function(input, i, len) {
+    var msg, 
+        str = '',
+        obj = {};
+    for(var j=i;j<len;++j) {
+        if (input[j] === '}' && j+1 < len && input[j+1] === '}') {
+            str += '}}';
+            j++;
+            obj.index = j;
+            obj.str = str;
+            return obj;
+        }
+        str += input[j];
+    }
+    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of expression.";
+    HandlebarsUtils.handleError(msg, true);
+};
+HandlebarsUtils._consumeTillCommentCloseBrace = function(input, i, len, type) {
+    var msg, 
+        str = '',
+        obj = {};
+    for(var j=i;j<len;++j) {
+        if (type === HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM) {
+            if (input[j] === '-' && j+3<len && input[j+1] === '-' && input[j+2] === '}' && input[j+3] === '}') {
+                str += '--}}';
+                j=j+3;
+                obj.index = j;
+                obj.str = str;
+                return obj;
+            }
+        } else if (type === HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM) {
+            if (input[j] === '}' && j+1<len && input[j+1] === '}') {
+                str += '}}';
+                j++;
+                obj.index = j;
+                obj.str = str;
+                return obj;
+            }
+        }
+        str += input[j];
+    }
+    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' or '--}}' close brace of comment expression.";
+    HandlebarsUtils.handleError(msg, true);
 };
 
 module.exports = HandlebarsUtils;
