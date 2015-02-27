@@ -15,6 +15,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     describe("Vanilla Handlebars parsing test suite", function() {
 
+        /* we are not using handlebars to build the AST, so the following test can be skipped
+        *
         it("handlebars {{expression}} test", function() {
             [
                 '{{expression}}',
@@ -123,8 +125,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
-        /* we are not using handlebars to build the AST, so the following test can be skipped
-        *
         it("handlebars {{#if}} {{!-- comment --}} {{/if}} parsing test", function() {
             var t = '{{#if}}xxx{{!-- comment --}}yyy{{/if}}';
             var ast = handlebars.parse(t);

@@ -1,6 +1,6 @@
 {
   "name": "context-parser-handlebars",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "licenses": [
     {
       "type": "BSD",
@@ -43,7 +43,6 @@
   "dependencies": {
     "context-parser": "^1.0.0",
     "debug": "^2.1.1",
-    "handlebars": "2.0.0",
     "xss-filters": "^1.0.4"
   },
   "devDependencies": {
@@ -53,7 +52,8 @@
     "grunt-cli": "0.1.*",
     "grunt-contrib-clean": "^0.6.0",
     "grunt-contrib-jshint": "^0.11.0",
-    "grunt-mocha-istanbul": "^2.3.0"
+    "grunt-mocha-istanbul": "^2.3.0",
+    "handlebars": "*"
   },
   "main": "./src/context-parser-handlebars.js",
   "bugs": {
