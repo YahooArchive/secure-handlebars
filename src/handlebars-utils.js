@@ -19,9 +19,6 @@ var debugBranch = require('debug')('cph-branching');
 */
 var HandlebarsUtils = {};
 
-/* vanilla Handlebars */
-var Handlebars = require("handlebars");
-
 /* type of expression */
 HandlebarsUtils.NOT_EXPRESSION = 0;
 HandlebarsUtils.RAW_EXPRESSION = 1; // {{{expression}}}
@@ -367,13 +364,14 @@ HandlebarsUtils.analyseBranchAst = function(ast, state) {
         len = ast.program.length;
 
     var r = {},
-        s = [],
         t, msg,
         newLastState;
     r.lastStates = [];
     r.lastStates[0] = state;
     r.lastStates[1] = state;
     r.output = '';
+    
+    var programDebugOutput = "", inverseDebugOutput = "";
 
     for(var i=0;i<len;++i) {
         obj = ast.program[i];
@@ -381,6 +379,7 @@ HandlebarsUtils.analyseBranchAst = function(ast, state) {
             t = HandlebarsUtils._analyzeContext(r.lastStates[0], obj.content);
             newLastState = t.lastState;
             r.output += t.output;
+            programDebugOutput += t.output;
             debugBranch("analyseBranchAst:program:content,["+r.lastStates[0]+"/"+newLastState+"],["+obj.content+"],["+r.output+"]");
             r.lastStates[0] = newLastState;
         } else if (obj.type === 'node') {
@@ -389,10 +388,12 @@ HandlebarsUtils.analyseBranchAst = function(ast, state) {
             debugBranch("analyseBranchAst:program:node,["+r.lastStates[0]+"/"+newLastState+"]");
             r.lastStates[0] = newLastState;
             r.output += t.output;
+            programDebugOutput += t.output;
         } else if (obj.type === 'branch' ||
             obj.type === 'branchelse' ||
             obj.type === 'branchend') {
             r.output += obj.content;
+            programDebugOutput += obj.content;
         }
     }
     len = ast.inverse.length;
@@ -402,6 +403,7 @@ HandlebarsUtils.analyseBranchAst = function(ast, state) {
             t = HandlebarsUtils._analyzeContext(r.lastStates[1], obj.content);
             newLastState = t.lastState;
             r.output += t.output;
+            inverseDebugOutput += t.output;
             debugBranch("analyseBranchAst:inverse:content,["+r.lastStates[1]+"/"+newLastState+"],["+obj.content+"],["+r.output+"]");
             r.lastStates[1] = newLastState;
         } else if (obj.type === 'node') {
@@ -410,10 +412,12 @@ HandlebarsUtils.analyseBranchAst = function(ast, state) {
             debugBranch("analyseBranchAst:inverse:node,["+r.lastStates[1]+"/"+newLastState+"]");
             r.lastStates[1] = newLastState;
             r.output += t.output;
+            inverseDebugOutput += t.output;
         } else if (obj.type === 'branch' ||
             obj.type === 'branchelse' ||
             obj.type === 'branchend') {
             r.output += obj.content;
+            inverseDebugOutput += obj.content;
         }
     }
 
@@ -426,7 +430,9 @@ HandlebarsUtils.analyseBranchAst = function(ast, state) {
     }
 
     if (r.lastStates[0] !== r.lastStates[1]) {
-        msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsitent HTML5 state after conditional branches. Please fix your template!";
+        msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsitent HTML5 state after conditional branches. Please fix your template! \n";
+        msg += "[ERROR] #if.. branch: " + programDebugOutput.slice(0, 50) + "... (state:"+r.lastStates[0]+")\n";
+        msg += "[ERROR] else branch: " + inverseDebugOutput.slice(0, 50) + "... (state:"+r.lastStates[1]+")";
         HandlebarsUtils.handleError(msg, true);
     }
     return r;

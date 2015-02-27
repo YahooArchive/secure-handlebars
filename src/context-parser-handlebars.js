@@ -21,9 +21,6 @@ var contextParser = require('context-parser'),
 
 var filter = require('xss-filters')._privFilters;
 
-/* vanilla Handlebars */
-var Handlebars = require("handlebars");
-
 /** 
 * @module ContextParserHandlebars
 */
@@ -387,17 +384,6 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, expressio
 * TEMPLATING HANDLING LOGIC
 **********************************/
 
-// validate the Handlebars template before/after analysis.
-ContextParserHandlebars.prototype._validateTemplate = function(template) {
-    var msg;
-    try {
-        Handlebars.parse(template);
-    } catch (err) {
-        msg = "[ERROR] ContextParserHandlebars: Handlebars validation error!";
-        handlebarsUtil.handleError(msg, true);
-    }
-};
-
 // consume the raw expression.
 ContextParserHandlebars.prototype._handleRawExpression = function(input, i, len, state) {
     var msg;
@@ -699,12 +685,6 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
 
 /* overriding the HTML5 Context Parser's beforeWalk for printing out */
 ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
-
-    /* TODO: use vanilla Handlebars to validate the template?
-    if (i === 0) {
-        this._validateTemplate(input);
-    }
-    */
 
     var len = input.length,
         ch = input[i],
