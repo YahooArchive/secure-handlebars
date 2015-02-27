@@ -320,13 +320,11 @@ HandlebarsUtils._analyzeContext = function(state, str) {
         ContextParserHandlebars = require('./context-parser-handlebars');
 
     /* parse the string */
-    debugBranch("_analyzeContext:"+str);
     parser = new ContextParserHandlebars(false);
     parser.setInitState(state);
     parser.contextualize(str);
     r.lastState = parser.getLastState();
     r.output = parser.getBuffer().join('');
-    debugBranch("_analyzeContext:"+r.output);
 
     return r;
 };
@@ -376,19 +374,28 @@ HandlebarsUtils.analyseBranchAst = function(ast, state) {
     for(var i=0;i<len;++i) {
         obj = ast.program[i];
         if (obj.type === 'content') {
+            debugBranch("analyseBranchAst:program:content");
+            debugBranch("analyseBranchAst:state:"+r.lastStates[0]);
+            debugBranch("analyseBranchAst:content:["+obj.content+"]");
+
             t = HandlebarsUtils._analyzeContext(r.lastStates[0], obj.content);
             newLastState = t.lastState;
             r.output += t.output;
             programDebugOutput += t.output;
-            debugBranch("analyseBranchAst:program:content,["+r.lastStates[0]+"/"+newLastState+"],["+obj.content+"],["+r.output+"]");
             r.lastStates[0] = newLastState;
+
+            debugBranch("analyseBranchAst:new state:"+newLastState);
         } else if (obj.type === 'node') {
+            debugBranch("analyseBranchAst:program:node");
+            debugBranch("analyseBranchAst:state:"+r.lastStates[0]);
+
             t = HandlebarsUtils.analyseBranchAst(obj.content, r.lastStates[0]);
             newLastState = t.lastStates[0]; // index 0 and 1 MUST be equal
-            debugBranch("analyseBranchAst:program:node,["+r.lastStates[0]+"/"+newLastState+"]");
             r.lastStates[0] = newLastState;
             r.output += t.output;
             programDebugOutput += t.output;
+
+            debugBranch("analyseBranchAst:new state:"+newLastState);
         } else if (obj.type === 'branch' ||
             obj.type === 'branchelse' ||
             obj.type === 'branchend') {
@@ -400,19 +407,28 @@ HandlebarsUtils.analyseBranchAst = function(ast, state) {
     for(i=0;i<len;++i) {
         obj = ast.inverse[i];
         if (obj.type === 'content') {
+            debugBranch("analyseBranchAst:program:content");
+            debugBranch("analyseBranchAst:state:"+r.lastStates[1]);
+            debugBranch("analyseBranchAst:content:["+obj.content+"]");
+
             t = HandlebarsUtils._analyzeContext(r.lastStates[1], obj.content);
             newLastState = t.lastState;
             r.output += t.output;
             inverseDebugOutput += t.output;
-            debugBranch("analyseBranchAst:inverse:content,["+r.lastStates[1]+"/"+newLastState+"],["+obj.content+"],["+r.output+"]");
             r.lastStates[1] = newLastState;
+
+            debugBranch("analyseBranchAst:new state:"+newLastState);
         } else if (obj.type === 'node') {
+            debugBranch("analyseBranchAst:program:node");
+            debugBranch("analyseBranchAst:state:"+r.lastStates[1]);
+
             t = HandlebarsUtils.analyseBranchAst(obj.content, r.lastStates[1]);
             newLastState = t.lastStates[1]; // index 0 and 1 MUST be equal
-            debugBranch("analyseBranchAst:inverse:node,["+r.lastStates[1]+"/"+newLastState+"]");
             r.lastStates[1] = newLastState;
             r.output += t.output;
             inverseDebugOutput += t.output;
+
+            debugBranch("analyseBranchAst:new state:"+newLastState);
         } else if (obj.type === 'branch' ||
             obj.type === 'branchelse' ||
             obj.type === 'branchend') {
