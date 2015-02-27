@@ -226,31 +226,6 @@ HandlebarsUtils.handleError = function(msg, throwErr) {
     }
 };
 
-/*
-* @function HandlebarsUtils._analyzeContext
-*/
-HandlebarsUtils._analyzeContext = function(state, str) {
-
-    var r = {
-        lastState: '',
-        output: ''
-    };
-
-    // TODO: refactor
-    /* factory class */
-    var parser,
-        ContextParserHandlebars = require('./context-parser-handlebars');
-
-    /* parse the string */
-    parser = new ContextParserHandlebars(false);
-    parser.setInitState(state);
-    parser.contextualize(str);
-    r.lastState = parser.getLastState();
-    r.output = parser.getBuffer().join('');
-
-    return r;
-};
-
 /* 
 * @function HandlebarsUtils.blacklistProtocol
 *
@@ -276,7 +251,32 @@ HandlebarsUtils.blacklistProtocol = function(s) {
     return true;
 };
 
-/**
+/*
+* @function HandlebarsUtils._analyzeContext
+*/
+HandlebarsUtils._analyzeContext = function(state, str) {
+
+    var r = {
+        lastState: '',
+        output: ''
+    };
+
+    // TODO: refactor
+    /* factory class */
+    var parser,
+        ContextParserHandlebars = require('./context-parser-handlebars');
+
+    /* parse the string */
+    parser = new ContextParserHandlebars(false);
+    parser.setInitState(state);
+    parser.contextualize(str);
+    r.lastState = parser.getLastState();
+    r.output = parser.getBuffer().join('');
+
+    return r;
+};
+
+/*
 * @function HandlebarsUtils.analyseBranchAst
 */
 HandlebarsUtils.analyseBranchAst = function(ast, state) {
@@ -376,7 +376,7 @@ HandlebarsUtils.analyseBranchAst = function(ast, state) {
     return r;
 };
 
-/**
+/*
 * @function HandlebarsUtils.buildBranchAst
 */
 HandlebarsUtils.buildBranchAst = function(input, i) {
@@ -510,7 +510,7 @@ HandlebarsUtils.buildBranchAst = function(input, i) {
     return ast;
 };
 
-/**
+/*
 * @function HandlebarsUtils._saveAstObject
 */
 HandlebarsUtils._saveAstObject = function(type, content) {
@@ -520,7 +520,7 @@ HandlebarsUtils._saveAstObject = function(type, content) {
     return obj;
 };
 
-/**
+/*
 * @function HandlebarsUtils._consumeTillCloseBrace
 */
 HandlebarsUtils._consumeTillCloseBrace = function(input, i, len) {
@@ -541,7 +541,7 @@ HandlebarsUtils._consumeTillCloseBrace = function(input, i, len) {
     HandlebarsUtils.handleError(msg, true);
 };
 
-/**
+/*
 * @function HandlebarsUtils._consumeTillCommentCloseBrace
 */
 HandlebarsUtils._consumeTillCommentCloseBrace = function(input, i, len, type) {
