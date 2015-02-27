@@ -311,5 +311,216 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 expect(r).to.equal(obj.result);
             });
         });
+
+        it("context-parser-handlebars#_handleCommentExpression test", function() {
+            var parser = new ContextParserHandlebars();
+            [
+                {str: '{{! comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:14},
+                {str: '{{! comment }} }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:14},
+                {str: '{{!-- comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:18},
+                {str: '{{!-- comment --}}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:18},
+                {str: '{{!-- comment }}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:22},
+
+                // these cases are guarded against by isCommentExpression
+                {str: '{{!-- comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:16},
+                {str: '{{! comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:16}
+            ].forEach(function(obj) {
+                var r = parser._handleCommentExpression(obj.str, 0, obj.str.length, obj.type);
+                expect(r).to.equal(obj.result);
+            });
+        });
+
+        it("context-parser-handlebars - basic branch AST test", function() {
+            var parser = new ContextParserHandlebars();
+            var s = "{{#if xxx}} a b {{/if}}xxxxxxx";
+            var ast = parser._buildBranchAst(s, 0);
+            expect(ast.program[0].type).to.equal('branch');
+            expect(ast.program[0].content).to.equal('{{#if xxx}}');
+            expect(ast.program[1].type).to.equal('content');
+            expect(ast.program[1].content).to.equal(' a b ');
+            expect(ast.program[2].type).to.equal('branchend');
+            expect(ast.program[2].content).to.equal('{{/if}}');
+            expect(ast.inverse).to.deep.equal([]);
+            expect(ast.index).to.equal(22);
+            var stateObj = parser._getInternalState();
+            stateObj.state = 1;
+            var r = parser._analyseBranchAst(ast, stateObj);
+            expect(r.output).to.equal('{{#if xxx}} a b {{/if}}');
+        });
+
+        it("context-parser-handlebars - basic branch with {{expression}} AST test", function() {
+            var parser = new ContextParserHandlebars();
+            var s = "{{#if xxx}} a b {{expression}} {{/if}}xxxxxxx";
+            var ast = parser._buildBranchAst(s, 0);
+            expect(ast.program[0].type).to.equal('branch');
+            expect(ast.program[0].content).to.equal('{{#if xxx}}');
+            expect(ast.program[1].type).to.equal('content');
+            expect(ast.program[1].content).to.equal(' a b {{expression}} ');
+            expect(ast.program[2].type).to.equal('branchend');
+            expect(ast.program[2].content).to.equal('{{/if}}');
+            expect(ast.inverse).to.deep.equal([]);
+            expect(ast.index).to.equal(37);
+            var stateObj = parser._getInternalState();
+            stateObj.state = 1;
+            var r = parser._analyseBranchAst(ast, stateObj);
+            expect(r.output).to.equal('{{#if xxx}} a b {{{yd expression}}} {{/if}}');
+        });
+
+        it("context-parser-handlebars - basic branch with {{!comment}} AST test", function() {
+            var parser = new ContextParserHandlebars();
+            var s = "{{#if xxx}} a b {{!--comment  {{#if xxx}} abc {{/if}} --}} {{/if}}xxxxxxx";
+            var ast = parser._buildBranchAst(s, 0);
+            expect(ast.program[0].type).to.equal('branch');
+            expect(ast.program[0].content).to.equal('{{#if xxx}}');
+            expect(ast.program[1].type).to.equal('content');
+            expect(ast.program[1].content).to.equal(' a b {{!--comment  {{#if xxx}} abc {{/if}} --}} ');
+            expect(ast.program[2].type).to.equal('branchend');
+            expect(ast.program[2].content).to.equal('{{/if}}');
+            expect(ast.inverse).to.deep.equal([]);
+            expect(ast.index).to.equal(65);
+            var stateObj = parser._getInternalState();
+            stateObj.state = 1;
+            var r = parser._analyseBranchAst(ast, stateObj);
+            expect(r.output).to.equal('{{#if xxx}} a b {{!--comment  {{#if xxx}} abc {{/if}} --}} {{/if}}');
+
+            s = "{{#if xxx}} a b {{!comment  {{#if xxx}} abc {{/if}} --}} {{/if}}xxxxxxx";
+            ast = parser._buildBranchAst(s, 0);
+            expect(ast.program[0].type).to.equal('branch');
+            expect(ast.program[0].content).to.equal('{{#if xxx}}');
+            expect(ast.program[1].type).to.equal('content');
+            expect(ast.program[1].content).to.equal(' a b {{!comment  {{#if xxx}} abc ');
+            expect(ast.program[2].type).to.equal('branchend');
+            expect(ast.program[2].content).to.equal('{{/if}}');
+            expect(ast.inverse).to.deep.equal([]);
+            expect(ast.index).to.equal(50);
+            stateObj = parser._getInternalState();
+            stateObj.state = 1;
+            r = parser._analyseBranchAst(ast, stateObj);
+            expect(r.output).to.equal('{{#if xxx}} a b {{!comment  {{#if xxx}} abc {{/if}}');
+        });
+
+        it("context-parser-handlebars - basic branch with inverse AST test", function() {
+            var parser = new ContextParserHandlebars();
+            var s = "{{#if xxx}} a {{else}} b {{/if}}xxxxxxxx";
+            var ast = parser._buildBranchAst(s, 0);
+            expect(ast.program[0].type).to.equal('branch');
+            expect(ast.program[0].content).to.equal('{{#if xxx}}');
+            expect(ast.program[1].type).to.equal('content');
+            expect(ast.program[1].content).to.equal(' a ');
+
+            expect(ast.inverse[0].type).to.equal('branchelse');
+            expect(ast.inverse[0].content).to.equal('{{else}}');
+            expect(ast.inverse[1].type).to.equal('content');
+            expect(ast.inverse[1].content).to.equal(' b ');
+            expect(ast.inverse[2].type).to.equal('branchend');
+            expect(ast.inverse[2].content).to.equal('{{/if}}');
+            expect(ast.index).to.equal(31);
+            var stateObj = parser._getInternalState();
+            stateObj.state = 1;
+            var r = parser._analyseBranchAst(ast, stateObj);
+            expect(r.output).to.equal('{{#if xxx}} a {{else}} b {{/if}}');
+        });
+
+        it("context-parser-handlebars - nested branch AST test", function() {
+            var parser = new ContextParserHandlebars();
+            var s = "{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{else}} e {{#if}} f {{else}} g {{/if}} h {{/if}}xxxxxx";
+            var ast = parser._buildBranchAst(s, 0);
+            expect(ast.program[0].type).to.equal('branch');
+            expect(ast.program[0].content).to.equal('{{#if xxx}}');
+            expect(ast.program[1].type).to.equal('content');
+            expect(ast.program[1].content).to.equal(' a ');
+            expect(ast.program[2].type).to.equal('node');
+            expect(ast.program[2].content.program[0].type).to.equal('branch');
+            expect(ast.program[2].content.program[0].content).to.equal('{{#if yyy}}');
+            expect(ast.program[2].content.program[1].type).to.equal('content');
+            expect(ast.program[2].content.program[1].content).to.equal(' b ');
+            expect(ast.program[2].content.inverse[0].type).to.equal('branchelse');
+            expect(ast.program[2].content.inverse[0].content).to.equal('{{else}}');
+            expect(ast.program[2].content.inverse[1].type).to.equal('content');
+            expect(ast.program[2].content.inverse[1].content).to.equal(' c ');
+            expect(ast.program[2].content.inverse[2].type).to.equal('branchend');
+            expect(ast.program[2].content.inverse[2].content).to.equal('{{/if}}');
+            expect(ast.program[3].type).to.equal('content');
+            expect(ast.program[3].content).to.equal(' d ');
+
+            expect(ast.inverse[0].type).to.equal('branchelse');
+            expect(ast.inverse[0].content).to.equal('{{else}}');
+            expect(ast.inverse[1].type).to.equal('content');
+            expect(ast.inverse[1].content).to.equal(' e ');
+            expect(ast.inverse[2].type).to.equal('node');
+            expect(ast.inverse[2].content.program[0].type).to.equal('branch');
+            expect(ast.inverse[2].content.program[0].content).to.equal('{{#if}}');
+            expect(ast.inverse[2].content.program[1].type).to.equal('content');
+            expect(ast.inverse[2].content.program[1].content).to.equal(' f ');
+            expect(ast.inverse[2].content.inverse[0].type).to.equal('branchelse');
+            expect(ast.inverse[2].content.inverse[0].content).to.equal('{{else}}');
+            expect(ast.inverse[2].content.inverse[1].type).to.equal('content');
+            expect(ast.inverse[2].content.inverse[1].content).to.equal(' g ');
+            expect(ast.inverse[2].content.inverse[2].type).to.equal('branchend');
+            expect(ast.inverse[2].content.inverse[2].content).to.equal('{{/if}}');
+            expect(ast.inverse[3].type).to.equal('content');
+            expect(ast.inverse[3].content).to.equal(' h ');
+            expect(ast.inverse[4].type).to.equal('branchend');
+            expect(ast.inverse[4].content).to.equal('{{/if}}');
+            expect(ast.index).to.equal(97);
+            var stateObj = parser._getInternalState();
+            stateObj.state = 1;
+            var r = parser._analyseBranchAst(ast, stateObj);
+            expect(r.output).to.equal('{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{else}} e {{#if}} f {{else}} g {{/if}} h {{/if}}');
+        });
+
+        it("context-parser-handlebars - parallel branch AST test", function() {
+            var parser = new ContextParserHandlebars();
+            var s = "{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{#if}} e {{else}} f {{/if}} g {{/if}}xxxxxxx";
+            var ast = parser._buildBranchAst(s, 0);
+            expect(ast.program[0].type).to.equal('branch');
+            expect(ast.program[0].content).to.equal('{{#if xxx}}');
+            expect(ast.program[1].type).to.equal('content');
+            expect(ast.program[1].content).to.equal(' a ');
+            expect(ast.program[2].type).to.equal('node');
+            expect(ast.program[2].content.program[0].type).to.equal('branch');
+            expect(ast.program[2].content.program[0].content).to.equal('{{#if yyy}}');
+            expect(ast.program[2].content.program[1].type).to.equal('content');
+            expect(ast.program[2].content.program[1].content).to.equal(' b ');
+            expect(ast.program[2].content.inverse[0].type).to.equal('branchelse');
+            expect(ast.program[2].content.inverse[0].content).to.equal('{{else}}');
+            expect(ast.program[2].content.inverse[1].type).to.equal('content');
+            expect(ast.program[2].content.inverse[1].content).to.equal(' c ');
+            expect(ast.program[2].content.inverse[2].type).to.equal('branchend');
+            expect(ast.program[2].content.inverse[2].content).to.equal('{{/if}}');
+            expect(ast.program[3].type).to.equal('content');
+            expect(ast.program[3].content).to.equal(' d ');
+            expect(ast.program[4].type).to.equal('node');
+            expect(ast.program[4].content.program[0].type).to.equal('branch');
+            expect(ast.program[4].content.program[0].content).to.equal('{{#if}}');
+            expect(ast.program[4].content.program[1].type).to.equal('content');
+            expect(ast.program[4].content.program[1].content).to.equal(' e ');
+            expect(ast.program[4].content.inverse[0].type).to.equal('branchelse');
+            expect(ast.program[4].content.inverse[0].content).to.equal('{{else}}');
+            expect(ast.program[4].content.inverse[1].type).to.equal('content');
+            expect(ast.program[4].content.inverse[1].content).to.equal(' f ');
+            expect(ast.program[4].content.inverse[2].type).to.equal('branchend');
+            expect(ast.program[4].content.inverse[2].content).to.equal('{{/if}}');
+            expect(ast.program[5].type).to.equal('content');
+            expect(ast.program[5].content).to.equal(' g ');
+            expect(ast.program[6].type).to.equal('branchend');
+            expect(ast.program[6].content).to.equal('{{/if}}');
+            expect(ast.index).to.equal(86);
+            var stateObj = parser._getInternalState();
+            stateObj.state = 1;
+            var r = parser._analyseBranchAst(ast, stateObj);
+            expect(r.output).to.equal('{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{#if}} e {{else}} f {{/if}} g {{/if}}');
+        });
+
+        it("context-parser-handlebars - branch with <script> test", function() {
+            var parser = new ContextParserHandlebars();
+            var s = "{{#if}} <script> {{#if xxx}} path2 {{else}} path3 {{/if}} </script> {{else}} path4 {{/if}}";
+            var ast = parser._buildBranchAst(s, 0);
+            var stateObj = parser._getInternalState();
+            stateObj.state = 1;
+            var r = parser._analyseBranchAst(ast, stateObj);
+            expect(r.output).to.equal('{{#if}} <script> {{#if xxx}} path2 {{else}} path3 {{/if}} </script> {{else}} path4 {{/if}}');
+        });
     });
+
 }());
