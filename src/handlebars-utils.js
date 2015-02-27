@@ -117,6 +117,7 @@ HandlebarsUtils.getExpressionType = function(input, i, len) {
 */
 HandlebarsUtils.isValidExpression = function(input, i, type) {
     var re = {};
+    re.tag = false;
     re.result = false;
     var s = input.slice(i);
     switch(type) {
@@ -143,9 +144,15 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
             break;
         case HandlebarsUtils.BRANCH_EXPRESSION:
             re = HandlebarsUtils.branchExpressionRegExp.exec(s);
+            if (re !== null) {
+                re.tag = re[1];
+            }
             break;
         case HandlebarsUtils.BRANCH_END_EXPRESSION:
             re = HandlebarsUtils.branchEndExpressionRegExp.exec(s);
+            if (re !== null) {
+                re.tag = re[1];
+            }
             break;
         case HandlebarsUtils.ELSE_EXPRESSION:
             re = HandlebarsUtils.elseExpressionRegExp.exec(s);
@@ -161,6 +168,7 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
         re.result = true;
     } else {
         re = {};
+        re.tag = false;
         re.result = false;
     }
     return re;
@@ -191,92 +199,6 @@ HandlebarsUtils.isReservedChar = function(input, i) {
         return true;
     } else {
         return false;
-    }
-};
-
-/**
-* @function HandlebarsUtils.isBranchExpression
-*
-* @static
-*
-* @returns {boolean} true or false.
-*
-* @description
-* <p>Check whether the Handlebars expression is {{#\w*}} and {{^\w*}} expression.</p>
-*
-*/
-HandlebarsUtils.isBranchExpression = function(input, i) {
-    var re = HandlebarsUtils.branchExpressionRegExp.exec(input.slice(i));
-    if (re === null) {
-        return false;
-    } else {
-        var tag = re[1];
-        return tag;
-    }
-};
-
-/**
-* @function HandlebarsUtils.isBranchEndExpression
-*
-* @static
-*
-* @returns {boolean} true or false.
-*
-* @description
-* <p>Check whether the Handlebars expression is {{/\w*}} expression.</p>
-*
-*/
-HandlebarsUtils.isBranchEndExpression = function(input, i) {
-    var re = HandlebarsUtils.branchEndExpressionRegExp.exec(input.slice(i));
-    if (re === null) {
-        return false;
-    } else {
-        var tag = re[1]; 
-        return tag;
-    }
-};
-
-/**
-* @function HandlebarsUtils.isElseExpression
-*
-* @static
-*
-* @returns {boolean} true or false.
-*
-* @description
-* <p>Check whether the Handlebars expression is {{else}} expression.</p>
-*
-*/
-HandlebarsUtils.isElseExpression = function(input, i) {
-    var s = input.slice(i);
-    var re = HandlebarsUtils.elseExpressionRegExp.exec(s);
-    if (re !== null) {
-        return true;
-    }
-    re = HandlebarsUtils.elseShortFormExpressionRegExp.exec(s);
-    if (re !== null) {
-        return true;
-    }
-    return false;
-};
-
-/**
-* @function HandlebarsUtils.isBranchExpressions
-*
-* @static
-*
-* @returns {boolean} true or false.
-*
-* @description
-* <p>Check whether the Handlebars expression is "branching" expression.</p>
-*
-*/
-HandlebarsUtils.isBranchExpressions = function(input, i) {
-    var r = HandlebarsUtils.isBranchExpression(input, i);
-    if (r === false) {
-        return false;
-    } else {
-        return true;
     }
 };
 
@@ -475,8 +397,8 @@ HandlebarsUtils.buildBranchAst = function(input, i) {
         k,j,r = 0;
 
     for(j=0;j<len;++j) {
-        var exp = HandlebarsUtils.isBranchExpression(str, j),
-            endExpression = HandlebarsUtils.isBranchEndExpression(str, j);
+        var exp = HandlebarsUtils.isValidExpression(str, j, HandlebarsUtils.BRANCH_EXPRESSION).tag,
+            endExpression = HandlebarsUtils.isValidExpression(str, j, HandlebarsUtils.BRANCH_END_EXPRESSION).tag;
         
         if (exp !== false) {
             /* encounter the first branch expression */
@@ -516,7 +438,7 @@ HandlebarsUtils.buildBranchAst = function(input, i) {
                     ast.inverse.push(obj);
                 }
             }
-        } else if (HandlebarsUtils.isElseExpression(str, j)) {
+        } else if (HandlebarsUtils.isValidExpression(str, j, HandlebarsUtils.ELSE_EXPRESSION).result) {
             obj = HandlebarsUtils._saveAstObject('content', content);
             if (!inverse) {
                 ast.program.push(obj);
