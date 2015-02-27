@@ -132,5 +132,15 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
+        /* this test will not throw html5 inconsistent exception */
+        it("./bin/handlebarspc conditional/iteration mismatch template test", function(done) {
+            var exec = promise.promisify(require("child_process").exec);
+            exec('./bin/handlebarspc ./tests/samples/bugs/004.script.hb')
+            .timeout(300)
+            .done(function(e){
+                done();
+            });
+        });
+
     });
 }());

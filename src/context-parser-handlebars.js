@@ -524,15 +524,16 @@ ContextParserHandlebars.prototype._handleExpression = function(input, i, len) {
 ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, state) {
     var msg;
     try {
-        var ast = this.buildBranchAst(input, i);
-        var result = this.analyseBranchAst(ast, state);
+        var ast = this._buildBranchAst(input, i);
+        var stateObj = this._getInternalState();
+        var result = this._analyseBranchAst(ast, stateObj);
 
         /* print the output */
         this.printChar(result.output);
 
         /* advance the index pointer i to the char after the last brace of branching expression. */
         i = i+ast.index+1;
-        this.state = result.lastStates[0];
+        this.state = result.lastStates[0].state;
 
         debug("_handleBranchTemplate: state:"+this.state+",i:"+i);
         return i;
@@ -543,11 +544,11 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
 };
 
 // context analyze the string.
-ContextParserHandlebars.prototype._analyzeContext = function(state, str) {
+ContextParserHandlebars.prototype._analyzeContext = function(stateObj, str) {
 
     var r = {
-        lastState: '',
-        output: ''
+        output: '',
+        stateObj: {}
     };
 
     // TODO: refactor
@@ -557,25 +558,32 @@ ContextParserHandlebars.prototype._analyzeContext = function(state, str) {
 
     /* parse the string */
     parser = new ContextParserHandlebars(false);
-    parser.setInitState(state);
+    // set the internal state
+    parser.tagNames = stateObj.tagNames;
+    parser.tagNameIdx = stateObj.tagNameIdx;
+    parser.setInitState(stateObj.state);
     parser.contextualize(str);
-    r.lastState = parser.getLastState();
+
     r.output = parser.getBuffer().join('');
+    // get the internal state
+    r.stateObj.tagNames = parser.tagNames;
+    r.stateObj.tagNameIdx = parser.tagNameIdx;
+    r.stateObj.state = parser.state;
 
     return r;
 };
 
 // context analyze the data structure of logic template.
-ContextParserHandlebars.prototype.analyseBranchAst = function(ast, state) {
-    var obj = {}, stateObj = {},
+ContextParserHandlebars.prototype._analyseBranchAst = function(ast, stateObj) {
+    var obj = {},
         len = ast.program.length;
 
     var r = {},
-        t, msg,
-        newLastState;
+        t, msg;
+
     r.lastStates = [];
-    r.lastStates[0] = state;
-    r.lastStates[1] = state;
+    r.lastStates[0] = stateObj;
+    r.lastStates[1] = stateObj;
     r.output = '';
     
     var programDebugOutput = "", inverseDebugOutput = "";
@@ -583,28 +591,26 @@ ContextParserHandlebars.prototype.analyseBranchAst = function(ast, state) {
     for(var i=0;i<len;++i) {
         obj = ast.program[i];
         if (obj.type === 'content') {
-            debugBranch("analyseBranchAst:program:content");
-            debugBranch("analyseBranchAst:state:"+r.lastStates[0]);
-            debugBranch("analyseBranchAst:content:["+obj.content+"]");
+            debugBranch("_analyseBranchAst:program:content");
+            debugBranch("_analyseBranchAst:state:"+r.lastStates[0].state);
+            debugBranch("_analyseBranchAst:content:["+obj.content+"]");
 
             t = this._analyzeContext(r.lastStates[0], obj.content);
-            newLastState = t.lastState;
             r.output += t.output;
+            r.lastStates[0] = t.stateObj;
             programDebugOutput += t.output;
-            r.lastStates[0] = newLastState;
 
-            debugBranch("analyseBranchAst:new state:"+newLastState);
+            debugBranch("_analyseBranchAst:new state:"+r.lastStates[0].state);
         } else if (obj.type === 'node') {
-            debugBranch("analyseBranchAst:program:node");
-            debugBranch("analyseBranchAst:state:"+r.lastStates[0]);
+            debugBranch("_analyseBranchAst:program:node");
+            debugBranch("_analyseBranchAst:state:"+r.lastStates[0].state);
 
-            t = this.analyseBranchAst(obj.content, r.lastStates[0]);
-            newLastState = t.lastStates[0]; // index 0 and 1 MUST be equal
-            r.lastStates[0] = newLastState;
+            t = this._analyseBranchAst(obj.content, r.lastStates[0]);
+            r.lastStates[0] = t.lastStates[0]; // index 0 and 1 MUST be equal
             r.output += t.output;
             programDebugOutput += t.output;
 
-            debugBranch("analyseBranchAst:new state:"+newLastState);
+            debugBranch("_analyseBranchAst:new state:"+r.lastStates[0].state);
         } else if (obj.type === 'branch' ||
             obj.type === 'branchelse' ||
             obj.type === 'branchend') {
@@ -616,28 +622,26 @@ ContextParserHandlebars.prototype.analyseBranchAst = function(ast, state) {
     for(i=0;i<len;++i) {
         obj = ast.inverse[i];
         if (obj.type === 'content') {
-            debugBranch("analyseBranchAst:program:content");
-            debugBranch("analyseBranchAst:state:"+r.lastStates[1]);
-            debugBranch("analyseBranchAst:content:["+obj.content+"]");
+            debugBranch("_analyseBranchAst:program:content");
+            debugBranch("_analyseBranchAst:state:"+r.lastStates[1].state);
+            debugBranch("_analyseBranchAst:content:["+obj.content+"]");
 
             t = this._analyzeContext(r.lastStates[1], obj.content);
-            newLastState = t.lastState;
             r.output += t.output;
+            r.lastStates[1] = t.stateObj;
             inverseDebugOutput += t.output;
-            r.lastStates[1] = newLastState;
 
-            debugBranch("analyseBranchAst:new state:"+newLastState);
+            debugBranch("_analyseBranchAst:new state:"+r.lastStates[1].state);
         } else if (obj.type === 'node') {
-            debugBranch("analyseBranchAst:program:node");
-            debugBranch("analyseBranchAst:state:"+r.lastStates[1]);
+            debugBranch("_analyseBranchAst:program:node");
+            debugBranch("_analyseBranchAst:state:"+r.lastStates[1].state);
 
-            t = this.analyseBranchAst(obj.content, r.lastStates[1]);
-            newLastState = t.lastStates[1]; // index 0 and 1 MUST be equal
-            r.lastStates[1] = newLastState;
+            t = this._analyseBranchAst(obj.content, r.lastStates[1]);
+            r.lastStates[1] = t.lastStates[1]; // index 0 and 1 MUST be equal
             r.output += t.output;
             inverseDebugOutput += t.output;
 
-            debugBranch("analyseBranchAst:new state:"+newLastState);
+            debugBranch("_analyseBranchAst:new state:"+r.lastStates[1].state);
         } else if (obj.type === 'branch' ||
             obj.type === 'branchelse' ||
             obj.type === 'branchend') {
@@ -647,24 +651,24 @@ ContextParserHandlebars.prototype.analyseBranchAst = function(ast, state) {
     }
 
     if (ast.program.length > 0 && ast.inverse.length === 0) {
-        debugBranch("panalyseBranchAst:["+r.lastStates[0]+"/"+r.lastStates[0]+"]");
+        debugBranch("_analyseBranchAst:["+r.lastStates[0].state+"/"+r.lastStates[0].state+"]");
         r.lastStates[1] = r.lastStates[0];
     } else if (ast.program.length === 0 && ast.inverse.length > 0) {
-        debugBranch("analyseBranchAst:["+r.lastStates[1]+"/"+r.lastStates[1]+"]");
+        debugBranch("_analyseBranchAst:["+r.lastStates[1].state+"/"+r.lastStates[1].state+"]");
         r.lastStates[0] = r.lastStates[1];
     }
 
-    if (r.lastStates[0] !== r.lastStates[1]) {
+    if (r.lastStates[0].state !== r.lastStates[1].state) {
         msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsitent HTML5 state after conditional branches. Please fix your template! \n";
-        msg += "[ERROR] #if.. branch: " + programDebugOutput.slice(0, 50) + "... (state:"+r.lastStates[0]+")\n";
-        msg += "[ERROR] else branch: " + inverseDebugOutput.slice(0, 50) + "... (state:"+r.lastStates[1]+")";
+        msg += "[ERROR] #if.. branch: " + programDebugOutput.slice(0, 50) + "... (state:"+r.lastStates[0].state+")\n";
+        msg += "[ERROR] else branch: " + inverseDebugOutput.slice(0, 50) + "... (state:"+r.lastStates[1].state+")";
         handlebarsUtils.handleError(msg, true);
     }
     return r;
 };
 
 // build the data structure for processing logic template.
-ContextParserHandlebars.prototype.buildBranchAst = function(input, i) {
+ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
 
     /* init the data structure */
     var ast = {};
@@ -714,7 +718,7 @@ ContextParserHandlebars.prototype.buildBranchAst = function(input, i) {
                 }
                 content = '';
 
-                r = this.buildBranchAst(str, j);
+                r = this._buildBranchAst(str, j);
                 obj = this._saveAstObject('node', r);
                 j = j + r.index;
                 if (!inverse) {
@@ -793,6 +797,22 @@ ContextParserHandlebars.prototype.buildBranchAst = function(input, i) {
 
     ast.index = j;
     return ast;
+};
+
+// @function ContextParserHandlebars._getInternalState
+ContextParserHandlebars.prototype._getInternalState = function() {
+    var stateObj = {};
+    // stateObj.bytes = this.bytes;
+    stateObj.state = this.state;
+    // stateObj.states = this.states;
+    // stateObj.contexts = this.contexts;
+    // stateObj.buffer = this.buffer;
+    // stateObj.symbols = this.symbols;
+    stateObj.tagNames = this.tagNames;
+    stateObj.tagNameIdx = this.tagNameIdx;
+    // stateObj.attributeName = this.attributeName;
+    // stateObj.attributeValue = this.attributeValue;
+    return stateObj;
 };
 
 // @function ContextParserHandlebars._saveAstObject
