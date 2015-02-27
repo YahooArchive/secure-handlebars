@@ -312,20 +312,13 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
-        it("context-parser-handlebars#_handleCommentExpression test", function() {
+        it("context-parser-handlebars#_handleRawBlock test", function() {
             var parser = new ContextParserHandlebars();
             [
-                {str: '{{! comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:14},
-                {str: '{{! comment }} }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:14},
-                {str: '{{!-- comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:18},
-                {str: '{{!-- comment --}}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:18},
-                {str: '{{!-- comment }}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:22},
-
-                // these cases are guarded against by isCommentExpression
-                {str: '{{!-- comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:16},
-                {str: '{{! comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:16}
+                {str: '{{{{ raw block }}}}', result:19},
+                {str: '{{{{/ raw block }}}}', result:20},
             ].forEach(function(obj) {
-                var r = parser._handleCommentExpression(obj.str, 0, obj.str.length, obj.type);
+                var r = parser._handleRawBlock(obj.str, 0, obj.str.length);
                 expect(r).to.equal(obj.result);
             });
         });

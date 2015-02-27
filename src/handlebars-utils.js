@@ -54,20 +54,7 @@ HandlebarsUtils.elseExpressionRegExp = /^\{\{~?\s*else\s*~??\}\}(?!})/;
 /* '{{' '~'? 'space'* '^'{1} 'space'* '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.elseShortFormExpressionRegExp = /^\{\{~?\s*\^{1}\s*~??\}\}(?!})/;
 
-/**
-* @function HandlebarsUtils.getExpressionType
-*
-* @static
-*
-* @param {string} input - The input string of the HTML5 web page.
-* @param {integer} i - The current index of the input string.
-* @param {integer} len - The max len of the input.
-* @returns {integer} The expression type.
-* *
-* @description
-* <p>this method is to judge the type of expression</p>
-*
-*/
+// @function HandlebarsUtils.getExpressionType
 HandlebarsUtils.getExpressionType = function(input, i, len) {
     // TODO: can optimize
     if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '>') ||
@@ -103,15 +90,7 @@ HandlebarsUtils.getExpressionType = function(input, i, len) {
     return HandlebarsUtils.ESCAPE_EXPRESSION;
 };
 
-/**
-* @function HandlebarsUtils.isValidExpression
-*
-* @static
-*
-* @description
-* <p>This function is used to look ahead to check whether it is a valid expression.</p>
-*
-*/
+// @function HandlebarsUtils.isValidExpression
 HandlebarsUtils.isValidExpression = function(input, i, type) {
     var re = {};
     re.tag = false;
@@ -171,21 +150,7 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
     return re;
 };
 
-/**
-* @function HandlebarsUtils.isReservedChar
-*
-* @static
-*
-* @param {char} ch - The input character.
-* @returns {boolean} true or false.
-*
-* @description
-* <p>Check whether the Handlebars expression is a reserved expression.
-* The reserved expression includes block expression, partial template expression etc.</p>
-*
-* <p>For reference, please check https://github.com/mustache/spec/tree/master/specs</p>
-*
-*/
+// @function HandlebarsUtils.isReservedChar
 HandlebarsUtils.isReservedChar = function(input, i) {
     var ch = input[i];
     if (ch === '~' && input.length > i+1) {
@@ -199,18 +164,7 @@ HandlebarsUtils.isReservedChar = function(input, i) {
     }
 };
 
-/**
-* @function HandlebarsUtils.handleError
-*
-* @static
-*
-* @param {string} msg - The log message string.
-* @param {boolean} throwErr - Throw exception error?
-*
-* @description
-* <p>Handle the error during parsing.</p>
-*
-*/    
+// @function HandlebarsUtils.handleError
 HandlebarsUtils.handleError = function(msg, throwErr) {
     if (throwErr) {
         throw msg;
