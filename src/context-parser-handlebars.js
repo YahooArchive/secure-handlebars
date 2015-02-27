@@ -12,7 +12,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
 /* debug facility */
 var debug = require('debug')('cph-debug'),
-    debugDump = require('debug')('cph-dump');
+    debugDump = require('debug')('cph-dump'),
+    debugBranch = require('debug')('cph-branching');
 
 /* import the html context parser */
 var contextParser = require('context-parser'),
@@ -523,8 +524,8 @@ ContextParserHandlebars.prototype._handleExpression = function(input, i, len) {
 ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, state) {
     var msg;
     try {
-        var ast = handlebarsUtils.buildBranchAst(input, i);
-        var result = handlebarsUtils.analyseBranchAst(ast, state);
+        var ast = this.buildBranchAst(input, i);
+        var result = this.analyseBranchAst(ast, state);
 
         /* print the output */
         this.printChar(result.output);
@@ -540,6 +541,316 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
        handlebarsUtils.handleError(msg, true);
     }
 };
+
+// context analyze the string.
+ContextParserHandlebars.prototype._analyzeContext = function(state, str) {
+
+    var r = {
+        lastState: '',
+        output: ''
+    };
+
+    // TODO: refactor
+    /* factory class */
+    var parser,
+        ContextParserHandlebars = require('./context-parser-handlebars');
+
+    /* parse the string */
+    parser = new ContextParserHandlebars(false);
+    parser.setInitState(state);
+    parser.contextualize(str);
+    r.lastState = parser.getLastState();
+    r.output = parser.getBuffer().join('');
+
+    return r;
+};
+
+// context analyze the data structure of logic template.
+ContextParserHandlebars.prototype.analyseBranchAst = function(ast, state) {
+    var obj = {}, stateObj = {},
+        len = ast.program.length;
+
+    var r = {},
+        t, msg,
+        newLastState;
+    r.lastStates = [];
+    r.lastStates[0] = state;
+    r.lastStates[1] = state;
+    r.output = '';
+    
+    var programDebugOutput = "", inverseDebugOutput = "";
+
+    for(var i=0;i<len;++i) {
+        obj = ast.program[i];
+        if (obj.type === 'content') {
+            debugBranch("analyseBranchAst:program:content");
+            debugBranch("analyseBranchAst:state:"+r.lastStates[0]);
+            debugBranch("analyseBranchAst:content:["+obj.content+"]");
+
+            t = this._analyzeContext(r.lastStates[0], obj.content);
+            newLastState = t.lastState;
+            r.output += t.output;
+            programDebugOutput += t.output;
+            r.lastStates[0] = newLastState;
+
+            debugBranch("analyseBranchAst:new state:"+newLastState);
+        } else if (obj.type === 'node') {
+            debugBranch("analyseBranchAst:program:node");
+            debugBranch("analyseBranchAst:state:"+r.lastStates[0]);
+
+            t = this.analyseBranchAst(obj.content, r.lastStates[0]);
+            newLastState = t.lastStates[0]; // index 0 and 1 MUST be equal
+            r.lastStates[0] = newLastState;
+            r.output += t.output;
+            programDebugOutput += t.output;
+
+            debugBranch("analyseBranchAst:new state:"+newLastState);
+        } else if (obj.type === 'branch' ||
+            obj.type === 'branchelse' ||
+            obj.type === 'branchend') {
+            r.output += obj.content;
+            programDebugOutput += obj.content;
+        }
+    }
+    len = ast.inverse.length;
+    for(i=0;i<len;++i) {
+        obj = ast.inverse[i];
+        if (obj.type === 'content') {
+            debugBranch("analyseBranchAst:program:content");
+            debugBranch("analyseBranchAst:state:"+r.lastStates[1]);
+            debugBranch("analyseBranchAst:content:["+obj.content+"]");
+
+            t = this._analyzeContext(r.lastStates[1], obj.content);
+            newLastState = t.lastState;
+            r.output += t.output;
+            inverseDebugOutput += t.output;
+            r.lastStates[1] = newLastState;
+
+            debugBranch("analyseBranchAst:new state:"+newLastState);
+        } else if (obj.type === 'node') {
+            debugBranch("analyseBranchAst:program:node");
+            debugBranch("analyseBranchAst:state:"+r.lastStates[1]);
+
+            t = this.analyseBranchAst(obj.content, r.lastStates[1]);
+            newLastState = t.lastStates[1]; // index 0 and 1 MUST be equal
+            r.lastStates[1] = newLastState;
+            r.output += t.output;
+            inverseDebugOutput += t.output;
+
+            debugBranch("analyseBranchAst:new state:"+newLastState);
+        } else if (obj.type === 'branch' ||
+            obj.type === 'branchelse' ||
+            obj.type === 'branchend') {
+            r.output += obj.content;
+            inverseDebugOutput += obj.content;
+        }
+    }
+
+    if (ast.program.length > 0 && ast.inverse.length === 0) {
+        debugBranch("panalyseBranchAst:["+r.lastStates[0]+"/"+r.lastStates[0]+"]");
+        r.lastStates[1] = r.lastStates[0];
+    } else if (ast.program.length === 0 && ast.inverse.length > 0) {
+        debugBranch("analyseBranchAst:["+r.lastStates[1]+"/"+r.lastStates[1]+"]");
+        r.lastStates[0] = r.lastStates[1];
+    }
+
+    if (r.lastStates[0] !== r.lastStates[1]) {
+        msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsitent HTML5 state after conditional branches. Please fix your template! \n";
+        msg += "[ERROR] #if.. branch: " + programDebugOutput.slice(0, 50) + "... (state:"+r.lastStates[0]+")\n";
+        msg += "[ERROR] else branch: " + inverseDebugOutput.slice(0, 50) + "... (state:"+r.lastStates[1]+")";
+        handlebarsUtils.handleError(msg, true);
+    }
+    return r;
+};
+
+// build the data structure for processing logic template.
+ContextParserHandlebars.prototype.buildBranchAst = function(input, i) {
+
+    /* init the data structure */
+    var ast = {};
+    ast.program = [];
+    ast.inverse = [];
+
+    var str = input.slice(i),
+        len = str.length;
+
+    var sp = [],
+        msg,
+        content = '',
+        inverse = false,
+        obj = {},
+        k,j,r = 0;
+
+    for(j=0;j<len;++j) {
+        var exp = handlebarsUtils.isValidExpression(str, j, handlebarsUtils.BRANCH_EXPRESSION).tag,
+            endExpression = handlebarsUtils.isValidExpression(str, j, handlebarsUtils.BRANCH_END_EXPRESSION).tag;
+        
+        if (exp !== false) {
+            /* encounter the first branch expression */
+            if (sp.length === 0) {
+                /* save the branch expression name */
+                sp.push(exp);
+
+                content = '';
+                inverse = false;
+
+                /* consume till the end of expression */
+                r = this._consumeTillCloseBrace(str, j, len);
+                j = r.index;
+                obj = this._saveAstObject('branch', r.str);
+                if (!inverse) {
+                    ast.program.push(obj);
+                } else if (inverse) {
+                    ast.inverse.push(obj);
+                }
+
+            } else {
+                /* encounter another branch expression, save the previous string */
+                obj = this._saveAstObject('content', content);
+                if (!inverse) {
+                    ast.program.push(obj);
+                } else if (inverse) {
+                    ast.inverse.push(obj);
+                }
+                content = '';
+
+                r = this.buildBranchAst(str, j);
+                obj = this._saveAstObject('node', r);
+                j = j + r.index;
+                if (!inverse) {
+                    ast.program.push(obj);
+                } else if (inverse) {
+                    ast.inverse.push(obj);
+                }
+            }
+        } else if (handlebarsUtils.isValidExpression(str, j, handlebarsUtils.ELSE_EXPRESSION).result) {
+            obj = this._saveAstObject('content', content);
+            if (!inverse) {
+                ast.program.push(obj);
+            } else if (inverse) {
+                ast.inverse.push(obj);
+            }
+
+            inverse = true;
+            content = '';
+
+            /* consume till the end of expression */
+            r = this._consumeTillCloseBrace(str, j, len);
+            j = r.index;
+            obj = this._saveAstObject('branchelse', r.str);
+            if (!inverse) {
+                ast.program.push(obj);
+            } else if (inverse) {
+                ast.inverse.push(obj);
+            }
+
+        } else if (endExpression !== false) {
+            var t = sp.pop();
+            if (t === endExpression) {
+                obj = this._saveAstObject('content', content);
+                if (!inverse) {
+                    ast.program.push(obj);
+                } else if (inverse) {
+                    ast.inverse.push(obj);
+                }
+
+                /* consume till the end of expression */
+                r = this._consumeTillCloseBrace(str, j, len);
+                j = r.index;
+                obj = this._saveAstObject('branchend', r.str);
+                if (!inverse) {
+                    ast.program.push(obj);
+                } else if (inverse) {
+                    ast.inverse.push(obj);
+                }
+
+                break;
+            } else {
+                /* broken template as the end expression does not match, throw exception before function returns */
+                msg = "[ERROR] ContextParserHandlebars: Template expression mismatch (startExpression:"+t+"/endExpression:"+endExpression+")";
+                handlebarsUtils.handleError(msg, true);
+            }
+        } else {
+            var expressionType = handlebarsUtils.getExpressionType(str, j, len);
+            if (expressionType === handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM ||
+                expressionType === handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM) {
+                /* capturing the string till the end of comment */
+                r = this._consumeTillCommentCloseBrace(str, j, len, expressionType);
+                j = r.index;
+                content += r.str;
+            } else {
+                /* capturing the string */
+                content += str[j];    
+            }
+        }
+    }
+
+    if (sp.length > 0) {
+        /* throw error on the template */
+        msg = "[ERROR] ContextParserHandlebars: Template does not have balanced branching expression.";
+        handlebarsUtils.handleError(msg, true);
+    }
+
+    ast.index = j;
+    return ast;
+};
+
+// @function ContextParserHandlebars._saveAstObject
+ContextParserHandlebars.prototype._saveAstObject = function(type, content) {
+    var obj = {};
+    obj.type = type;
+    obj.content = content;
+    return obj;
+};
+
+// @function ContextParserHandlebars._consumeTillCloseBrace
+ContextParserHandlebars.prototype._consumeTillCloseBrace = function(input, i, len) {
+    var msg, 
+        str = '',
+        obj = {};
+    for(var j=i;j<len;++j) {
+        if (input[j] === '}' && j+1 < len && input[j+1] === '}') {
+            str += '}}';
+            j++;
+            obj.index = j;
+            obj.str = str;
+            return obj;
+        }
+        str += input[j];
+    }
+    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of expression.";
+    handlebarsUtils.handleError(msg, true);
+};
+
+// @function ContextParserHandlebars._consumeTillCommentCloseBrace
+ContextParserHandlebars.prototype._consumeTillCommentCloseBrace = function(input, i, len, type) {
+    var msg, 
+        str = '',
+        obj = {};
+    for(var j=i;j<len;++j) {
+        if (type === handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM) {
+            if (input[j] === '-' && j+3<len && input[j+1] === '-' && input[j+2] === '}' && input[j+3] === '}') {
+                str += '--}}';
+                j=j+3;
+                obj.index = j;
+                obj.str = str;
+                return obj;
+            }
+        } else if (type === handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM) {
+            if (input[j] === '}' && j+1<len && input[j+1] === '}') {
+                str += '}}';
+                j++;
+                obj.index = j;
+                obj.str = str;
+                return obj;
+            }
+        }
+        str += input[j];
+    }
+    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' or '--}}' close brace of comment expression.";
+    handlebarsUtils.handleError(msg, true);
+};
+
 
 /** 
 * @function module:ContextParserHandlebars._handleTemplate

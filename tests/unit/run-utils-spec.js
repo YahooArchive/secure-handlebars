@@ -332,8 +332,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         it("handlebars-utils - build basic branch AST test", function() {
+            var parser = new ContextParserHandlebars();
             var s = "{{#if xxx}} a b {{/if}}xxxxxxx";
-            var ast = handlebarsUtils.buildBranchAst(s, 0);
+            var ast = parser.buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
             expect(ast.program[0].content).to.equal('{{#if xxx}}');
             expect(ast.program[1].type).to.equal('content');
@@ -342,13 +343,14 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[2].content).to.equal('{{/if}}');
             expect(ast.inverse).to.deep.equal([]);
             expect(ast.index).to.equal(22);
-            var r = handlebarsUtils.analyseBranchAst(ast, 1);
+            var r = parser.analyseBranchAst(ast, 1);
             expect(r.output).to.equal('{{#if xxx}} a b {{/if}}');
         });
 
         it("handlebars-utils - build basic branch with {{expression}} AST test", function() {
+            var parser = new ContextParserHandlebars();
             var s = "{{#if xxx}} a b {{expression}} {{/if}}xxxxxxx";
-            var ast = handlebarsUtils.buildBranchAst(s, 0);
+            var ast = parser.buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
             expect(ast.program[0].content).to.equal('{{#if xxx}}');
             expect(ast.program[1].type).to.equal('content');
@@ -357,13 +359,14 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[2].content).to.equal('{{/if}}');
             expect(ast.inverse).to.deep.equal([]);
             expect(ast.index).to.equal(37);
-            var r = handlebarsUtils.analyseBranchAst(ast, 1);
+            var r = parser.analyseBranchAst(ast, 1);
             expect(r.output).to.equal('{{#if xxx}} a b {{{yd expression}}} {{/if}}');
         });
 
         it("handlebars-utils - build basic branch with {{!comment}} AST test", function() {
+            var parser = new ContextParserHandlebars();
             var s = "{{#if xxx}} a b {{!--comment  {{#if xxx}} abc {{/if}} --}} {{/if}}xxxxxxx";
-            var ast = handlebarsUtils.buildBranchAst(s, 0);
+            var ast = parser.buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
             expect(ast.program[0].content).to.equal('{{#if xxx}}');
             expect(ast.program[1].type).to.equal('content');
@@ -372,11 +375,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[2].content).to.equal('{{/if}}');
             expect(ast.inverse).to.deep.equal([]);
             expect(ast.index).to.equal(65);
-            var r = handlebarsUtils.analyseBranchAst(ast, 1);
+            var r = parser.analyseBranchAst(ast, 1);
             expect(r.output).to.equal('{{#if xxx}} a b {{!--comment  {{#if xxx}} abc {{/if}} --}} {{/if}}');
 
             s = "{{#if xxx}} a b {{!comment  {{#if xxx}} abc {{/if}} --}} {{/if}}xxxxxxx";
-            ast = handlebarsUtils.buildBranchAst(s, 0);
+            ast = parser.buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
             expect(ast.program[0].content).to.equal('{{#if xxx}}');
             expect(ast.program[1].type).to.equal('content');
@@ -385,13 +388,14 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[2].content).to.equal('{{/if}}');
             expect(ast.inverse).to.deep.equal([]);
             expect(ast.index).to.equal(50);
-            r = handlebarsUtils.analyseBranchAst(ast, 1);
+            r = parser.analyseBranchAst(ast, 1);
             expect(r.output).to.equal('{{#if xxx}} a b {{!comment  {{#if xxx}} abc {{/if}}');
         });
 
         it("handlebars-utils - build basic branch with inverse AST test", function() {
+            var parser = new ContextParserHandlebars();
             var s = "{{#if xxx}} a {{else}} b {{/if}}xxxxxxxx";
-            var ast = handlebarsUtils.buildBranchAst(s, 0);
+            var ast = parser.buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
             expect(ast.program[0].content).to.equal('{{#if xxx}}');
             expect(ast.program[1].type).to.equal('content');
@@ -404,13 +408,14 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.inverse[2].type).to.equal('branchend');
             expect(ast.inverse[2].content).to.equal('{{/if}}');
             expect(ast.index).to.equal(31);
-            var r = handlebarsUtils.analyseBranchAst(ast, 1);
+            var r = parser.analyseBranchAst(ast, 1);
             expect(r.output).to.equal('{{#if xxx}} a {{else}} b {{/if}}');
         });
 
         it("handlebars-utils - build nested branch AST test", function() {
+            var parser = new ContextParserHandlebars();
             var s = "{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{else}} e {{#if}} f {{else}} g {{/if}} h {{/if}}xxxxxx";
-            var ast = handlebarsUtils.buildBranchAst(s, 0);
+            var ast = parser.buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
             expect(ast.program[0].content).to.equal('{{#if xxx}}');
             expect(ast.program[1].type).to.equal('content');
@@ -449,13 +454,14 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.inverse[4].type).to.equal('branchend');
             expect(ast.inverse[4].content).to.equal('{{/if}}');
             expect(ast.index).to.equal(97);
-            var r = handlebarsUtils.analyseBranchAst(ast, 1);
+            var r = parser.analyseBranchAst(ast, 1);
             expect(r.output).to.equal('{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{else}} e {{#if}} f {{else}} g {{/if}} h {{/if}}');
         });
 
         it("handlebars-utils - build parallel branch AST test", function() {
+            var parser = new ContextParserHandlebars();
             var s = "{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{#if}} e {{else}} f {{/if}} g {{/if}}xxxxxxx";
-            var ast = handlebarsUtils.buildBranchAst(s, 0);
+            var ast = parser.buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
             expect(ast.program[0].content).to.equal('{{#if xxx}}');
             expect(ast.program[1].type).to.equal('content');
@@ -489,7 +495,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[6].type).to.equal('branchend');
             expect(ast.program[6].content).to.equal('{{/if}}');
             expect(ast.index).to.equal(86);
-            var r = handlebarsUtils.analyseBranchAst(ast, 1);
+            var r = parser.analyseBranchAst(ast, 1);
             expect(r.output).to.equal('{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{#if}} e {{else}} f {{/if}} g {{/if}}');
         });
 
