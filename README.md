@@ -44,7 +44,7 @@ try {
     preCompiler.contextualize(data);
     // return a processed handlebars template with context-sensitive helpers added! 
     // i.e., output is '<html><title>{{{yd title}}}</title></html>';
-    var output = preCompiler.getBuffer().join('');
+    var output = preCompiler.getOutput();
     // ...
 } catch (err) {
     // ...
