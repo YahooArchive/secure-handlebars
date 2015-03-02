@@ -55,6 +55,12 @@ function ContextParserHandlebars(printChar) {
     debug("_printChar:"+this._printCharEnable);
 }
 
+function ContextParserHandlebarsException(msg, lineNo, charNo) {
+    this.msg = msg;
+    this.lineNo = lineNo;
+    this.charNo = charNo;
+}
+
 /* inherit the prototype of contextParser.Parser */
 ContextParserHandlebars.prototype = Object.create(contextParser.Parser.prototype);
 
@@ -163,7 +169,7 @@ ContextParserHandlebars.prototype._parseExpression = function(input, i) {
 ContextParserHandlebars.prototype._addFilters = function(state, input, expressionInfo) {
 
     /* transitent var */
-    var e, f, msg;
+    var e, f, msg, exceptionObj;
 
     /* return filters */
     var filters = [];
@@ -187,8 +193,10 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, expressio
         * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
-        msg = "[WARNING] ContextParserHandlebars: Unsafe output expression. ["+this._lineNo+":"+this._charNo+"]";
-        handlebarsUtils.handleError(msg);
+        
+        msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_RAWTEXT state.";
+        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+        handlebarsUtils.handleError(exceptionObj);
         return filters;
     // 6
     } else if (state === stateMachine.State.STATE_SCRIPT_DATA) {
@@ -196,8 +204,9 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, expressio
         * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
-        msg = "[WARNING] ContextParserHandlebars: Unsafe output expression. ["+this._lineNo+":"+this._charNo+"]";
-        handlebarsUtils.handleError(msg);
+        msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_SCRIPT_DATA state.";
+        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+        handlebarsUtils.handleError(exceptionObj);
         return filters;
     // 34
     } else if (state === stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME) {
@@ -208,8 +217,9 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, expressio
         * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
-        msg = "[WARNING] ContextParserHandlebars: Unsafe output expression. ["+this._lineNo+":"+this._charNo+"]";
-        handlebarsUtils.handleError(msg);
+        msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_ATTRIBUTE_NAME state.";
+        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+        handlebarsUtils.handleError(exceptionObj);
         return filters;
     // 36
     } else if (state === stateMachine.State.STATE_AFTER_ATTRIBUTE_NAME) {
@@ -227,8 +237,9 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, expressio
         // TODO: this filtering rule cannot cover all cases.
         if (handlebarsUtils.blacklistProtocol(attributeValue)) {
             filters.push(filter.FILTER_NOT_HANDLE);
-            msg = "[WARNING] ContextParserHandlebars: Unsafe output expression. ["+this._lineNo+":"+this._charNo+"]";
-            handlebarsUtils.handleError(msg);
+            msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ attribute URI Javascript context.";
+            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+            handlebarsUtils.handleError(exceptionObj);
             /* this one is safe to return */
             return filters;
         }
@@ -284,8 +295,9 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, expressio
         * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
-        msg = "[WARNING] ContextParserHandlebars: Unsafe output expression. ["+this._lineNo+":"+this._charNo+"]";
-        handlebarsUtils.handleError(msg);
+        msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ attribute style CSS context.";
+        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+        handlebarsUtils.handleError(exceptionObj);
         return filters;
     // 38, 39, 40 + Javascript spec
     } else if ((state === stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED || 
@@ -298,8 +310,9 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, expressio
         * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
-        msg = "[WARNING] ContextParserHandlebars: Unsafe output expression. ["+this._lineNo+":"+this._charNo+"]";
-        handlebarsUtils.handleError(msg);
+        msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ attrubute on* Javascript context.";
+        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+        handlebarsUtils.handleError(exceptionObj);
         return filters;
     // 38, 39, 40 ONLY and should be placed at last.
     } else if (state === stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED || 
@@ -331,8 +344,9 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, expressio
         * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
-        msg = "[WARNING] ContextParserHandlebars: Unsafe output expression. ["+this._lineNo+":"+this._charNo+"]";
-        handlebarsUtils.handleError(msg);
+        msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_AFTER_ATTRIBUTE_VALUE_QUOTED state.";
+        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+        handlebarsUtils.handleError(exceptionObj);
         return filters;
     // 48
     } else if (state === stateMachine.State.STATE_COMMENT) {
@@ -344,8 +358,9 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, expressio
     * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
     */
     filters.push(filter.FILTER_NOT_HANDLE);
-    msg = "[WARNING] ContextParserHandlebars: Unsafe output expression. ["+this._lineNo+":"+this._charNo+"]";
-    handlebarsUtils.handleError(msg);
+    msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ NOT HANDLE state.";
+    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+    handlebarsUtils.handleError(exceptionObj);
     return filters;
 };
 
@@ -355,7 +370,7 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, expressio
 
 // @function module:ContextParserHandlebars._handleRawExpression
 ContextParserHandlebars.prototype._handleRawExpression = function(input, i, len, state) {
-    var msg;
+    var msg, exceptionObj;
     for(var j=i;j<len;++j) {
         if (input[j] === '}' && j+2<len && input[j+1] === '}' && input[j+2] === '}') {
                 this._printChar('}}}');
@@ -374,13 +389,14 @@ ContextParserHandlebars.prototype._handleRawExpression = function(input, i, len,
         }
         this._printChar(input[j]);
     }
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}}' close brace of raw expression. ["+this._lineNo+":"+this._charNo+"]";
-    handlebarsUtils.handleError(msg, true);
+    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}}' close brace of raw expression.";
+    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+    handlebarsUtils.handleError(exceptionObj, true);
 };
 
 // @function module:ContextParserHandlebars._handleEscapeExpression
 ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, len, state) {
-    var msg,
+    var msg, exceptionObj,
         str = '{{';
 
     /* parse expression */
@@ -440,13 +456,14 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
             this._printChar(input[j]);
         }
     }
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of escape expression. ["+this._lineNo+":"+this._charNo+"]";
-    handlebarsUtils.handleError(msg, true);
+    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of escape expression.";
+    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+    handlebarsUtils.handleError(exceptionObj, true);
 };
 
 // @function module:ContextParserHandlebars._handleCommentExpression
 ContextParserHandlebars.prototype._handleCommentExpression = function(input, i, len, type) {
-    var msg;
+    var msg, exceptionObj;
     for(var j=i;j<len;++j) {
         if (type === handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM) {
             if (input[j] === '-' && j+3<len && input[j+1] === '-' && input[j+2] === '}' && input[j+3] === '}') {
@@ -467,13 +484,14 @@ ContextParserHandlebars.prototype._handleCommentExpression = function(input, i, 
         }
         this._printChar(input[j]);
     }
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' or '--}}' close brace of comment expression. ["+this._lineNo+":"+this._charNo+"]";
-    handlebarsUtils.handleError(msg, true);
+    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' or '--}}' close brace of comment expression.";
+    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+    handlebarsUtils.handleError(exceptionObj, true);
 };
 
 // @function module:ContextParserHandlebars._handleExpression
 ContextParserHandlebars.prototype._handleExpression = function(input, i, len) {
-    var msg;
+    var msg, exceptionObj;
     for(var j=i;j<len;++j) {
         if (input[j] === '}' && j+1<len && input[j+1] === '}') {
             this._printChar('}}');
@@ -484,13 +502,14 @@ ContextParserHandlebars.prototype._handleExpression = function(input, i, len) {
         }
         this._printChar(input[j]);
     }
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of partial expression. ["+this._lineNo+":"+this._charNo+"]";
-    handlebarsUtils.handleError(msg, true);
+    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of partial expression.";
+    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+    handlebarsUtils.handleError(exceptionObj, true);
 };
 
 // @function module:ContextParserHandlebars._handleRawBlock
 ContextParserHandlebars.prototype._handleRawBlock = function(input, i, len) {
-    var msg;
+    var msg, exceptionObj;
     for(var j=i;j<len;++j) {
         if (input[j] === '}' && j+3<len && input[j+1] === '}' && input[j+2] === '}' && input[j+3] === '}') {
                 this._printChar('}}}}');
@@ -500,13 +519,14 @@ ContextParserHandlebars.prototype._handleRawBlock = function(input, i, len) {
         }
         this._printChar(input[j]);
     }
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}}}' close brace of raw block . ["+this._lineNo+":"+this._charNo+"]";
-    handlebarsUtils.handleError(msg, true);
+    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}}}' close brace of raw block.";
+    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+    handlebarsUtils.handleError(exceptionObj, true);
 };
 
 // @function module:ContextParserHandlebars._handleBranchExpression
 ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, state) {
-    var msg;
+    var msg, exceptionObj;
     try {
         var ast = this._buildBranchAst(input, i);
         var stateObj = this._getInternalState();
@@ -522,8 +542,8 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
         debug("_handleBranchTemplate: state:"+this.state+",i:"+i);
         return i;
     } catch (err) {
-       msg = err + " ["+this._lineNo+":"+this._charNo+"]";
-       handlebarsUtils.handleError(msg, true);
+        exceptionObj = new ContextParserHandlebarsException(err.msg, err.lineNo+this._lineNo, err.charNo+this._charNo);
+        handlebarsUtils.handleError(exceptionObj, true);
     }
 };
 
@@ -563,7 +583,7 @@ ContextParserHandlebars.prototype._analyseBranchAst = function(ast, stateObj) {
         len = ast.program.length;
 
     var r = {},
-        t, msg;
+        t, msg, exceptionObj;
 
     r.lastStates = [];
     r.lastStates[0] = stateObj;
@@ -646,7 +666,8 @@ ContextParserHandlebars.prototype._analyseBranchAst = function(ast, stateObj) {
         msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsitent HTML5 state after conditional branches. Please fix your template! \n";
         msg += "[ERROR] #if.. branch: " + programDebugOutput.slice(0, 50) + "... (state:"+r.lastStates[0].state+")\n";
         msg += "[ERROR] else branch: " + inverseDebugOutput.slice(0, 50) + "... (state:"+r.lastStates[1].state+")";
-        handlebarsUtils.handleError(msg, true);
+        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+        handlebarsUtils.handleError(exceptionObj, true);
     }
     return r;
 };
@@ -663,7 +684,7 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
         len = str.length;
 
     var sp = [],
-        msg,
+        msg, exceptionObj,
         content = '',
         inverse = false,
         obj = {},
@@ -756,7 +777,8 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
             } else {
                 /* broken template as the end expression does not match, throw exception before function returns */
                 msg = "[ERROR] ContextParserHandlebars: Template expression mismatch (startExpression:"+t+"/endExpression:"+endExpression+")";
-                handlebarsUtils.handleError(msg, true);
+                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                handlebarsUtils.handleError(exceptionObj, true);
             }
         } else {
             var expressionType = handlebarsUtils.getExpressionType(str, j, len);
@@ -776,7 +798,8 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
     if (sp.length > 0) {
         /* throw error on the template */
         msg = "[ERROR] ContextParserHandlebars: Template does not have balanced branching expression.";
-        handlebarsUtils.handleError(msg, true);
+        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+        handlebarsUtils.handleError(exceptionObj, true);
     }
 
     ast.index = j;
@@ -809,7 +832,7 @@ ContextParserHandlebars.prototype._saveAstObject = function(type, content) {
 
 // @function ContextParserHandlebars._consumeTillCloseBrace
 ContextParserHandlebars.prototype._consumeTillCloseBrace = function(input, i, len) {
-    var msg, 
+    var msg, exceptionObj, 
         str = '',
         obj = {};
     for(var j=i;j<len;++j) {
@@ -823,12 +846,13 @@ ContextParserHandlebars.prototype._consumeTillCloseBrace = function(input, i, le
         str += input[j];
     }
     msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of expression.";
-    handlebarsUtils.handleError(msg, true);
+    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+    handlebarsUtils.handleError(exceptionObj, true);
 };
 
 // @function ContextParserHandlebars._consumeTillCommentCloseBrace
 ContextParserHandlebars.prototype._consumeTillCommentCloseBrace = function(input, i, len, type) {
-    var msg, 
+    var msg, exceptionObj, 
         str = '',
         obj = {};
     for(var j=i;j<len;++j) {
@@ -852,7 +876,8 @@ ContextParserHandlebars.prototype._consumeTillCommentCloseBrace = function(input
         str += input[j];
     }
     msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' or '--}}' close brace of comment expression.";
-    handlebarsUtils.handleError(msg, true);
+    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+    handlebarsUtils.handleError(exceptionObj, true);
 };
 
 /*
@@ -875,7 +900,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
     /* regular expression validation result */
     var re;
     /* error msg */
-    var msg;
+    var msg, exceptionObj;
 
     /* Handlebars expression type */
     var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
@@ -893,8 +918,9 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
         handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
         re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
         if (re.result === false) {
-            msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw expression. ["+this._lineNo+":"+this._charNo+"]";
-            handlebarsUtils.handleError(msg, true);
+            msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw expression.";
+            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+            handlebarsUtils.handleError(exceptionObj, true);
         }
 
         /* for printCharWithState */
@@ -912,8 +938,9 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
             case handlebarsUtils.ESCAPE_EXPRESSION:
                 re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
                 if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid escape expression. ["+this._lineNo+":"+this._charNo+"]";
-                    handlebarsUtils.handleError(msg, true);
+                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid escape expression.";
+                    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                    handlebarsUtils.handleError(exceptionObj, true);
                 }
 
                 /* for printCharWithState */
@@ -928,8 +955,9 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
             case handlebarsUtils.PARTIAL_EXPRESSION:
                 re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
                 if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid partial expression. ["+this._lineNo+":"+this._charNo+"]";
-                    handlebarsUtils.handleError(msg, true);
+                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid partial expression.";
+                    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                    handlebarsUtils.handleError(exceptionObj, true);
                 }
                 /* _handleExpression */
                 debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
@@ -938,8 +966,9 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
             case handlebarsUtils.DATA_VAR_EXPRESSION:
                 re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
                 if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid data var expression. ["+this._lineNo+":"+this._charNo+"]";
-                    handlebarsUtils.handleError(msg, true);
+                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid data var expression.";
+                    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                    handlebarsUtils.handleError(exceptionObj, true);
                 }
                 /* _handleExpression */
                 debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
@@ -948,16 +977,18 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
             case handlebarsUtils.BRANCH_EXPRESSION:
                 re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
                 if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid branch expression. ["+this._lineNo+":"+this._charNo+"]";
-                    handlebarsUtils.handleError(msg, true);
+                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid branch expression.";
+                    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                    handlebarsUtils.handleError(exceptionObj, true);
                 }
                 /* _handleBranchExpression */
                 debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
                 return this._handleBranchExpression(input, i, state);
 
             case handlebarsUtils.BRANCH_END_EXPRESSION:
-                msg = "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{/.*}} expression. ["+this._lineNo+":"+this._charNo+"]";
-                handlebarsUtils.handleError(msg, true);
+                msg = "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{/.*}} expression.";
+                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                handlebarsUtils.handleError(exceptionObj, true);
                 break;
 
             case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
@@ -973,13 +1004,15 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                 return this._handleCommentExpression(input, i, len, handlebarsExpressionType);
 
             case handlebarsUtils.ELSE_EXPRESSION:
-                msg = "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{else}} or {{^}} expression. ["+this._lineNo+":"+this._charNo+"]";
-                handlebarsUtils.handleError(msg, true);
+                msg = "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{else}} or {{^}} expression.";
+                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                handlebarsUtils.handleError(exceptionObj, true);
                 break;
 
             default:
-                msg = "[ERROR] ContextParserHandlebars: Parsing error! Unknown expression. ["+this._lineNo+":"+this._charNo+"]";
-                handlebarsUtils.handleError(msg, true);
+                msg = "[ERROR] ContextParserHandlebars: Parsing error! Unknown expression.";
+                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                handlebarsUtils.handleError(exceptionObj, true);
                 break;
         }
     } else {

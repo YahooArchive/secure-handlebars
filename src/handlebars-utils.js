@@ -165,14 +165,14 @@ HandlebarsUtils.isReservedChar = function(input, i) {
 };
 
 // @function HandlebarsUtils.handleError
-HandlebarsUtils.handleError = function(msg, throwErr) {
+HandlebarsUtils.handleError = function(exceptionObj, throwErr) {
     if (throwErr) {
-        throw msg;
+        throw exceptionObj;
     } else if (typeof console === 'object') {
         if (console.hasOwnProperty('warn') && typeof console.warn === 'function') {
-            console.warn(msg);
+            console.warn(exceptionObj.msg + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
         } else if (console.hasOwnProperty('log') && typeof console.log === 'function') {
-            console.log(msg);
+            console.log(exceptionObj.msg + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
         }
     }
 };
