@@ -542,7 +542,9 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
         debug("_handleBranchTemplate: state:"+this.state+",i:"+i);
         return i;
     } catch (err) {
-        exceptionObj = new ContextParserHandlebarsException(err.msg, err.lineNo+this._lineNo, err.charNo+this._charNo);
+        // exceptionObj = new ContextParserHandlebarsException(err.msg, err.lineNo+this._lineNo, err.charNo+this._charNo);
+        exceptionObj = new ContextParserHandlebarsException(err.msg, this._lineNo, this._charNo);
+        handlebarsUtils.handleError(exceptionObj); // for printing out the error message to console.log
         handlebarsUtils.handleError(exceptionObj, true);
     }
 };
@@ -566,6 +568,11 @@ ContextParserHandlebars.prototype._analyzeContext = function(stateObj, str) {
     parser.tagNames = stateObj.tagNames;
     parser.tagNameIdx = stateObj.tagNameIdx;
     parser.setInitState(stateObj.state);
+    // just for reporting. (TODO: need to enhance the Context Parser with getInternalState and override it to do it!) 
+    parser._lineNo = this._lineNo;
+    parser._charNo = this._charNo;
+
+    // analyze
     parser.contextualize(str);
 
     r.output = parser.getBuffer().join('');
