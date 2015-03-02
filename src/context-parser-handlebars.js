@@ -82,6 +82,17 @@ ContextParserHandlebars.prototype.getBuffer = function() {
 };
 
 /**
+* @function module:ContextParserHandlebars.getOutput
+*
+* @description
+* <p>Get the output of processed chars.</p>
+*
+*/
+ContextParserHandlebars.prototype.getOutput = function() {
+    return this._buffer.join('');
+};
+
+/**
 * @function module:ContextParserHandlebars.printCharWithState
 *
 * @description
@@ -527,7 +538,7 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
     }
 };
 
-// @function module:ContextParserHandlebars._analyzeContex
+// @function module:ContextParserHandlebars._analyzeContext
 ContextParserHandlebars.prototype._analyzeContext = function(stateObj, str) {
 
     var r = {
@@ -548,7 +559,7 @@ ContextParserHandlebars.prototype._analyzeContext = function(stateObj, str) {
     parser.setInitState(stateObj.state);
     parser.contextualize(str);
 
-    r.output = parser.getBuffer().join('');
+    r.output = parser.getOutput();
     // get the internal state
     r.stateObj.tagNames = parser.tagNames;
     r.stateObj.tagNameIdx = parser.tagNameIdx;
