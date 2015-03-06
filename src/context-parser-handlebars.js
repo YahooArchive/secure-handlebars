@@ -143,9 +143,11 @@ ContextParserHandlebars.prototype._countNewLineChar = function(ch) {
 * FILTERS LOGIC
 **********************************/
 
-// TODO: no need to check prefix filter, need to refactor later
+// TODO: no need to check prefix filter, 
+// if the template has been processed, the expression will convert into raw expression 
+// and those will be skipped.
 //
-/* '{{' '~'? 'space'* ('not space{}~'+) 'space'* ('not {}~'*) '~'? greedy '}}' and not follow by '}' */
+/* '{{' '~'? 'space'* ('not space{}~'+) 'space'* ('not {}~'*) '~'? non-greedy '}}' and not follow by '}' */
 ContextParserHandlebars.expressionRegExp = /^\{\{~?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
 
 // @function module:ContextParserHandlebars._parseExpression
@@ -430,32 +432,28 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
 
     /* parse expression */
     var extraExpressionInfo = this._parseExpression(input, i),
-        isPrefixWithKnownFilter = extraExpressionInfo.isPrefixWithKnownFilter,
         filters = [];
 
-    /* add filters if it is not prefix with known filter */
-    if (!isPrefixWithKnownFilter) {
-        /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}} */
-        str += '{';
+    /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}} */
+    str += '{';
 
-        /* get the customized filter based on the current HTML5 state before the Handlebars template expression. */
-        var expressionInfo = {
-            'attributeName': this.getAttributeName(),
-            'attributeValue': this.getAttributeValue(),
-        };
-        filters = this._addFilters(state, input, expressionInfo);
-        for(var k=filters.length-1;k>=0;--k) {
-            if (extraExpressionInfo.isSingleIdentifier && k === 0) {
-                str += filters[k] + " ";
-            } else {
-                str += filters[k] + " (";
-            }
+    /* get the customized filter based on the current HTML5 state before the Handlebars template expression. */
+    var expressionInfo = {
+        'attributeName': this.getAttributeName(),
+        'attributeValue': this.getAttributeValue(),
+    };
+    filters = this._addFilters(state, input, expressionInfo);
+    for(var k=filters.length-1;k>=0;--k) {
+        if (extraExpressionInfo.isSingleIdentifier && k === 0) {
+            str += filters[k] + " ";
+        } else {
+            str += filters[k] + " (";
         }
     }
     this._printChar(str);
 
     for(var j=i+2;j<len;++j) {
-        if (input[j] === '}' && j+1 < len && input[j+1] === '}') {
+        if (input[j] === '}' && j+1<len && input[j+1] === '}') {
             for(var l=filters.length-1;l>=0;--l) {
                 if (extraExpressionInfo.isSingleIdentifier && l === 0) {
                 } else {
@@ -466,10 +464,8 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
             this._printChar('}}');
             j=j+1;
 
-            /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}} */
-            if (!isPrefixWithKnownFilter) {
-                this._printChar('}');
-            }
+            /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}}, no need to increase j by 1. */
+            this._printChar('}');
 
             /* update the Context Parser's state if it is not reserved tag */
             this.state = state;
@@ -764,16 +760,14 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
     ast.program = [];
     ast.inverse = [];
 
-    var j = 0;
-
-    var str = input.slice(i),
+    var j = 0,
         len = input.length;
 
     var sp = [], // for branching tag stack
         msg, exceptionObj, // msg and exception
         content = '',
         inverse = false,
-        obj = {},
+        saveObj = {},
         res = {};
 
     var startPos = 0,
@@ -800,20 +794,20 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
                 debugBranch("_buildBranchAst,branch,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
                 /* save object */
-                obj = this._getSaveObject('branch', res.str, startPos, endPos, lineNo);
+                saveObj = this._getSaveObject('branch', res.str, startPos, endPos, lineNo);
                 if (!inverse) {
-                    ast.program.push(obj);
+                    ast.program.push(saveObj);
                 } else if (inverse) {
-                    ast.inverse.push(obj);
+                    ast.inverse.push(saveObj);
                 }
 
             } else {
                 /* save content */
-                obj = this._getSaveObject('content', content, startPos, endPos, lineNo);
+                saveObj = this._getSaveObject('content', content, startPos, endPos, lineNo);
                 if (!inverse) {
-                    ast.program.push(obj);
+                    ast.program.push(saveObj);
                 } else if (inverse) {
-                    ast.inverse.push(obj);
+                    ast.inverse.push(saveObj);
                 }
 
                 /* reset the content */
@@ -825,20 +819,20 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
                 debugBranch("_buildBranchAst,node,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
                 /* save object */
-                obj = this._getSaveObject('node', res, startPos, endPos, lineNo);
+                saveObj = this._getSaveObject('node', res, startPos, endPos, lineNo);
                 if (!inverse) {
-                    ast.program.push(obj);
+                    ast.program.push(saveObj);
                 } else if (inverse) {
-                    ast.inverse.push(obj);
+                    ast.inverse.push(saveObj);
                 }
             }
         } else if (handlebarsUtils.isValidExpression(input, j, handlebarsUtils.ELSE_EXPRESSION).result) {
             /* save content */
-            obj = this._getSaveObject('content', content, startPos, endPos, lineNo);
+            saveObj = this._getSaveObject('content', content, startPos, endPos, lineNo);
             if (!inverse) {
-                ast.program.push(obj);
+                ast.program.push(saveObj);
             } else if (inverse) {
-                ast.inverse.push(obj);
+                ast.inverse.push(saveObj);
             }
 
             /* save content and flip */
@@ -851,22 +845,22 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
             debugBranch("_buildBranchAst,else,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
             /* save object */
-            obj = this._getSaveObject('branchelse', res.str, startPos, endPos, lineNo);
+            saveObj = this._getSaveObject('branchelse', res.str, startPos, endPos, lineNo);
             if (!inverse) {
-                ast.program.push(obj);
+                ast.program.push(saveObj);
             } else if (inverse) {
-                ast.inverse.push(obj);
+                ast.inverse.push(saveObj);
             }
 
         } else if (endExpression !== false) {
             var t = sp.pop();
             if (t === endExpression) {
                 /* save content */
-                obj = this._getSaveObject('content', content, startPos, endPos, lineNo);
+                saveObj = this._getSaveObject('content', content, startPos, endPos, lineNo);
                 if (!inverse) {
-                    ast.program.push(obj);
+                    ast.program.push(saveObj);
                 } else if (inverse) {
-                    ast.inverse.push(obj);
+                    ast.inverse.push(saveObj);
                 }
 
                 /* consume the expression */
@@ -875,11 +869,11 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
                 debugBranch("_buildBranchAst,branchend,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
                 /* save object */
-                obj = this._getSaveObject('branchend', res.str, startPos, endPos, lineNo);
+                saveObj = this._getSaveObject('branchend', res.str, startPos, endPos, lineNo);
                 if (!inverse) {
-                    ast.program.push(obj);
+                    ast.program.push(saveObj);
                 } else if (inverse) {
-                    ast.inverse.push(obj);
+                    ast.inverse.push(saveObj);
                 }
 
                 break;
