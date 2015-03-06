@@ -503,7 +503,6 @@ ContextParserHandlebars.prototype._handleCommentExpression = function(input, i, 
 
                 obj.index = j;
                 obj.str = str;
-                obj.noOfNewLineChar = this._countNewLineChar(str);
                 return obj;
             }
         } else if (type === handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM) {
@@ -517,7 +516,6 @@ ContextParserHandlebars.prototype._handleCommentExpression = function(input, i, 
 
                 obj.index = j;
                 obj.str = str;
-                obj.noOfNewLineChar = this._countNewLineChar(str);
                 return obj;
             }
         }
@@ -548,7 +546,6 @@ ContextParserHandlebars.prototype._handleExpression = function(input, i, len, pr
 
             obj.index = j;
             obj.str = str;
-            obj.noOfNewLineChar = this._countNewLineChar(str);
             return obj;
         }
         if (printChar) {
@@ -595,10 +592,14 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
 
         /* update the state after branching expression */
         this.state = result.lastStates[0].state;
+ 
+        /* update the _lineNo */
+        this._lineNo += ast.noOfNewLineChar;
 
-        debug("_handleBranchTemplate: state:"+this.state+",new i:"+ast.index);
-
+        /* update the char pointer */
         obj.index = ast.index;
+
+        debug("_handleBranchTemplate: state:"+this.state+",new i:"+ast.index+",lineNo:"+this._lineNo);
         return obj;
     } catch (err) {
         // exceptionObj = new ContextParserHandlebarsException(err.msg, err.lineNo+this._lineNo, err.charNo+this._charNo);
@@ -637,13 +638,16 @@ ContextParserHandlebars.prototype._analyzeContext = function(stateObj, obj) {
 
     /* parse the string */
     parser = new ContextParserHandlebars(false);
+
     // set the internal state
+    parser.setInitState(stateObj.state);
     parser.tagNames = stateObj.tagNames;
     parser.tagNameIdx = stateObj.tagNameIdx;
-    parser.setInitState(stateObj.state);
+    // parser.attributeName = stateObj.attributeName;
+    // parser.attributeValue = stateObj.attributeValue;
     // just for reporting.
-    parser._lineNo = obj.lineNo;
-    parser._charNo = obj.s;
+    parser._lineNo = obj.startLineNo;
+    parser._charNo = obj.startPos;
 
     // analyze
     parser.contextualize(obj.content);
@@ -761,14 +765,14 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
     ast.inverse = [];
 
     var j = 0,
-        len = input.length;
+        len = input.length,
+        msg, exceptionObj; // msg and exception
 
     var sp = [], // for branching tag stack
-        msg, exceptionObj, // msg and exception
         content = '',
         inverse = false,
         saveObj = {},
-        res = {};
+        obj = {};
 
     var startPos = 0,
         endPos = 0, 
@@ -789,12 +793,15 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
                 inverse = false;
 
                 /* consume the start branch expression */
-                res = this._handleExpression(input, j, len, false);
-                j = res.index;
+                startPos = j;
+                obj = this._handleExpression(input, j, len, false);
+                endPos = j = obj.index;
                 debugBranch("_buildBranchAst,branch,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
                 /* save object */
-                saveObj = this._getSaveObject('branch', res.str, startPos, endPos, lineNo);
+                saveObj = this._getSaveObject('branch', obj.str, startPos, lineNo);
+                /* update the lineNo after the saveObj as tracking for startNewLineNo */
+                lineNo += this._countNewLineChar(obj.str);
                 if (!inverse) {
                     ast.program.push(saveObj);
                 } else if (inverse) {
@@ -803,7 +810,11 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
 
             } else {
                 /* save content */
-                saveObj = this._getSaveObject('content', content, startPos, endPos, lineNo);
+                startPos = endPos+1;
+                endPos = startPos+content.length-1;
+                saveObj = this._getSaveObject('content', content, startPos, lineNo);
+                lineNo += this._countNewLineChar(content);
+                debugBranch("_buildBranchAst,content,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
                 if (!inverse) {
                     ast.program.push(saveObj);
                 } else if (inverse) {
@@ -814,12 +825,14 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
                 content = '';
 
                 /* consume the branch recursively */
-                res = this._buildBranchAst(input, j);
-                j = res.index;
+                startPos = j;
+                obj = this._buildBranchAst(input, j);
+                endPos = j = obj.index;
                 debugBranch("_buildBranchAst,node,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
                 /* save object */
-                saveObj = this._getSaveObject('node', res, startPos, endPos, lineNo);
+                saveObj = this._getSaveObject('node', obj, startPos, lineNo);
+                lineNo += obj.noOfNewLineChar;
                 if (!inverse) {
                     ast.program.push(saveObj);
                 } else if (inverse) {
@@ -828,7 +841,11 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
             }
         } else if (handlebarsUtils.isValidExpression(input, j, handlebarsUtils.ELSE_EXPRESSION).result) {
             /* save content */
-            saveObj = this._getSaveObject('content', content, startPos, endPos, lineNo);
+            startPos = endPos+1;
+            endPos = startPos+content.length-1;
+            saveObj = this._getSaveObject('content', content, startPos, lineNo);
+            lineNo += this._countNewLineChar(content);
+            debugBranch("_buildBranchAst,content,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
             if (!inverse) {
                 ast.program.push(saveObj);
             } else if (inverse) {
@@ -840,12 +857,14 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
             content = '';
 
             /* consume the else expression */
-            res = this._handleExpression(input, j, len, false);
-            j = res.index;
+            startPos = j;
+            obj = this._handleExpression(input, j, len, false);
+            endPos = j = obj.index;
             debugBranch("_buildBranchAst,else,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
             /* save object */
-            saveObj = this._getSaveObject('branchelse', res.str, startPos, endPos, lineNo);
+            saveObj = this._getSaveObject('branchelse', obj.str, startPos, lineNo);
+            lineNo += this._countNewLineChar(obj.str);
             if (!inverse) {
                 ast.program.push(saveObj);
             } else if (inverse) {
@@ -856,7 +875,11 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
             var t = sp.pop();
             if (t === endExpression) {
                 /* save content */
-                saveObj = this._getSaveObject('content', content, startPos, endPos, lineNo);
+                startPos = endPos+1;
+                endPos = startPos+content.length-1;
+                saveObj = this._getSaveObject('content', content, startPos, lineNo);
+                lineNo += this._countNewLineChar(content);
+                debugBranch("_buildBranchAst,content,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
                 if (!inverse) {
                     ast.program.push(saveObj);
                 } else if (inverse) {
@@ -864,12 +887,14 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
                 }
 
                 /* consume the expression */
-                res = this._handleExpression(input, j, len, false);
-                j = res.index;
+                startPos = j;
+                obj = this._handleExpression(input, j, len, false);
+                endPos = j = obj.index;
                 debugBranch("_buildBranchAst,branchend,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
                 /* save object */
-                saveObj = this._getSaveObject('branchend', res.str, startPos, endPos, lineNo);
+                saveObj = this._getSaveObject('branchend', obj.str, startPos, lineNo);
+                lineNo += this._countNewLineChar(obj.str);
                 if (!inverse) {
                     ast.program.push(saveObj);
                 } else if (inverse) {
@@ -888,10 +913,11 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
             if (expressionType === handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM ||
                 expressionType === handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM) {
                 /* consume the comment expression */
-                res = this._handleCommentExpression(input, j, len, expressionType, false);
-                j = res.index;
+                startPos = j;
+                obj = this._handleCommentExpression(input, j, len, expressionType, false);
+                endPos = j = obj.index;
 
-                content += res.str;
+                content += obj.str;
                 debugBranch("_buildBranchAst,comment,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
             } else {
                 /* capturing the string */
@@ -908,18 +934,18 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
     }
 
     ast.index = j;
+    ast.noOfNewLineChar = lineNo;
     return ast;
 };
 
 // @function ContextParserHandlebars._getSaveObject
-ContextParserHandlebars.prototype._getSaveObject = function(type, content, startPos, endPos, lineNo) {
+ContextParserHandlebars.prototype._getSaveObject = function(type, content, startPos, lineNo) {
     var obj = {};
     obj.type = type;
     obj.content = content;
 
     obj.startPos = startPos;
-    obj.endPos = endPos;
-    obj.lineNo = lineNo;
+    obj.startLineNo = this._lineNo + lineNo;
     return obj;
 };
 

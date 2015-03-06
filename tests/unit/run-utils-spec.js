@@ -17,6 +17,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     describe("handlebars-utils test suite", function() {
 
+        it("handlebars-utils#getExpressionType test", function() {
+        });
+
         it("handlebars-utils#isValidExpression escapeExpressionRegExp test", function() {
             [
                 // basic
