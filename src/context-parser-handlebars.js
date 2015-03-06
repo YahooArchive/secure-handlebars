@@ -61,6 +61,7 @@ function ContextParserHandlebarsException(msg, lineNo, charNo) {
     this.charNo = charNo;
 }
 
+// TODO: use util
 /* inherit the prototype of contextParser.Parser */
 ContextParserHandlebars.prototype = Object.create(contextParser.Parser.prototype);
 
@@ -83,6 +84,7 @@ ContextParserHandlebars.prototype._printChar = function(ch) {
 * <p>Get the internal _buffer of processed chars.</p>
 *
 */
+// TODO: remove this
 ContextParserHandlebars.prototype.getBuffer = function() {
     return this._buffer;
 };
@@ -125,10 +127,24 @@ ContextParserHandlebars.prototype.printCharWithState = function() {
     return 0;
 };
 
+/**
+* @function module:ContextParserHandlebars._countNewLineChar
+*
+* @description
+* <p>Count the number of new line for reporting.</p>
+*
+*/
+ContextParserHandlebars.prototype._countNewLineChar = function(ch) {
+    var noOfNewLineChar = (ch.match(/\n/g) || []).length;
+    return noOfNewLineChar;
+};
+
 /**********************************
 * FILTERS LOGIC
 **********************************/
 
+// TODO: no need to check prefix filter, need to refactor later
+//
 /* '{{' '~'? 'space'* ('not space{}~'+) 'space'* ('not {}~'*) '~'? greedy '}}' and not follow by '}' */
 ContextParserHandlebars.expressionRegExp = /^\{\{~?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
 
@@ -491,6 +507,7 @@ ContextParserHandlebars.prototype._handleCommentExpression = function(input, i, 
 
                 obj.index = j;
                 obj.str = str;
+                obj.noOfNewLineChar = this._countNewLineChar(str);
                 return obj;
             }
         } else if (type === handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM) {
@@ -504,6 +521,7 @@ ContextParserHandlebars.prototype._handleCommentExpression = function(input, i, 
 
                 obj.index = j;
                 obj.str = str;
+                obj.noOfNewLineChar = this._countNewLineChar(str);
                 return obj;
             }
         }
@@ -534,6 +552,7 @@ ContextParserHandlebars.prototype._handleExpression = function(input, i, len, pr
 
             obj.index = j;
             obj.str = str;
+            obj.noOfNewLineChar = this._countNewLineChar(str);
             return obj;
         }
         if (printChar) {
@@ -566,10 +585,6 @@ ContextParserHandlebars.prototype._handleRawBlock = function(input, i, len) {
     handlebarsUtils.handleError(exceptionObj, true);
 };
 
-/**********************************
-* HANDLING TEMPLATE BRANCHING LOGIC
-**********************************/
-
 // @function module:ContextParserHandlebars._handleBranchExpression
 ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, state) {
     var msg, exceptionObj, 
@@ -582,12 +597,12 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
         /* print the output */
         this._printChar(result.output);
 
-        i = i+ast.index;
+        /* update the state after branching expression */
         this.state = result.lastStates[0].state;
 
-        debug("_handleBranchTemplate: state:"+this.state+",i:"+i);
+        debug("_handleBranchTemplate: state:"+this.state+",new i:"+ast.index);
 
-        obj.index = i;
+        obj.index = ast.index;
         return obj;
     } catch (err) {
         // exceptionObj = new ContextParserHandlebarsException(err.msg, err.lineNo+this._lineNo, err.charNo+this._charNo);
@@ -595,6 +610,22 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
         handlebarsUtils.handleError(exceptionObj); // for printing out the error message to console.log
         handlebarsUtils.handleError(exceptionObj, true);
     }
+};
+
+// @function ContextParserHandlebars._getInternalState
+ContextParserHandlebars.prototype._getInternalState = function() {
+    var stateObj = {};
+    // stateObj.bytes = this.bytes;
+    stateObj.state = this.state;
+    // stateObj.states = this.states;
+    // stateObj.contexts = this.contexts;
+    // stateObj.buffer = this.buffer;
+    // stateObj.symbols = this.symbols;
+    stateObj.tagNames = this.tagNames;
+    stateObj.tagNameIdx = this.tagNameIdx;
+    // stateObj.attributeName = this.attributeName;
+    // stateObj.attributeValue = this.attributeValue;
+    return stateObj;
 };
 
 // @function module:ContextParserHandlebars._analyzeContext
@@ -614,8 +645,8 @@ ContextParserHandlebars.prototype._analyzeContext = function(stateObj, obj) {
     parser.tagNames = stateObj.tagNames;
     parser.tagNameIdx = stateObj.tagNameIdx;
     parser.setInitState(stateObj.state);
-    // just for reporting. (TODO: need to enhance the Context Parser with getInternalState and override it to do it!) 
-    parser._lineNo = this._lineNo;
+    // just for reporting.
+    parser._lineNo = obj.lineNo;
     parser._charNo = obj.s;
 
     // analyze
@@ -733,21 +764,25 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
     ast.program = [];
     ast.inverse = [];
 
+    var j = 0;
+
     var str = input.slice(i),
-        len = str.length;
+        len = input.length;
 
     var sp = [], // for branching tag stack
         msg, exceptionObj, // msg and exception
         content = '',
         inverse = false,
         obj = {},
-        k,j = 0, // for looping
-        res = 0,
-        s,e = 0;
+        res = {};
 
-    for(j=0;j<len;++j) {
-        var exp = handlebarsUtils.isValidExpression(str, j, handlebarsUtils.BRANCH_EXPRESSION).tag,
-            endExpression = handlebarsUtils.isValidExpression(str, j, handlebarsUtils.BRANCH_END_EXPRESSION).tag;
+    var startPos = 0,
+        endPos = 0, 
+        lineNo = 0;
+
+    for(j=i;j<len;++j) {
+        var exp = handlebarsUtils.isValidExpression(input, j, handlebarsUtils.BRANCH_EXPRESSION).tag,
+            endExpression = handlebarsUtils.isValidExpression(input, j, handlebarsUtils.BRANCH_END_EXPRESSION).tag;
         
         if (exp !== false) {
             /* encounter the first branch expression */
@@ -758,15 +793,13 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
                 content = '';
                 inverse = false;
 
-                /* consume till the end of expression */
-                s = i+j; // save the start char
-                res = this._handleExpression(str, j, len, false);
+                /* consume the start branch expression */
+                res = this._handleExpression(input, j, len, false);
                 j = res.index;
-                e = i+j; // save the end char
-                obj = this._saveAstObject('branch', res.str);
-                obj.s = s; 
-                obj.e = e;
+                debugBranch("_buildBranchAst,branch,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
+                /* save object */
+                obj = this._getSaveObject('branch', res.str, startPos, endPos, lineNo);
                 if (!inverse) {
                     ast.program.push(obj);
                 } else if (inverse) {
@@ -774,59 +807,48 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
                 }
 
             } else {
-                /* encounter another branch expression, save the previous string */
-                s = e+1; // save the start char
-                e = s+content.length-1; // save the end char
-                obj = this._saveAstObject('content', content);
-                obj.s = s; 
-                obj.e = e;
-
+                /* save content */
+                obj = this._getSaveObject('content', content, startPos, endPos, lineNo);
                 if (!inverse) {
                     ast.program.push(obj);
                 } else if (inverse) {
                     ast.inverse.push(obj);
                 }
+                /* reset the content */
                 content = '';
 
-                s = e+1; // save the start char
-                res = this._buildBranchAst(str, j);
-                obj = this._saveAstObject('node', res);
-                j = j + res.index;
-                e = i+j; // save the end char
-                obj.s = s; 
-                obj.e = e;
+                /* consume the branch recursively */
+                res = this._buildBranchAst(input, j);
+                j = res.index;
+                debugBranch("_buildBranchAst,node,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
+                /* save object */
+                obj = this._getSaveObject('node', res, startPos, endPos, lineNo);
                 if (!inverse) {
                     ast.program.push(obj);
                 } else if (inverse) {
                     ast.inverse.push(obj);
                 }
             }
-        } else if (handlebarsUtils.isValidExpression(str, j, handlebarsUtils.ELSE_EXPRESSION).result) {
-            s = e+1; // save the start char
-            e = s+content.length-1; // save the end char
-            obj = this._saveAstObject('content', content);
-            obj.s = s; 
-            obj.e = e; 
-
+        } else if (handlebarsUtils.isValidExpression(input, j, handlebarsUtils.ELSE_EXPRESSION).result) {
+            /* save content */
+            obj = this._getSaveObject('content', content, startPos, endPos, lineNo);
             if (!inverse) {
                 ast.program.push(obj);
             } else if (inverse) {
                 ast.inverse.push(obj);
             }
-
+            /* save content and flip */
             inverse = true;
             content = '';
 
-            /* consume till the end of expression */
-            s = e+1; // save the start char
-            res = this._handleExpression(str, j, len, false);
+            /* consume the else expression */
+            res = this._handleExpression(input, j, len, false);
             j = res.index;
-            e = i+j; // save the end char
-            obj = this._saveAstObject('branchelse', res.str);
-            obj.s = s; 
-            obj.e = e; 
+            debugBranch("_buildBranchAst,else,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
+            /* save object */
+            obj = this._getSaveObject('branchelse', res.str, startPos, endPos, lineNo);
             if (!inverse) {
                 ast.program.push(obj);
             } else if (inverse) {
@@ -836,27 +858,21 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
         } else if (endExpression !== false) {
             var t = sp.pop();
             if (t === endExpression) {
-                s = e+1; // save the start char
-                e = s+content.length-1; // save the end char
-                obj = this._saveAstObject('content', content);
-                obj.s = s; 
-                obj.e = e; 
-
+                /* save content */
+                obj = this._getSaveObject('content', content, startPos, endPos, lineNo);
                 if (!inverse) {
                     ast.program.push(obj);
                 } else if (inverse) {
                     ast.inverse.push(obj);
                 }
 
-                /* consume till the end of expression */
-                s = e+1; // save the start char
-                res = this._handleExpression(str, j, len, false);
+                /* consume the expression */
+                res = this._handleExpression(input, j, len, false);
                 j = res.index;
-                e = i+j; // save the end char
-                obj = this._saveAstObject('branchend', res.str);
-                obj.s = s; 
-                obj.e = e; 
+                debugBranch("_buildBranchAst,branchend,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
+                /* save object */
+                obj = this._getSaveObject('branchend', res.str, startPos, endPos, lineNo);
                 if (!inverse) {
                     ast.program.push(obj);
                 } else if (inverse) {
@@ -867,20 +883,21 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
             } else {
                 /* broken template as the end expression does not match, throw exception before function returns */
                 msg = "[ERROR] ContextParserHandlebars: Template expression mismatch (startExpression:"+t+"/endExpression:"+endExpression+")";
-                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, e+1);
+                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
                 handlebarsUtils.handleError(exceptionObj, true);
             }
         } else {
-            var expressionType = handlebarsUtils.getExpressionType(str, j, len);
+            var expressionType = handlebarsUtils.getExpressionType(input, j, len);
             if (expressionType === handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM ||
                 expressionType === handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM) {
-                /* capturing the string till the end of comment */
-                res = this._handleCommentExpression(str, j, len, expressionType, false);
+                /* consume the comment expression */
+                res = this._handleCommentExpression(input, j, len, expressionType, false);
                 j = res.index;
                 content += res.str;
+                debugBranch("_buildBranchAst,comment,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
             } else {
                 /* capturing the string */
-                content += str[j];    
+                content += input[j];    
             }
         }
     }
@@ -896,27 +913,15 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
     return ast;
 };
 
-// @function ContextParserHandlebars._getInternalState
-ContextParserHandlebars.prototype._getInternalState = function() {
-    var stateObj = {};
-    // stateObj.bytes = this.bytes;
-    stateObj.state = this.state;
-    // stateObj.states = this.states;
-    // stateObj.contexts = this.contexts;
-    // stateObj.buffer = this.buffer;
-    // stateObj.symbols = this.symbols;
-    stateObj.tagNames = this.tagNames;
-    stateObj.tagNameIdx = this.tagNameIdx;
-    // stateObj.attributeName = this.attributeName;
-    // stateObj.attributeValue = this.attributeValue;
-    return stateObj;
-};
-
-// @function ContextParserHandlebars._saveAstObject
-ContextParserHandlebars.prototype._saveAstObject = function(type, content) {
+// @function ContextParserHandlebars._getSaveObject
+ContextParserHandlebars.prototype._getSaveObject = function(type, content, startPos, endPos, lineNo) {
     var obj = {};
     obj.type = type;
     obj.content = content;
+
+    obj.startPos = startPos;
+    obj.endPos = endPos;
+    obj.lineNo = lineNo;
     return obj;
 };
 
@@ -941,6 +946,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
     var re;
     /* error msg */
     var msg, exceptionObj;
+    /* _handleXXXX return object */
     var obj;
 
     /* Handlebars expression type */
@@ -1130,11 +1136,10 @@ ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
 /* overriding the HTML5 Context Parser's afterWalk for printing out */
 ContextParserHandlebars.prototype.afterWalk = function(ch) {
     this._printChar(ch);
-    if (ch === '\n') {
-        ++this._lineNo;
-        this._charNo = 1;
-    }
-    ++this._charNo;
+
+    // for counting ONLY
+    this._lineNo += this._countNewLineChar(ch);
+    this._charNo += ch.length;
 };
 
 /* exposing it */
