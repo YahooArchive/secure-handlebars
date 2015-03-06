@@ -790,6 +790,7 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
                 /* save the branch expression name */
                 sp.push(exp);
 
+                /* reset the content */
                 content = '';
                 inverse = false;
 
@@ -814,6 +815,7 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
                 } else if (inverse) {
                     ast.inverse.push(obj);
                 }
+
                 /* reset the content */
                 content = '';
 
@@ -838,6 +840,7 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
             } else if (inverse) {
                 ast.inverse.push(obj);
             }
+
             /* save content and flip */
             inverse = true;
             content = '';
@@ -893,6 +896,7 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
                 /* consume the comment expression */
                 res = this._handleCommentExpression(input, j, len, expressionType, false);
                 j = res.index;
+
                 content += res.str;
                 debugBranch("_buildBranchAst,comment,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
             } else {
