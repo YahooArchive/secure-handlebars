@@ -260,7 +260,8 @@ ContextParserHandlebars.prototype._addFilters = function(state, input, expressio
     } else if ((state === stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED || 
         state === stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED ||
         state === stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED) &&
-        (attributeName === "href" || attributeName === "src" || attributeName === "action" || attributeName === "formaction")) {
+        (attributeName === "href" || attributeName === "src" || attributeName === "action" || attributeName === "formaction" || attributeName === "background" || attributeName === "cite" || attributeName === "longdesc" || attributeName === "usemap" || attributeName === "xlink:href")
+    ) {
 
         /* we don't support javascript parsing yet */
         // TODO: this filtering rule cannot cover all cases.
