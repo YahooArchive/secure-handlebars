@@ -14,6 +14,17 @@ module.exports = function(grunt) {
         camelcase: true
       }
     },
+    browserify: {
+      standalone: {
+        src: [ 'src/<%= pkg.name %>.js' ],
+        dest: 'dist/<%= pkg.name %>.js',
+        options: {
+          browserifyOptions: {
+            standalone: 'ContextParserHandlebars'
+          }
+        }
+      }
+    },    
     mocha_istanbul: {
       target: {
         src: 'tests/unit',
@@ -33,10 +44,12 @@ module.exports = function(grunt) {
   });
 
   grunt.loadNpmTasks('grunt-mocha-istanbul');
+  grunt.loadNpmTasks('grunt-browserify');
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-clean');
 
   grunt.registerTask('test', ['clean:buildResidues', 'jshint', 'mocha_istanbul']);
-  grunt.registerTask('default', ['test']);
+  grunt.registerTask('dist', ['browserify']);
+  grunt.registerTask('default', ['test', 'dist']);
 
 };
