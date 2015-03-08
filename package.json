@@ -1,6 +1,6 @@
 {
   "name": "context-parser-handlebars",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "licenses": [
     {
       "type": "BSD",
@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "context-parser": "^1.0.0",
-    "debug": "^2.1.1",
+    "debug": "^2.1.2",
     "xss-filters": "^1.0.4"
   },
   "devDependencies": {
