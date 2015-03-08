@@ -17,6 +17,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     describe("handlebars-utils test suite", function() {
 
+        it("handlebars-utils#getExpressionType test", function() {
+        });
+
         it("handlebars-utils#isValidExpression escapeExpressionRegExp test", function() {
             [
                 // basic
@@ -303,6 +306,30 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
+        it("handlebars-utils#isValidExpression rawBlockRegExp test", function() {
+            [
+                {str:'{{{{anything}}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
+                {str:'{{{{~anything}}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
+                {str:'{{{{~   anything}}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
+                {str:'{{{{~   anything   }}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
+                {str:'{{{{~anything~}}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
+                {str:'{{{{~anything   ~}}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
+                {str:'{{{{~   anything   ~}}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
+
+                {str:'{{{{/anything}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
+                {str:'{{{{~/anything}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
+                {str:'{{{{~/   anything}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
+                {str:'{{{{~/   anything   }}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
+                {str:'{{{{~/anything~}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
+                {str:'{{{{~/anything   ~}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
+                {str:'{{{{~/   anything   ~}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
+            ].forEach(function(obj) {
+                var r = handlebarsUtils.isValidExpression(obj.str, 0, obj.type);
+                expect(r.result).to.equal(obj.result);
+                expect(r.tag).to.equal(obj.rstr);
+            });
+        });
+
         it("handlebars-utils#isReservedChar test", function() {
             [
                 '#', '/', '>', '@', '^', '!',
@@ -311,6 +338,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 var r = handlebarsUtils.isReservedChar(s, 0);
                 expect(r).to.equal(true);
             });
+        });
+
+        it("handlebars-utils#handleError test", function() {
         });
     });
 }());

@@ -29,10 +29,15 @@ This utility parse the handlebars template file and add the customized filters
 
     if (noOfArgs >= 3 && noOfArgs <= 4) {
         if (fs.existsSync(file)) {
-            var data = fs.readFileSync(file, 'utf-8');
-            var parser = new ContextParserHandlebars(printChar);
-            parser.contextualize(data);
-            parser.printCharWithState();
+            try {
+                var data = fs.readFileSync(file, 'utf-8');
+                var parser = new ContextParserHandlebars(printChar);
+                parser.contextualize(data);
+                parser.printCharWithState();
+            } catch (err) {
+                console.log(err);
+                throw err;
+            }
             process.exit(0);
         } else {
             console.log("[ERROR] "+file+" not exist");

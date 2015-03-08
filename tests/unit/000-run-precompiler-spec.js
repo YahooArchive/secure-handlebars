@@ -15,7 +15,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         expect = require('chai').expect,
         ContextParserHandlebars = require("../../src/context-parser-handlebars");
 
-    var NO_OF_TEMPLATE = 22,
+    var NO_OF_TEMPLATE = 24,
         NO_OF_FILTER_TEMPLATE = 20;
 
     describe("Handlebars pre-compiler test suite", function() {
@@ -113,7 +113,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* this test will throw exception, and the vanilla handlebars will complain */
-        it("./bin/handlebarspc conditional/iteration mismatch template test", function(done) {
+        it("./bin/handlebarspc invalid expression test", function(done) {
             var exec = promise.promisify(require("child_process").exec);
             exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_021.hbs')
             .timeout(300)
@@ -123,7 +123,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* this test will throw exception, and the vanilla handlebars will complain */
-        it("./bin/handlebarspc conditional/iteration mismatch template test", function(done) {
+        it("./bin/handlebarspc invalid expression test", function(done) {
             var exec = promise.promisify(require("child_process").exec);
             exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_022.hbs')
             .timeout(300)
@@ -132,8 +132,17 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
-        /* this test will not throw html5 inconsistent exception */
-        it("./bin/handlebarspc conditional/iteration mismatch template test", function(done) {
+        /* this test will throw exception, and the vanilla handlebars will complain */
+        it("./bin/handlebarspc invalid expression test", function(done) {
+            var exec = promise.promisify(require("child_process").exec);
+            exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_024.hbs')
+            .timeout(300)
+            .catch(function(e){
+                done();
+            });
+        });
+
+        it("./bin/handlebarspc html5 inconsistent state test", function(done) {
             var exec = promise.promisify(require("child_process").exec);
             exec('./bin/handlebarspc ./tests/samples/bugs/004.script.hb')
             .timeout(300)
@@ -142,5 +151,29 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
+        it("./bin/handlebarspc line no and char no reporting test", function(done) {
+            var exec = promise.promisify(require("child_process").exec);
+            exec('./bin/handlebarspc ./tests/samples/bugs/005.line.report.hb')
+            .timeout(300)
+            .done(function(e){
+                expect(e).to.match(/lineNo:2,charNo:38/);
+                expect(e).to.match(/lineNo:4,charNo:91/);
+                expect(e).to.match(/lineNo:8,charNo:177/);
+                expect(e).to.match(/lineNo:10,charNo:274/);
+                expect(e).to.match(/lineNo:12,charNo:298/);
+                done();
+            });
+        });
+
+        it("./bin/handlebarspc full state propagation in logical template test", function(done) {
+            var exec = promise.promisify(require("child_process").exec);
+            exec('./bin/handlebarspc ./tests/samples/bugs/006.state.hb')
+            .timeout(300)
+            .done(function(e){
+                expect(e).to.match(/{{{y styleoutput}}}/);
+                expect(e).to.match(/{{{yavd classoutput}}}/);
+                done();
+            });
+        });
     });
 }());

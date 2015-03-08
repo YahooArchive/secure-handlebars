@@ -17,7 +17,13 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     describe("context-parser-handlebars test suite", function() {
 
+        it("context-parser-handlebars#_countNewLineChar test", function() {
+        });
+
         it("context-parser-handlebars#_parseExpression invalid format test", function() {
+        });
+
+        it("context-parser-handlebars#_addFilters invalid format test", function() {
         });
 
         it("context-parser-handlebars#_parseExpression {{else}} test", function() {
@@ -288,39 +294,50 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
+        it("context-parser-handlebars#_handleRawExpression test", function() {
+        });
+
+        it("context-parser-handlebars#_handleEscapeExpression test", function() {
+        });
+
         it("context-parser-handlebars#_handleCommentExpression test", function() {
             var parser = new ContextParserHandlebars();
             [
-                {str: '{{! comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:14},
-                {str: '{{! comment }} }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:14},
-                {str: '{{!-- comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:18},
-                {str: '{{!-- comment --}}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:18},
-                {str: '{{!-- comment }}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:22},
+                {str: '{{! comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:13},
+                {str: '{{! comment }} }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:13},
+                {str: '{{!-- comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:17},
+                {str: '{{!-- comment --}}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:17},
+                {str: '{{!-- comment }}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:21},
 
-                {str: '{{~! comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:15},
-                {str: '{{~! comment }} }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:15},
-                {str: '{{~!-- comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:19},
-                {str: '{{~!-- comment --}}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:19},
-                {str: '{{~!-- comment }}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:23},
+                {str: '{{~! comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:14},
+                {str: '{{~! comment }} }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:14},
+                {str: '{{~!-- comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:18},
+                {str: '{{~!-- comment --}}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:18},
+                {str: '{{~!-- comment }}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:22},
 
                 // these cases are guarded against by isCommentExpression
-                {str: '{{!-- comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:16},
-                {str: '{{! comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:16}
+                {str: '{{!-- comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:15},
+                {str: '{{! comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:15}
             ].forEach(function(obj) {
-                var r = parser._handleCommentExpression(obj.str, 0, obj.str.length, obj.type);
-                expect(r).to.equal(obj.result);
+                var r = parser._handleCommentExpression(obj.str, 0, obj.str.length, obj.type, false);
+                expect(r.index).to.equal(obj.result);
             });
+        });
+
+        it("context-parser-handlebars#_handleExpression test", function() {
         });
 
         it("context-parser-handlebars#_handleRawBlock test", function() {
             var parser = new ContextParserHandlebars();
             [
-                {str: '{{{{ raw block }}}}', result:19},
-                {str: '{{{{/ raw block }}}}', result:20},
+                {str: '{{{{rawblock}}}} {{{{/rawblock}}}}', result:33, tag:'rawblock'},
             ].forEach(function(obj) {
-                var r = parser._handleRawBlock(obj.str, 0, obj.str.length);
-                expect(r).to.equal(obj.result);
+                var r = parser._handleRawBlock(obj.str, 0, obj.str.length, obj.tag);
+                expect(r.index).to.equal(obj.result);
             });
+        });
+
+        it("context-parser-handlebars#_handleBranchExpression test", function() {
         });
 
         it("context-parser-handlebars - basic branch AST test", function() {
@@ -503,6 +520,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             stateObj.state = 1;
             var r = parser._analyseBranchAst(ast, stateObj);
             expect(r.output).to.equal('{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{#if}} e {{else}} f {{/if}} g {{/if}}');
+        });
+
+        it("context-parser-handlebars#_handleTemplate test", function() {
         });
 
         it("context-parser-handlebars - branch with <script> test", function() {

@@ -238,5 +238,17 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             utils.testArrMatch(data, arr);
         });
 
+/*
+        it("Template 023 - {{raw block}} test", function() {
+            var file = "./tests/samples/files/handlebarsjs_template_023.hbs.precompiled";
+            var data = fs.readFileSync(file, 'utf-8');
+            var arr = [
+                /{{foo}}/,
+                /{{rawblock}}/,
+                /{{\/rawblock}}/,
+            ];
+            utils.testArrMatch(data, arr);
+        });
+*/
     });
 }());
