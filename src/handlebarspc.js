@@ -36,6 +36,7 @@ This utility parse the handlebars template file and add the customized filters
                 parser.printCharWithState();
             } catch (err) {
                 console.log(err);
+                throw err;
             }
             process.exit(0);
         } else {

@@ -17,7 +17,13 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     describe("context-parser-handlebars test suite", function() {
 
+        it("context-parser-handlebars#_countNewLineChar test", function() {
+        });
+
         it("context-parser-handlebars#_parseExpression invalid format test", function() {
+        });
+
+        it("context-parser-handlebars#_addFilters invalid format test", function() {
         });
 
         it("context-parser-handlebars#_parseExpression {{else}} test", function() {
@@ -288,6 +294,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
+        it("context-parser-handlebars#_handleRawExpression test", function() {
+        });
+
+        it("context-parser-handlebars#_handleEscapeExpression test", function() {
+        });
+
         it("context-parser-handlebars#_handleCommentExpression test", function() {
             var parser = new ContextParserHandlebars();
             [
@@ -312,6 +324,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
+        it("context-parser-handlebars#_handleExpression test", function() {
+        });
+
         it("context-parser-handlebars#_handleRawBlock test", function() {
             var parser = new ContextParserHandlebars();
             [
@@ -321,6 +336,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 var r = parser._handleRawBlock(obj.str, 0, obj.str.length);
                 expect(r.index).to.equal(obj.result);
             });
+        });
+
+        it("context-parser-handlebars#_handleBranchExpression test", function() {
         });
 
         it("context-parser-handlebars - basic branch AST test", function() {
@@ -503,6 +521,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             stateObj.state = 1;
             var r = parser._analyseBranchAst(ast, stateObj);
             expect(r.output).to.equal('{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{#if}} e {{else}} f {{/if}} g {{/if}}');
+        });
+
+        it("context-parser-handlebars#_handleTemplate test", function() {
         });
 
         it("context-parser-handlebars - branch with <script> test", function() {

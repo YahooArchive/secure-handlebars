@@ -604,7 +604,6 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
     } catch (err) {
         // exceptionObj = new ContextParserHandlebarsException(err.msg, err.lineNo+this._lineNo, err.charNo+this._charNo);
         exceptionObj = new ContextParserHandlebarsException(err.msg, this._lineNo, this._charNo);
-        handlebarsUtils.handleError(exceptionObj); // for printing out the error message to console.log
         handlebarsUtils.handleError(exceptionObj, true);
     }
 };
@@ -620,9 +619,20 @@ ContextParserHandlebars.prototype._getInternalState = function() {
     // stateObj.symbols = this.symbols;
     stateObj.tagNames = this.tagNames;
     stateObj.tagNameIdx = this.tagNameIdx;
-    // stateObj.attributeName = this.attributeName;
-    // stateObj.attributeValue = this.attributeValue;
+    stateObj.attributeName = this.attributeName;
+    stateObj.attributeValue = this.attributeValue;
     return stateObj;
+};
+
+// @function ContextParserHandlebars._setInternalState
+ContextParserHandlebars.prototype._setInternalState = function(parser, stateObj) {
+    parser.setInitState(stateObj.state);
+    parser.tagNames = stateObj.tagNames;
+    parser.tagNameIdx = stateObj.tagNameIdx;
+    parser.attributeName = stateObj.attributeName;
+    parser.attributeValue = stateObj.attributeValue;
+    
+    return parser;
 };
 
 // @function module:ContextParserHandlebars._analyzeContext
@@ -640,11 +650,8 @@ ContextParserHandlebars.prototype._analyzeContext = function(stateObj, obj) {
     parser = new ContextParserHandlebars(false);
 
     // set the internal state
-    parser.setInitState(stateObj.state);
-    parser.tagNames = stateObj.tagNames;
-    parser.tagNameIdx = stateObj.tagNameIdx;
-    // parser.attributeName = stateObj.attributeName;
-    // parser.attributeValue = stateObj.attributeValue;
+    parser = parser._setInternalState(parser, stateObj);
+
     // just for reporting.
     parser._lineNo = obj.startLineNo;
     parser._charNo = obj.startPos;
@@ -653,10 +660,9 @@ ContextParserHandlebars.prototype._analyzeContext = function(stateObj, obj) {
     parser.contextualize(obj.content);
 
     r.output = parser.getOutput();
+
     // get the internal state
-    r.stateObj.tagNames = parser.tagNames;
-    r.stateObj.tagNameIdx = parser.tagNameIdx;
-    r.stateObj.state = parser.state;
+    r.stateObj = parser._getInternalState();
 
     return r;
 };

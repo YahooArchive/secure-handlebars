@@ -315,5 +315,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 expect(r).to.equal(true);
             });
         });
+
+        it("handlebars-utils#handleError test", function() {
+        });
     });
 }());

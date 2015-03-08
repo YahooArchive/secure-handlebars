@@ -5,8 +5,8 @@
 {{/if}}
 
 {{#if wallartPapertypesEnabled}}
-<div {{attr}} style="wallart-options-bar
-{{#ifCond typeName '===' 'mounted'}} {{style}} is-mounted{{/ifCond}}
+<div {{attr}} class="wallart-options-bar
+{{#ifCond typeName '===' 'mounted'}} is-mounted{{/ifCond}}
 " {{attr}}>
 {{else}}
 <div {{attr}} class="wallart-options-bar">
