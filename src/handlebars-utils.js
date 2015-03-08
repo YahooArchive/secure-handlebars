@@ -30,10 +30,13 @@ HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM = 8; // {{!--.*--}}
 HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM = 9; // {{!.*}}
 
 HandlebarsUtils.RAW_BLOCK = 10; // {{{{block}}}}
+HandlebarsUtils.RAW_END_BLOCK = 11; // {{{{/block}}}}
 
 /* reference: http://handlebarsjs.com/expressions.html */
 /* '{{{{' '~'? 'not {}~'+ '~'? non-greedy '}}}}' and not follow by '}' */
-HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{~?([^\}\{~]+)~??\}\}\}\}(?!})/;
+HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{~?\s*([^\}\{~\s]+)\s*~??\}\}\}\}(?!})/;
+/* '{{{{' '~'? '/' 'not {}~'+ '~'? non-greedy '}}}}' and not follow by '}' */
+HandlebarsUtils.rawEndBlockRegExp = /^\{\{\{\{~?\/\s*([^\}\{~\s]+)\s*~??\}\}\}\}(?!})/;
 /* '{{{' '~'? 'not {}~'+ '~'? non-greedy '}}}' and not follow by '}' */
 HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?([^\}\{~]+)~??\}\}\}(?!})/;
 
@@ -98,7 +101,16 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
     var s = input.slice(i);
     switch(type) {
         case HandlebarsUtils.RAW_BLOCK:
-            re = HandlebarsUtils.rawBlock.exec(s);
+            re = HandlebarsUtils.rawBlockRegExp.exec(s);
+            if (re !== null) {
+                re.tag = re[1];
+            }
+            break;
+        case HandlebarsUtils.RAW_END_BLOCK:
+            re = HandlebarsUtils.rawEndBlockRegExp.exec(s);
+            if (re !== null) {
+                re.tag = re[1];
+            }
             break;
         case HandlebarsUtils.RAW_EXPRESSION:
             re = HandlebarsUtils.rawExpressionRegExp.exec(s);

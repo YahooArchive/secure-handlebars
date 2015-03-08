@@ -15,7 +15,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         expect = require('chai').expect,
         ContextParserHandlebars = require("../../src/context-parser-handlebars");
 
-    var NO_OF_TEMPLATE = 22,
+    var NO_OF_TEMPLATE = 24,
         NO_OF_FILTER_TEMPLATE = 20;
 
     describe("Handlebars pre-compiler test suite", function() {
@@ -126,6 +126,16 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         it("./bin/handlebarspc invalid expression test", function(done) {
             var exec = promise.promisify(require("child_process").exec);
             exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_022.hbs')
+            .timeout(300)
+            .catch(function(e){
+                done();
+            });
+        });
+
+        /* this test will throw exception, and the vanilla handlebars will complain */
+        it("./bin/handlebarspc invalid expression test", function(done) {
+            var exec = promise.promisify(require("child_process").exec);
+            exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_024.hbs')
             .timeout(300)
             .catch(function(e){
                 done();

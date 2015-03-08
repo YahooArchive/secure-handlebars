@@ -330,10 +330,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         it("context-parser-handlebars#_handleRawBlock test", function() {
             var parser = new ContextParserHandlebars();
             [
-                {str: '{{{{ raw block }}}}', result:18},
-                {str: '{{{{/ raw block }}}}', result:19},
+                {str: '{{{{rawblock}}}} {{{{/rawblock}}}}', result:33, tag:'rawblock'},
             ].forEach(function(obj) {
-                var r = parser._handleRawBlock(obj.str, 0, obj.str.length);
+                var r = parser._handleRawBlock(obj.str, 0, obj.str.length, obj.tag);
                 expect(r.index).to.equal(obj.result);
             });
         });

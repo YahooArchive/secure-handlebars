@@ -560,16 +560,39 @@ ContextParserHandlebars.prototype._handleExpression = function(input, i, len, pr
 };
 
 // @function module:ContextParserHandlebars._handleRawBlock
-ContextParserHandlebars.prototype._handleRawBlock = function(input, i, len) {
+ContextParserHandlebars.prototype._handleRawBlock = function(input, i, len, tag) {
     var msg, exceptionObj, 
         obj = {};
+    var isStartExpression = true,
+        re;
     for(var j=i;j<len;++j) {
-        if (input[j] === '}' && j+3<len && input[j+1] === '}' && input[j+2] === '}' && input[j+3] === '}') {
+        if (isStartExpression && input[j] === '}' && j+3<len && input[j+1] === '}' && input[j+2] === '}' && input[j+3] === '}') {
             this._printChar('}}}}');
             j=j+3;
+    
+            isStartExpression = false;
+        } else if (!isStartExpression && input[j] === '{' && j+4<len && input[j+1] === '{' && input[j+2] === '{' && input[j+3] === '{' && input[j+4] === '/') {
+            re = handlebarsUtils.isValidExpression(input, j, handlebarsUtils.RAW_END_BLOCK);
+            if (re.result === false) {
+                msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw end block expression.";
+                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                handlebarsUtils.handleError(exceptionObj, true);
+            }
+            if (re.tag !== tag) {
+                msg = "[ERROR] ContextParserHandlebars: Parsing error! start/end raw block name mismatch.";
+                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                handlebarsUtils.handleError(exceptionObj, true);
+            }
+            for(var k=j;k<len;++k) {
+                if (input[k] === '}' && k+3<len && input[k+1] === '}' && input[k+2] === '}' && input[k+3] === '}') {
+                    this._printChar('}}}}');
+                    k=k+3;
 
-            obj.index = j;
-            return obj;
+                    obj.index = k;
+                    return obj;
+                }
+                this._printChar(input[k]);
+            }
         }
         this._printChar(input[j]);
     }
@@ -983,14 +1006,20 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
     var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
 
     /* handling different type of expression */
-    if ((ch === '{' && i+3 < len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{') ||
-        (ch === '{' && i+4 < len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{' && input[i+4] === '/')
+    if ((ch === '{' && i+3 < len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{')
+        // (ch === '{' && i+4 < len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{' && input[i+4] === '/')
     ) {
         handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
-        // no need to validate the raw block as the content inside are skipped.
+        re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
+        if (re.result === false) {
+            msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw block expression.";
+            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+            handlebarsUtils.handleError(exceptionObj, true);
+        }
+
         /* _handleRawBlock */
         debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
-        obj = this._handleRawBlock(input, i, len);
+        obj = this._handleRawBlock(input, i, len, re.tag);
         /* advance the index pointer by 1 to the char after the last brace of expression. */
         return obj.index+1;
     } else if (ch === '{' && i+2 < len && input[i+1] === '{' && input[i+2] === '{') {
