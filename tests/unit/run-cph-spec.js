@@ -327,19 +327,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         it("context-parser-handlebars#_handleExpression test", function() {
         });
 
-        it("context-parser-handlebars#_handleRawBlock test", function() {
-            var parser = new ContextParserHandlebars();
-            [
-                {str: '{{{{rawblock}}}} {{{{/rawblock}}}}', result:33, tag:'rawblock'},
-            ].forEach(function(obj) {
-                var r = parser._handleRawBlock(obj.str, 0, obj.str.length, obj.tag);
-                expect(r.index).to.equal(obj.result);
-            });
-        });
-
-        it("context-parser-handlebars#_handleTemplate test", function() {
-        });
-
         it("context-parser-handlebars#_handleBranchExpression test", function() {
         });
 
@@ -533,6 +520,37 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(r.output).to.equal(s);
         });
 
+        /* handleRawBlock test
+           Please refer to "handlebars {{{{raw block}}}} test" in run-handlebars-3.0-spec.js */
+        it("context-parser-handlebars#_handleRawBlock test", function() {
+            [
+                // valid {{{{raw block}}}}
+                {str: '{{{{rawblock}}}} {{{{/rawblock}}}}      ', tag:'rawblock', result:33},
+                {str: '{{{{   rawblock}}}} {{{{/rawblock}}}}   ', tag:'rawblock', result:36},
+                {str: '{{{{rawblock   }}}} {{{{/rawblock}}}}   ', tag:'rawblock', result:36},
+                {str: '{{{{   rawblock   }}}} {{{{/rawblock}}}}', tag:'rawblock', result:39},
+
+                // invalid {{{{raw block}}}}
+                {str: '{{{{rawblockname}}}} xxx {{{{/    rawblockname}}}}', tag:'rawblockname',  result:false},
+                {str: '{{{{rawblockname}}}} xxx {{{{/rawblockname    }}}}', tag:'rawblockname',  result:false},
+                {str: '{{{{rawblockname1}}}} xxx {{{{/rawblockname2}}}}  ', tag:'rawblockname1', result:false},
+                {str: '{{{{rawblockname}}}} {{{{rawblock}}}} xxx {{{{/rawblock}}}} {{{{/rawblockname}}}}', tag:'rawblockname', result:false},
+
+            ].forEach(function(testObj) {
+                try {
+                    var parser = new ContextParserHandlebars();
+                    var r = parser._handleRawBlock(testObj.str, 0, testObj.tag);
+                    expect(r.index).to.equal(testObj.result);
+                } catch (e) {
+                    expect(false).to.equal(testObj.result);
+                }
+            });
+        });
+
+        it("context-parser-handlebars#_handleTemplate test", function() {
+            // no need to test it directly
+        });
+
         it("context-parser-handlebars#setInternalState test", function() {
             // no need to test it directly
         });
@@ -541,6 +559,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             // no need to test it directly
         });
 
+        /* deepCompareState test */
         it("context-parser-handlebars#_deepCompareState test", function() {
             [
                 // true test
