@@ -982,33 +982,27 @@ ContextParserHandlebars.prototype._getSaveObject = function(type, content, start
 /*
 * @function module:ContextParserHandlebars._handleTemplate
 *
-* @param {char} ch - The current character to be processed.
-* @param {integer} i - The index of the current character in the input string.
 * @param {string} input - The input string of the HTML5 web page.
+* @param {integer} i - The index of the current character in the input string.
 * @param {integer} state - The current HTML5 state of the current character before the Handlebars expression.
 * @returns {integer} The index right after the last '}' if it is Handlebars expression or return immediately if it is not Handlebars.
 *
 */
-ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state) {
+ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
 
-    /* return object */
-    var index = i;
-    /* the length of the input */
+    /* the max length of the input string */
     var len = input.length;
-
     /* regular expression validation result */
     var re;
     /* error msg */
     var msg, exceptionObj;
     /* _handleXXXX return object */
     var obj;
-
     /* Handlebars expression type */
     var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
 
     /* handling different type of expression */
-    if ((ch === '{' && i+3 < len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{')
-        // (ch === '{' && i+4 < len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{' && input[i+4] === '/')
+    if ((input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{')
     ) {
         handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
         re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
@@ -1019,11 +1013,11 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
         }
 
         /* _handleRawBlock */
-        debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
+        debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
         obj = this._handleRawBlock(input, i, len, re.tag);
         /* advance the index pointer by 1 to the char after the last brace of expression. */
         return obj.index+1;
-    } else if (ch === '{' && i+2 < len && input[i+1] === '{' && input[i+2] === '{') {
+    } else if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
         handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
         re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
         if (re.result === false) {
@@ -1033,16 +1027,16 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
         }
 
         /* for printCharWithState */
-        this.bytes[index+1] = ch;
-        this.symbols[index+1] = this.lookupChar(ch);
-        this.states[index+1] = state;
+        this.bytes[i+1] = input[i];
+        this.symbols[i+1] = this.lookupChar(input[i]);
+        this.states[i+1] = state;
 
         /* _handleRawExpression */
-        debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
+        debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
         obj = this._handleRawExpression(input, i, len, state);
         /* advance the index pointer by 1 to the char after the last brace of expression. */
         return obj.index+1;
-    } else if (ch === '{' && i+1 < len && input[i+1] === '{') {
+    } else if (input[i] === '{' && i+1<len && input[i+1] === '{') {
         // this type may not be 100% correct (the case is BRANCH_EXPRESSION), so it need the isValidExpression call below.
         handlebarsExpressionType = handlebarsUtils.getExpressionType(input, i, len);
         switch (handlebarsExpressionType) {
@@ -1055,12 +1049,12 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                 }
 
                 /* for printCharWithState */
-                this.bytes[index+1] = ch;
-                this.symbols[index+1] = this.lookupChar(ch);
-                this.states[index+1] = state;
+                this.bytes[i+1] = input[i];
+                this.symbols[i+1] = this.lookupChar(input[i]);
+                this.states[i+1] = state;
 
                 /* _handleEscapeExpression */
-                debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
                 obj = this._handleEscapeExpression(input, i, len, state);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
@@ -1073,7 +1067,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                     handlebarsUtils.handleError(exceptionObj, true);
                 }
                 /* _handleExpression */
-                debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
                 obj = this._handleExpression(input, i, len, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
@@ -1086,7 +1080,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                     handlebarsUtils.handleError(exceptionObj, true);
                 }
                 /* _handleExpression */
-                debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
                 obj = this._handleExpression(input, i, len, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
@@ -1099,7 +1093,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
                     handlebarsUtils.handleError(exceptionObj, true);
                 }
                 /* _handleBranchExpression */
-                debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
                 obj = this._handleBranchExpression(input, i, state);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
@@ -1113,7 +1107,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
             case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
                 // no need to validate the comment expression as the content inside are skipped.
                 /* _handleCommentExpression */
-                debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
                 obj = this._handleCommentExpression(input, i, len, handlebarsExpressionType, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
@@ -1121,7 +1115,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
             case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
                 // no need to validate the comment expression as the content inside are skipped.
                 /* _handleCommentExpression */
-                debug("_handleTemplate:LOGIC#1:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
                 obj = this._handleCommentExpression(input, i, len, handlebarsExpressionType, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
@@ -1140,7 +1134,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
         }
     } else {
         /* return immediately for non template start char '{' */
-        return index;
+        return i;
     }
 };
 
@@ -1152,8 +1146,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state
 ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
 
     var len = input.length,
-        ch = input[i],
-        symbol = this.lookupChar(ch);
+        symbol = this.lookupChar(input[i]);
 
     while(true) {
 
@@ -1165,7 +1158,7 @@ ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
         var _s = stateMachine.lookupStateFromSymbol[symbol][this.state];
 
         /* process the char */
-        var j = this._handleTemplate(ch, i, input, _s);
+        var j = this._handleTemplate(input, i, _s);
 
         /* 
         * break immediately as the char is non-template char.
@@ -1186,8 +1179,7 @@ ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
         }
 
         /* read the new char to handle, may be template char again! */
-        ch = input[i];
-        symbol = this.lookupChar(ch);
+        symbol = this.lookupChar(input[i]);
     }
 
     return i;
@@ -1197,7 +1189,7 @@ ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
 ContextParserHandlebars.prototype.afterWalk = function(ch) {
     this._printChar(ch);
 
-    // for counting ONLY
+    /* for reporting ONLY */
     this._lineNo += this._countNewLineChar(ch);
     this._charNo += ch.length;
 };
