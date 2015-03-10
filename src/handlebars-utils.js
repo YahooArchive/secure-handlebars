@@ -33,10 +33,11 @@ HandlebarsUtils.RAW_BLOCK = 10; // {{{{block}}}}
 HandlebarsUtils.RAW_END_BLOCK = 11; // {{{{/block}}}}
 
 /* reference: http://handlebarsjs.com/expressions.html */
-/* '{{{{' '~'? 'not {}~'+ '~'? non-greedy '}}}}' and not follow by '}' */
-HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{~?\s*([^\}\{~\s]+)\s*~??\}\}\}\}(?!})/;
-/* '{{{{' '~'? '/' 'not {}~'+ '~'? non-greedy '}}}}' and not follow by '}' */
-HandlebarsUtils.rawEndBlockRegExp = /^\{\{\{\{~?\/\s*([^\}\{~\s]+)\s*~??\}\}\}\}(?!})/;
+/* '{{{{' 'space'* 'not special char'+ 'space'* non-greedy '}}}}' and not follow by '}' */
+HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*?\}\}\}\}(?!})/;
+/* '{{{{' '/' 'not special char'+ non-greedy '}}}}' and not follow by '}' */
+HandlebarsUtils.rawEndBlockRegExp = /^\{\{\{\{\/([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)?\}\}\}\}(?!})/;
+
 /* '{{{' '~'? 'not {}~'+ '~'? non-greedy '}}}' and not follow by '}' */
 HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?([^\}\{~]+)~??\}\}\}(?!})/;
 

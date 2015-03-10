@@ -306,41 +306,117 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
+        /* isValidExpression rawBlockRegExp test
+           Please refer to "handlebars {{{{raw block}}}} test" in run-handlebars-3.0-spec.js */
         it("handlebars-utils#isValidExpression rawBlockRegExp test", function() {
             [
-                {str:'{{{{anything}}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
-                {str:'{{{{~anything}}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
-                {str:'{{{{~   anything}}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
-                {str:'{{{{~   anything   }}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
-                {str:'{{{{~anything~}}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
-                {str:'{{{{~anything   ~}}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
-                {str:'{{{{~   anything   ~}}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'anything'},
+                // valid {{{{rawblock}}}} syntax
+                {str:'{{{{rawblockname}}}}     ', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'rawblockname'},
+                {str:'{{{{   rawblockname}}}}  ', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'rawblockname'},
+                {str:'{{{{rawblockname     }}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'rawblockname'},
+                {str:'{{{{   rawblockname  }}}}', type:handlebarsUtils.RAW_BLOCK, result:true, rstr:'rawblockname'},
 
-                {str:'{{{{/anything}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
-                {str:'{{{{~/anything}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
-                {str:'{{{{~/   anything}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
-                {str:'{{{{~/   anything   }}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
-                {str:'{{{{~/anything~}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
-                {str:'{{{{~/anything   ~}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
-                {str:'{{{{~/   anything   ~}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'anything'},
-            ].forEach(function(obj) {
-                var r = handlebarsUtils.isValidExpression(obj.str, 0, obj.type);
-                expect(r.result).to.equal(obj.result);
-                expect(r.tag).to.equal(obj.rstr);
+                // invalid {{{{rawblock}}}} syntax
+                {str:'{{{{rawblockname}    ', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{rawblockname}}   ', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{rawblockname}}}  ', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{rawblockname}}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+
+                {str:'{{{{!rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{"rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{#rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{%rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{&rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:"{{{{'rawblockname}}}}", type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{(rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{)rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{*rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{+rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{,rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{.rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{/rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{;rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{>rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{=rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{<rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{@rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{[rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{]rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{`rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{{rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{}rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{~rawblockname}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+                {str:'{{{{rawblockname~}}}}', type:handlebarsUtils.RAW_BLOCK, result:false, rstr:false},
+
+                // valid {{{{/rawblock}}}} syntax
+                {str:'{{{{/rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:true, rstr:'rawblockname'},
+
+                // invalid {{{{/rawblock}}}} syntax
+                {str:'{{{{/   rawblockname}}}}   ', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{/rawblockname      }}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{/   rawblockname   }}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+
+                {str:'{{{{/rawblockname}    ', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{/rawblockname}}   ', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{/rawblockname}}}  ', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{/rawblockname}}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+
+                {str:'{{{{!rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{"rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{#rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{%rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{&rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:"{{{{'rawblockname}}}}", type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{(rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{)rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{*rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{+rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{,rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{.rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                /* {str:'{{{{/rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false}, */
+                {str:'{{{{;rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{>rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{=rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{<rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{@rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{[rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{]rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{`rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{{rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{}rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{~rawblockname}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+                {str:'{{{{rawblockname~}}}}', type:handlebarsUtils.RAW_END_BLOCK, result:false, rstr:false},
+
+            ].forEach(function(testObj) {
+                var r = handlebarsUtils.isValidExpression(testObj.str, 0, testObj.type);
+                expect(r.result).to.equal(testObj.result);
+                expect(r.tag).to.equal(testObj.rstr);
             });
         });
 
+        /* isReservedChar test */
         it("handlebars-utils#isReservedChar test", function() {
+            /* reserved char we care about */
             [
                 '#', '/', '>', '@', '^', '!',
                 '~#', '~/', '~>', '~@', '~^', '~!'
-            ].forEach(function(s) {
-                var r = handlebarsUtils.isReservedChar(s, 0);
+            ].forEach(function(testObj) {
+                var r = handlebarsUtils.isReservedChar(testObj, 0);
                 expect(r).to.equal(true);
+            });
+            /* reserved char we don't care about */
+            [
+                ' ', '"', '%', '&', "'", '(', ')', '*', '+', ',', '.', '<', '=', '[', ']', '`', '{', '|', '}',
+                '~ ', '~"', '~%', '~&', "~'", '~(', '~)', '~*', '~+', '~,', '~.', '~<', '~=', '~[', '~]', '~`', '~{', '~|', '~}',
+            ].forEach(function(testObj) {
+                var r = handlebarsUtils.isReservedChar(testObj, 0);
+                expect(r).to.equal(false);
             });
         });
 
+        /* handleError test */
         it("handlebars-utils#handleError test", function() {
+            // no need to test it directly.
         });
     });
 }());

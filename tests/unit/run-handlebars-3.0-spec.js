@@ -13,7 +13,47 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
     var expect = require('chai').expect,
         handlebars = require('handlebars');
 
-    describe("Vanilla Handlebars parsing test suite", function() {
+    describe("Handlebars Parsing Test Suite", function() {
+
+        /* we are not using handlebars to build the AST, so the following test can be skipped
+        *
+        it("handlebars {{expression}} test", function() {
+            [
+                '{{expression}}',
+                '{{expression}} }',
+            ].forEach(function(t) {
+                var ast = handlebars.parse(t);
+	        expect(ast.statements[0].type).to.equal('mustache');
+            });
+            [
+                '{ {expression}}',
+            ].forEach(function(t) {
+                var ast = handlebars.parse(t);
+	        expect(ast.statements[0].type).to.equal('content');
+            });
+        });
+
+        it("handlebars {{expression}} subexpression with \\r\\n test", function() {
+            [
+                '{{expression\rion}}',
+                '{{expression\nion}}',
+                '{{expression\r\nion}}',
+            ].forEach(function(t) {
+                var ast = handlebars.parse(t);
+	        expect(ast.statements[0].type).to.equal('mustache');
+	        expect(ast.statements[0].params[0].string).to.equal('ion');
+	        expect(ast.statements[0].isHelper).to.equal(true);
+            });
+            ].forEach(function(testObj) {
+                var ast;
+                try {
+                    ast = handlebars.parse(testObj.expression);
+                    expect(ast.body).to.be.ok;
+                    expect(ast.body[0].type).to.equal(testObj.result);
+                } catch (e) {
+                }
+            });
+        });
 
         /* we are not using handlebars to build the AST, so the following test can be skipped
         *
@@ -583,5 +623,87 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.statements[0].program.statements[6].string).to.equal(' j ');
         });
         */
+
+        /* Handlebars {{{{raw block}}}} test */
+        it("handlebars {{{{raw block}}}} test", function() {
+            [
+                // valid syntax
+                {
+                    syntax: '{{{{rawblockname}}}} xxx {{{{/rawblockname}}}}',
+                    result: 'BlockStatement',
+                },
+                {
+                    // it is fine to have space in the start rawblockname.
+                    syntax: '{{{{  rawblockname   }}}} xxx {{{{/rawblockname}}}}',
+                    result: 'BlockStatement',
+                },
+
+                // invalid syntax
+                // throw exception if {{{{rawblockname}}}} end with unbalanced } count.
+                { syntax: '{{{{rawblockname} xxx {{{{/rawblockname}}}}    ', result: true, },
+                { syntax: '{{{{rawblockname}} xxx {{{{/rawblockname}}}}   ', result: true, },
+                { syntax: '{{{{rawblockname}}} xxx {{{{/rawblockname}}}}  ', result: true, },
+                { syntax: '{{{{rawblockname}}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                {
+                    // throw exception if {{{{/rawblockname}}}} with space.
+                    syntax: '{{{{rawblockname}}}} xxx {{{{/    rawblockname}}}}',
+                    result: true,
+                },
+                {
+                    // throw exception if {{{{/rawblockname}}}} with space.
+                    syntax: '{{{{rawblockname}}}} xxx {{{{/rawblockname    }}}}',
+                    result: true,
+                },
+                {
+                    // throw exception if unbalanced {{{{rawblockname}}}}.
+                    syntax: '{{{{rawblockname1}}}} xxx {{{{/rawblockname2}}}}',
+                    result: true,
+                },
+                {
+                    // throw exception if another {{{{rawblock}}}} within another {{{{rawblock}}}}.
+                    syntax: '{{{{rawblockname}}}} {{{{rawblock}}}} xxx {{{{/rawblock}}}} {{{{/rawblockname}}}}',
+                    result: true,
+                },
+
+                // throw exception, {{{{rawblockname}}}} does not support special character and white space control.
+                // reference http://handlebarsjs.com/expressions.html
+                { syntax: '{{{{!rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{"rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { synatx: '{{{{#rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{%rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{&rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: "{{{{'rawblockname}}}} xxx {{{{/rawblockname}}}}", result: true, },
+                { syntax: '{{{{(rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{)rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{*rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{+rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{,rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{.rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{/rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{;rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{>rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{=rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{<rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{@rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{[rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{^rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{]rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{`rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{{rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{}rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{~rawblockname}}}} xxx {{{{/rawblockname}}}}', result: true, },
+                { syntax: '{{{{rawblockname~}}}} xxx {{{{/rawblockname}}}}', result: true, },
+
+            ].forEach(function(testObj) {
+                var ast;
+                try {
+                    ast = handlebars.parse(testObj.syntax);
+                    expect(ast.body).to.be.ok;
+                    expect(ast.body[0].type).to.equal(testObj.result);
+                } catch (e) {
+                    expect(testObj.result).to.equal(true);
+                }
+            });
+        });
     });
 }());

@@ -561,10 +561,11 @@ ContextParserHandlebars.prototype._handleExpression = function(input, i, len, pr
 };
 
 // @function module:ContextParserHandlebars._handleRawBlock
-ContextParserHandlebars.prototype._handleRawBlock = function(input, i, len, tag) {
+ContextParserHandlebars.prototype._handleRawBlock = function(input, i, tag) {
     var msg, exceptionObj, 
         obj = {};
     var isStartExpression = true,
+        len = input.length,
         re;
     for(var j=i;j<len;++j) {
         if (isStartExpression && input[j] === '}' && j+3<len && input[j+1] === '}' && input[j+2] === '}' && input[j+3] === '}') {
@@ -1014,7 +1015,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
 
         /* _handleRawBlock */
         debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
-        obj = this._handleRawBlock(input, i, len, re.tag);
+        obj = this._handleRawBlock(input, i, re.tag);
         /* advance the index pointer by 1 to the char after the last brace of expression. */
         return obj.index+1;
     } else if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
