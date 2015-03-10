@@ -1,5 +1,5 @@
 /* 
-Copyright (c) 2015, Yahoo! Inc. All rights reserved.
+Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
 See the accompanying LICENSE file for terms.
 
@@ -195,18 +195,18 @@ ContextParserHandlebars.prototype._parseExpression = function(input, i) {
 };
 
 // @function module:ContextParserHandlebars._addFilters
-ContextParserHandlebars.prototype._addFilters = function(state, input, expressionInfo) {
+ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input) {
 
     /* transitent var */
     var e, f, msg, exceptionObj;
 
     /* return filters */
-    var filters = [];
+    var filters = [],
+        attributeName = stateObj.attributeName,
+        attributeValue = stateObj.attributeValue;
 
-    var attributeName = expressionInfo.attributeName,
-        attributeValue = expressionInfo.attributeValue;
-
-    debug("_addFilters:state:"+state+",attrname:"+attributeName+",attrvalue:"+attributeValue);
+    debug("_addFilters:state:"+state);
+    debug(stateObj);
 
     // 1
     if (state === stateMachine.State.STATE_DATA) {
@@ -407,7 +407,8 @@ ContextParserHandlebars.prototype._handleRawExpression = function(input, i, len,
                 this._printChar('}}}');
                 j=j+2;
 
-                /* update the Context Parser's state if it is raw expression */
+                /* update the Context Parser's state if it is raw expression,
+                   and no need to update other internal var as {{expression}} will not alter those vars. */
                 this.state = state;
 
                 /* for printCharWithState */
@@ -439,11 +440,8 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
     str += '{';
 
     /* get the customized filter based on the current HTML5 state before the Handlebars template expression. */
-    var expressionInfo = {
-        'attributeName': this.getAttributeName(),
-        'attributeValue': this.getAttributeValue(),
-    };
-    filters = this._addFilters(state, input, expressionInfo);
+    var stateObj = this.getInternalState();
+    filters = this._addFilters(state, stateObj, input);
     for(var k=filters.length-1;k>=0;--k) {
         if (extraExpressionInfo.isSingleIdentifier && k === 0) {
             str += filters[k] + " ";
@@ -468,7 +466,8 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
             /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}}, no need to increase j by 1. */
             this._printChar('}');
 
-            /* update the Context Parser's state if it is not reserved tag */
+            /* update the Context Parser's state if it is not reserved tag, 
+               and no need to update other internal var as {{expression}} will not alter those vars. */
             this.state = state;
 
             /* for printCharWithState */
@@ -608,14 +607,14 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
         obj = {};
     try {
         var ast = this._buildBranchAst(input, i);
-        var stateObj = this._getInternalState();
+        var stateObj = this.getInternalState();
         var result = this._analyseBranchAst(ast, stateObj);
 
         /* print the output */
         this._printChar(result.output);
 
-        /* update the state after branching expression */
-        this.state = result.lastStates[0].state;
+        /* update the state after branching expression, index 0 and 1 must be the same */
+        this.setInternalState(result.lastStates[0]);
  
         /* update the _lineNo */
         this._lineNo += ast.noOfNewLineChar;
@@ -626,21 +625,16 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
         debug("_handleBranchTemplate: state:"+this.state+",new i:"+ast.index+",lineNo:"+this._lineNo);
         return obj;
     } catch (err) {
-        // exceptionObj = new ContextParserHandlebarsException(err.msg, err.lineNo+this._lineNo, err.charNo+this._charNo);
         exceptionObj = new ContextParserHandlebarsException(err.msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
 };
 
-// @function ContextParserHandlebars._getInternalState
-ContextParserHandlebars.prototype._getInternalState = function() {
+// TODO: context-parser dependent, should move back to context-parser later
+// @function ContextParserHandlebars.getInternalState
+ContextParserHandlebars.prototype.getInternalState = function() {
     var stateObj = {};
-    // stateObj.bytes = this.bytes;
     stateObj.state = this.state;
-    // stateObj.states = this.states;
-    // stateObj.contexts = this.contexts;
-    // stateObj.buffer = this.buffer;
-    // stateObj.symbols = this.symbols;
     stateObj.tagNames = this.tagNames;
     stateObj.tagNameIdx = this.tagNameIdx;
     stateObj.attributeName = this.attributeName;
@@ -648,15 +642,46 @@ ContextParserHandlebars.prototype._getInternalState = function() {
     return stateObj;
 };
 
-// @function ContextParserHandlebars._setInternalState
-ContextParserHandlebars.prototype._setInternalState = function(parser, stateObj) {
-    parser.setInitState(stateObj.state);
-    parser.tagNames = stateObj.tagNames;
-    parser.tagNameIdx = stateObj.tagNameIdx;
-    parser.attributeName = stateObj.attributeName;
-    parser.attributeValue = stateObj.attributeValue;
-    
-    return parser;
+// TODO: context-parser dependent, should move back to context-parser later
+// @function ContextParserHandlebars.setInternalState
+ContextParserHandlebars.prototype.setInternalState = function(stateObj) {
+    // TODO: these 2 apis need to combine.
+    this.setInitState(stateObj.state);
+    this.setCurrentState(stateObj.state);
+
+    this.tagNames = stateObj.tagNames;
+    this.tagNameIdx = stateObj.tagNameIdx;
+    this.attributeName = stateObj.attributeName;
+    this.attributeValue = stateObj.attributeValue;
+};
+
+// TODO: context-parser dependent, should move back to context-parser later
+// @function ContextParserHandlebars._deepCompareState
+ContextParserHandlebars.prototype._deepCompareState = function(stateObj1, stateObj2) {
+    var r = true;
+    [ 'state',
+      'tagNameIdx',
+      // attributeName/Value does not affect the state transition
+      // 'attributeName', 'attributeValue' 
+    ].forEach(function(key) {
+        if (stateObj1[key] !== '' && stateObj2[key] !== '' && stateObj1[key] !== stateObj2[key]) {
+            r = false;
+        }
+    });
+    [
+        'tagNames'
+    ].forEach(function(key) {
+        if (!(stateObj1[key] instanceof Array) || !(stateObj2[key] instanceof Array)) {
+            r = false;
+            return;
+        }
+        for(var i=0;i<stateObj1.length;++i) {
+            if (stateObj1[key][i] !== stateObj2[key][i]) {
+                r = false;
+            }
+        }
+    });
+    return r;
 };
 
 // @function module:ContextParserHandlebars._analyzeContext
@@ -669,24 +694,23 @@ ContextParserHandlebars.prototype._analyzeContext = function(stateObj, obj) {
     /* factory class */
     var parser,
         ContextParserHandlebars = require('./context-parser-handlebars');
-
-    /* parse the string */
     parser = new ContextParserHandlebars(false);
 
-    // set the internal state
-    parser = parser._setInternalState(parser, stateObj);
+    /* set the internal state */
+    parser.setInternalState(stateObj);
 
-    // just for reporting.
+    /* just for reporting. */
     parser._lineNo = obj.startLineNo;
     parser._charNo = obj.startPos;
 
-    // analyze
+    /* analyze */
     parser.contextualize(obj.content);
 
+    /* get the output string */
     r.output = parser.getOutput();
 
-    // get the internal state
-    r.stateObj = parser._getInternalState();
+    /* get the internal state */
+    r.stateObj = parser.getInternalState();
 
     return r;
 };
@@ -709,26 +733,31 @@ ContextParserHandlebars.prototype._analyseBranchAst = function(ast, stateObj) {
     for(var i=0;i<len;++i) {
         obj = ast.program[i];
         if (obj.type === 'content') {
-            debugBranch("_analyseBranchAst:program:content");
-            debugBranch("_analyseBranchAst:state:"+r.lastStates[0].state);
-            debugBranch("_analyseBranchAst:content:["+obj.content+"]");
+
+            debugBranch("_analyzeBranchAst:before:program:content:"+obj.content);
+            debugBranch(r.lastStates[0]);
 
             t = this._analyzeContext(r.lastStates[0], obj);
             r.output += t.output;
             r.lastStates[0] = t.stateObj;
             programDebugOutput += t.output;
 
-            debugBranch("_analyseBranchAst:new state:"+r.lastStates[0].state);
+            debugBranch("_analyzeBranchAst:after:program:content");
+            debugBranch(r.lastStates[0]);
+
         } else if (obj.type === 'node') {
-            debugBranch("_analyseBranchAst:program:node");
-            debugBranch("_analyseBranchAst:state:"+r.lastStates[0].state);
+
+            debugBranch("_analyzeBranchAst:before:program:node");
+            debugBranch(r.lastStates[0]);
 
             t = this._analyseBranchAst(obj.content, r.lastStates[0]);
             r.lastStates[0] = t.lastStates[0]; // index 0 and 1 MUST be equal
             r.output += t.output;
             programDebugOutput += t.output;
 
-            debugBranch("_analyseBranchAst:new state:"+r.lastStates[0].state);
+            debugBranch("_analyzeBranchAst:after:program:node");
+            debugBranch(r.lastStates[0]);
+
         } else if (obj.type === 'branch' ||
             obj.type === 'branchelse' ||
             obj.type === 'branchend') {
@@ -740,26 +769,31 @@ ContextParserHandlebars.prototype._analyseBranchAst = function(ast, stateObj) {
     for(i=0;i<len;++i) {
         obj = ast.inverse[i];
         if (obj.type === 'content') {
-            debugBranch("_analyseBranchAst:program:content");
-            debugBranch("_analyseBranchAst:state:"+r.lastStates[1].state);
-            debugBranch("_analyseBranchAst:content:["+obj.content+"]");
+
+            debugBranch("_analyzeBranchAst:before:inverse:content:"+obj.content);
+            debugBranch(r.lastStates[1]);
 
             t = this._analyzeContext(r.lastStates[1], obj);
             r.output += t.output;
             r.lastStates[1] = t.stateObj;
             inverseDebugOutput += t.output;
 
-            debugBranch("_analyseBranchAst:new state:"+r.lastStates[1].state);
+            debugBranch("_analyzeBranchAst:after:inverse:content");
+            debugBranch(r.lastStates[1]);
+
         } else if (obj.type === 'node') {
-            debugBranch("_analyseBranchAst:program:node");
-            debugBranch("_analyseBranchAst:state:"+r.lastStates[1].state);
+
+            debugBranch("_analyzeBranchAst:before:inverse:node");
+            debugBranch(r.lastStates[1]);
 
             t = this._analyseBranchAst(obj.content, r.lastStates[1]);
             r.lastStates[1] = t.lastStates[1]; // index 0 and 1 MUST be equal
             r.output += t.output;
             inverseDebugOutput += t.output;
 
-            debugBranch("_analyseBranchAst:new state:"+r.lastStates[1].state);
+            debugBranch("_analyzeBranchAst:before:inverse:node");
+            debugBranch(r.lastStates[1]);
+
         } else if (obj.type === 'branch' ||
             obj.type === 'branchelse' ||
             obj.type === 'branchend') {
@@ -776,10 +810,10 @@ ContextParserHandlebars.prototype._analyseBranchAst = function(ast, stateObj) {
         r.lastStates[0] = r.lastStates[1];
     }
 
-    if (r.lastStates[0].state !== r.lastStates[1].state) {
+    if (!this._deepCompareState(r.lastStates[0], r.lastStates[1])) {
         msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsitent HTML5 state after conditional branches. Please fix your template! \n";
-        msg += "[ERROR] #if.. branch: " + programDebugOutput.slice(0, 50) + "... (state:"+r.lastStates[0].state+")\n";
-        msg += "[ERROR] else branch: " + inverseDebugOutput.slice(0, 50) + "... (state:"+r.lastStates[1].state+")";
+        msg += "[ERROR] #if.. branch: " + programDebugOutput.slice(0, 50) + "... ("+JSON.stringify(r.lastStates[0])+"\n";
+        msg += "[ERROR] else branch: " + inverseDebugOutput.slice(0, 50) + "... ("+JSON.stringify(r.lastStates[1])+")";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
@@ -979,16 +1013,7 @@ ContextParserHandlebars.prototype._getSaveObject = function(type, content, start
     return obj;
 };
 
-/*
-* @function module:ContextParserHandlebars._handleTemplate
-*
-* @param {char} ch - The current character to be processed.
-* @param {integer} i - The index of the current character in the input string.
-* @param {string} input - The input string of the HTML5 web page.
-* @param {integer} state - The current HTML5 state of the current character before the Handlebars expression.
-* @returns {integer} The index right after the last '}' if it is Handlebars expression or return immediately if it is not Handlebars.
-*
-*/
+// @function ContextParserHandlebars._handleTemplate
 ContextParserHandlebars.prototype._handleTemplate = function(ch, i, input, state) {
 
     /* return object */
