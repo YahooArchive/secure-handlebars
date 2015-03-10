@@ -12,6 +12,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
     require("mocha");
     var promise = require('bluebird'),
         fs = require('fs'),
+        utils = require("../utils.js"),
         expect = require('chai').expect,
         ContextParserHandlebars = require("../../src/context-parser-handlebars");
 
@@ -20,6 +21,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     describe("Handlebars pre-compiler test suite", function() {
 
+        // basic test
         it("Running ./bin/handlebarspc test", function(done) {
             var exec = promise.promisify(require("child_process").exec)
             exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_000.hbs')
@@ -30,14 +32,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             .then(done);
         });
 
-        var append_zero = function(i) {
-            var s = i.toString();
-            while(s.length < 3) {
-                s = "0" + s;
-            }
-            return s;    
-        };
-
+        /* generate the template files */
         var genPrecompiledTemplateFiles = function(id) {
             it("ContextParserHandlebars#contextualize template " + id + " test", function() {
                 var file = './tests/samples/files/handlebarsjs_template_'+id+'.hbs';
@@ -53,13 +48,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 }
             });
         };
-
-        /* generate the template files */
         for(var i=0;i<=NO_OF_TEMPLATE;++i) {
-            id = append_zero(i);
+            id = utils.append_zero(i);
             genPrecompiledTemplateFiles(id);
         }
 
+        /* generate the filter files */
         var genPrecompiledFilterFiles = function(id) {
             it("ContextParserHandlebars#contextualize filter " + id + " test", function() {
                 var file = './tests/samples/files/handlebarsjs_filter_'+id+'.hbs';
@@ -75,104 +69,95 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 }
             });
         };
-
-        /* generate the filter files */
         for(var i=0;i<=NO_OF_FILTER_TEMPLATE;++i) {
-            id = append_zero(i);
+            id = utils.append_zero(i);
             genPrecompiledFilterFiles(id);
         }
 
-        /* this test will throw exception, and the vanilla handlebars will complain */
-        it("./bin/handlebarspc broken conditional {{#if}} template test", function(done) {
-            var exec = promise.promisify(require("child_process").exec);
-            exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_017.hbs')
-            .timeout(300)
-            .catch(function(e){
-                done();
+        /* more throwing exception tests */
+        [
+            {
+                title: './bin/handlebarspc broken conditional {{#if}} without {{/if}} template test',
+                file: './tests/samples/files/handlebarsjs_template_017.hbs',
+            },
+            {
+                title: './bin/handlebarspc branching logic startName/endName mismatch template test',
+                file: './tests/samples/files/handlebarsjs_template_018.hbs',
+            },
+            {
+                title: './bin/handlebarspc broken conditional {{#if}} without {{#if}} template test',
+                file: './tests/samples/files/handlebarsjs_template_019.hbs',
+            },
+            {
+                title: './bin/handlebarspc invalid {{expression}} template test',
+                file: './tests/samples/files/handlebarsjs_template_021.hbs',
+            },
+            {
+                title: './bin/handlebarspc invalid {{{expression}}} template test',
+                file: './tests/samples/files/handlebarsjs_template_022.hbs',
+            },
+            {
+                title: './bin/handlebarspc invalid raw block startName/endName mismatch template test',
+                file: './tests/samples/files/handlebarsjs_template_024.hbs',
+            },
+            {
+                title: '/bin/handlebarspc html5 inconsistent state test',
+                file: './tests/samples/bugs/003.html5.inconsitent.hb',
+            },
+        ].forEach(function(testObj) {
+            it(testObj.title, function(done) {
+                var exec = promise.promisify(require("child_process").exec);
+                exec('./bin/handlebarspc '+testObj.file)
+                .timeout(300)
+                .catch(function(e){
+                    done();
+                });
             });
         });
 
-        /* this test will throw exception, and the vanilla handlebars will complain */
-        it("./bin/handlebarspc conditional/iteration mismatch template test", function(done) {
-            var exec = promise.promisify(require("child_process").exec);
-            exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_018.hbs')
-            .timeout(300)
-            .catch(function(e){
-                done();
-            });
-        });
-
-        /* this test will throw exception, and the vanilla handlebars will complain */
-        it("./bin/handlebarspc broken conditional {{/if}} template test", function(done) {
-            var exec = promise.promisify(require("child_process").exec);
-            exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_019.hbs')
-            .timeout(300)
-            .catch(function(e){
-                done();
-            });
-        });
-
-        /* this test will throw exception, and the vanilla handlebars will complain */
-        it("./bin/handlebarspc invalid expression test", function(done) {
-            var exec = promise.promisify(require("child_process").exec);
-            exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_021.hbs')
-            .timeout(300)
-            .catch(function(e){
-                done();
-            });
-        });
-
-        /* this test will throw exception, and the vanilla handlebars will complain */
-        it("./bin/handlebarspc invalid expression test", function(done) {
-            var exec = promise.promisify(require("child_process").exec);
-            exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_022.hbs')
-            .timeout(300)
-            .catch(function(e){
-                done();
-            });
-        });
-
-        /* this test will throw exception, and the vanilla handlebars will complain */
-        it("./bin/handlebarspc invalid expression test", function(done) {
-            var exec = promise.promisify(require("child_process").exec);
-            exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_024.hbs')
-            .timeout(300)
-            .catch(function(e){
-                done();
-            });
-        });
-
-        it("./bin/handlebarspc html5 inconsistent state test", function(done) {
-            var exec = promise.promisify(require("child_process").exec);
-            exec('./bin/handlebarspc ./tests/samples/bugs/004.script.hb')
-            .timeout(300)
-            .done(function(e){
-                done();
-            });
-        });
-
-        it("./bin/handlebarspc line no and char no reporting test", function(done) {
-            var exec = promise.promisify(require("child_process").exec);
-            exec('./bin/handlebarspc ./tests/samples/bugs/005.line.report.hb')
-            .timeout(300)
-            .done(function(e){
-                expect(e).to.match(/lineNo:2,charNo:38/);
-                expect(e).to.match(/lineNo:4,charNo:91/);
-                expect(e).to.match(/lineNo:8,charNo:177/);
-                expect(e).to.match(/lineNo:10,charNo:274/);
-                expect(e).to.match(/lineNo:12,charNo:298/);
-                done();
-            });
-        });
-
-        it("./bin/handlebarspc full state propagation in logical template test", function(done) {
-            var exec = promise.promisify(require("child_process").exec);
-            exec('./bin/handlebarspc ./tests/samples/bugs/006.state.hb')
-            .timeout(300)
-            .done(function(e){
-                expect(e).to.match(/{{{y styleoutput}}}/);
-                expect(e).to.match(/{{{yavd classoutput}}}/);
-                done();
+        /* reported bug tests */
+        [
+            {
+                title: '/bin/handlebarspc html5 inconsistent state test',
+                file: './tests/samples/bugs/001.hbs',
+                result: [],
+            },
+            {
+                title: '/bin/handlebarspc html5 inconsistent state test',
+                file: './tests/samples/bugs/001.hbs.original',
+                result: [],
+            },
+            {
+                title: '/bin/handlebarspc html5 inconsistent state test',
+                file: './tests/samples/bugs/002.hbs',
+                result: [],
+            },
+            {
+                title: './bin/handlebarspc html5 inconsistent state test',
+                file: './tests/samples/bugs/004.script.hb',
+                result: [],
+            },
+            {
+                title: './bin/handlebarspc line no and char no reporting test',
+                file: './tests/samples/bugs/005.line.report.hb',
+                result: [ /lineNo:2,charNo:38/, /lineNo:4,charNo:91/, /lineNo:8,charNo:177/, /lineNo:10,charNo:274/, /lineNo:12,charNo:298/ ],
+            },
+            {
+                title: 'state (attribute name) propagation in logical template test',
+                file: './tests/samples/bugs/006.state.hb',
+                result: [ /{{{y styleoutput}}}/, /{{{yavd classoutput}}}/ ],
+            },
+        ].forEach(function(testObj) {
+            it(testObj.title, function(done) {
+                var exec = promise.promisify(require("child_process").exec);
+                exec('./bin/handlebarspc '+testObj.file)
+                .timeout(300)
+                .done(function(e){
+                    testObj.result.forEach(function(r) {
+                        expect(e).to.match(r);
+                    });
+                    done();
+                });
             });
         });
     });

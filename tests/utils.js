@@ -26,4 +26,12 @@ exports.testIsValidExpression = function(result, obj) {
     expect(result.result).to.equal(obj.result);
 };
 
+exports.append_zero = function(i) {
+    var s = i.toString();
+    while(s.length < 3) {
+        s = "0" + s;
+    }
+    return s;
+};
+
 })();
