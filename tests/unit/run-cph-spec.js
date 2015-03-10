@@ -342,7 +342,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[2].content).to.equal('{{/if}}');
             expect(ast.inverse).to.deep.equal([]);
             expect(ast.index).to.equal(22);
-            var stateObj = parser._getInternalState();
+            var stateObj = parser.getInternalState();
             stateObj.state = 1;
             var r = parser._analyseBranchAst(ast, stateObj);
             expect(r.output).to.equal('{{#if xxx}} a b {{/if}}');
@@ -360,7 +360,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[2].content).to.equal('{{/if}}');
             expect(ast.inverse).to.deep.equal([]);
             expect(ast.index).to.equal(37);
-            var stateObj = parser._getInternalState();
+            var stateObj = parser.getInternalState();
             stateObj.state = 1;
             var r = parser._analyseBranchAst(ast, stateObj);
             expect(r.output).to.equal('{{#if xxx}} a b {{{yd expression}}} {{/if}}');
@@ -378,7 +378,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[2].content).to.equal('{{/if}}');
             expect(ast.inverse).to.deep.equal([]);
             expect(ast.index).to.equal(65);
-            var stateObj = parser._getInternalState();
+            var stateObj = parser.getInternalState();
             stateObj.state = 1;
             var r = parser._analyseBranchAst(ast, stateObj);
             expect(r.output).to.equal('{{#if xxx}} a b {{!--comment  {{#if xxx}} abc {{/if}} --}} {{/if}}');
@@ -393,7 +393,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[2].content).to.equal('{{/if}}');
             expect(ast.inverse).to.deep.equal([]);
             expect(ast.index).to.equal(50);
-            stateObj = parser._getInternalState();
+            stateObj = parser.getInternalState();
             stateObj.state = 1;
             r = parser._analyseBranchAst(ast, stateObj);
             expect(r.output).to.equal('{{#if xxx}} a b {{!comment  {{#if xxx}} abc {{/if}}');
@@ -415,7 +415,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.inverse[2].type).to.equal('branchend');
             expect(ast.inverse[2].content).to.equal('{{/if}}');
             expect(ast.index).to.equal(31);
-            var stateObj = parser._getInternalState();
+            var stateObj = parser.getInternalState();
             stateObj.state = 1;
             var r = parser._analyseBranchAst(ast, stateObj);
             expect(r.output).to.equal('{{#if xxx}} a {{else}} b {{/if}}');
@@ -463,7 +463,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.inverse[4].type).to.equal('branchend');
             expect(ast.inverse[4].content).to.equal('{{/if}}');
             expect(ast.index).to.equal(97);
-            var stateObj = parser._getInternalState();
+            var stateObj = parser.getInternalState();
             stateObj.state = 1;
             var r = parser._analyseBranchAst(ast, stateObj);
             expect(r.output).to.equal('{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{else}} e {{#if}} f {{else}} g {{/if}} h {{/if}}');
@@ -506,23 +506,18 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[6].type).to.equal('branchend');
             expect(ast.program[6].content).to.equal('{{/if}}');
             expect(ast.index).to.equal(86);
-            var stateObj = parser._getInternalState();
-            stateObj.state = 1;
+            var stateObj = parser.getInternalState();
             var r = parser._analyseBranchAst(ast, stateObj);
             expect(r.output).to.equal('{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{#if}} e {{else}} f {{/if}} g {{/if}}');
-        });
-
-        it("context-parser-handlebars#_handleTemplate test", function() {
         });
 
         it("context-parser-handlebars - branch with <script> test", function() {
             var parser = new ContextParserHandlebars();
             var s = "{{#if}} <script> {{#if xxx}} path2 {{else}} path3 {{/if}} </script> {{else}} path4 {{/if}}";
             var ast = parser._buildBranchAst(s, 0);
-            var stateObj = parser._getInternalState();
-            stateObj.state = 1;
+            var stateObj = parser.getInternalState();
             var r = parser._analyseBranchAst(ast, stateObj);
-            expect(r.output).to.equal('{{#if}} <script> {{#if xxx}} path2 {{else}} path3 {{/if}} </script> {{else}} path4 {{/if}}');
+            expect(r.output).to.equal(s);
         });
 
         /* handleRawBlock test
@@ -549,6 +544,48 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 } catch (e) {
                     expect(false).to.equal(testObj.result);
                 }
+            });
+        });
+
+        it("context-parser-handlebars#_handleTemplate test", function() {
+            // no need to test it directly
+        });
+
+        it("context-parser-handlebars#setInternalState test", function() {
+            // no need to test it directly
+        });
+
+        it("context-parser-handlebars#getInternalState test", function() {
+            // no need to test it directly
+        });
+
+        /* deepCompareState test */
+        it("context-parser-handlebars#_deepCompareState test", function() {
+            [
+                // true test
+                {s1:"<html></html>", s2:"<html></html>", result:true},
+                {s1:"<html></html>", s2:"", result:true},
+                {s1:"<script>alert(0);", s2:"<script>alert(0);", result:true},
+
+                // attributeName does not affect the result 
+                {s1:"<div class=''>", s2:"<div style=''>", result:true},
+
+                // attributeValue does not affect the result 
+                {s1:"<div class='classname'>", s2:"<div style=''>", result:true},
+
+                // false test
+                {s1:"<html></html>", s2:"<htm", result:false},
+                {s1:"<script>alert(0);", s2:"alert(0);</script>", result:false},
+
+            ].forEach(function(testObj) {
+                var parser1 = new ContextParserHandlebars();
+                var parser2 = new ContextParserHandlebars();
+                var stateObj1, stateObj2;
+                parser1.contextualize(testObj.s1);
+                parser2.contextualize(testObj.s2);
+                stateObj1 = parser1.getInternalState();
+                stateObj2 = parser2.getInternalState();
+                expect(parser1._deepCompareState(stateObj1, stateObj2)).to.equal(testObj.result);
             });
         });
     });
