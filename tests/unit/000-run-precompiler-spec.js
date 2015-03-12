@@ -120,6 +120,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* reported bug tests */
         [
+            /* remove unnecessary test
             {
                 title: '/bin/handlebarspc html5 inconsistent state test',
                 file: './tests/samples/bugs/001.hbs',
@@ -135,6 +136,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 file: './tests/samples/bugs/002.hbs',
                 result: [],
             },
+            */
             {
                 title: './bin/handlebarspc html5 inconsistent state test',
                 file: './tests/samples/bugs/004.script.hb',
