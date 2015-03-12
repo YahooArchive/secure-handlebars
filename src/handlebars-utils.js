@@ -7,6 +7,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
          Albert Yu <albertyu@yahoo-inc.com>
          Adonis Fung <adon@yahoo-inc.com>
 */
+/*jshint -W084 */
 (function () {
 "use strict";
 
@@ -16,59 +17,65 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 */
 var HandlebarsUtils = {};
 
+/* Handlebars for tokenization */
+var Handlebars = require('handlebars');
+
 /* type of expression */
 HandlebarsUtils.NOT_EXPRESSION = 0;
-HandlebarsUtils.RAW_EXPRESSION = 1; // {{{expression}}}
 
-HandlebarsUtils.ESCAPE_EXPRESSION = 2; // {{expression}}
-HandlebarsUtils.PARTIAL_EXPRESSION = 3; // {{>.*}}
-HandlebarsUtils.DATA_VAR_EXPRESSION = 4; // {{@.*}}
-HandlebarsUtils.BRANCH_EXPRESSION = 5; // {{#.*}}, {{^.*}}
-HandlebarsUtils.BRANCH_END_EXPRESSION = 6; // {{/.*}}
-HandlebarsUtils.ELSE_EXPRESSION = 7; // {{else}}, {{^}}
-HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM = 8; // {{!--.*--}}
-HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM = 9; // {{!.*}}
-
-HandlebarsUtils.RAW_BLOCK = 10; // {{{{block}}}}
-HandlebarsUtils.RAW_END_BLOCK = 11; // {{{{/block}}}}
-
-/* reference: http://handlebarsjs.com/expressions.html */
-/* '{{{{' 'space'* 'not special char'+ 'space'* non-greedy '}}}}' and not follow by '}' */
-HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*?\}\}\}\}(?!})/;
-/* '{{{{' '/' 'not special char'+ non-greedy '}}}}' and not follow by '}' */
+/* '{{{{' '\s'* ('not \s, special-char'+) '\s'* non-greedy '}}}}' and not follow by '}' */
+HandlebarsUtils.RAW_BLOCK = 9; // {{{{block}}}}
+HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*?\}\}\}\}/;
+/* '{{{{' '/' ('not \s, special-char'+) non-greedy '}}}}' and not follow by '}' */
+HandlebarsUtils.RAW_END_BLOCK = 10; // {{{{/block}}}}
 HandlebarsUtils.rawEndBlockRegExp = /^\{\{\{\{\/([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)?\}\}\}\}(?!})/;
 
-/* '{{{' '~'? 'not {}~'+ '~'? non-greedy '}}}' and not follow by '}' */
-HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?([^\}\{~]+)~??\}\}\}(?!})/;
+/* '{{{' '~'? 'space'* '@'? 'space'* ('not {}~'+) 'space'* ('not {}~'+) '~'? non-greedy '}}}' and not follow by '}' */
+HandlebarsUtils.RAW_EXPRESSION = 1; // {{{expression}}}
+// HandlebarsUtils.rawExpressionRegExp = /^\{\{\{\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>\[\\\]\^`\{\|\}\~]+)\s*?\}\}\}(?!})/;
+HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?\s*@?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}\}(?!})/;
 
-/* '{{' '~'? 'space'* ('not {}~'+) '~'? non-greedy '}}' and not follow by '}' */
-HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?\s*([^\}\{~]+)~??\}\}(?!})/;
-/* '{{' '~'? '>' 'space'* ('not {}~'+) 'space'* '~'? non-greedy '}}' and not follow by '}' */
-HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>\s*([^\}\{~]+)\s*~??\}\}(?!})/;
-/* '{{' '~'? '@' 'space'* ('not {}~'+) 'space'* '~'? non-greedy '}}' and not follow by '}' */
-HandlebarsUtils.dataVarExpressionRegExp = /^\{\{~?@\s*([^\}\{~]+)\s*~??\}\}(?!})/;
+/* '{{' '~'? 'space'* '@'? 'space'* ('not {}~'+) 'space'* ('not {}~'+) '~'? non-greedy '}}' and not follow by '}' */
+HandlebarsUtils.ESCAPE_EXPRESSION = 2; // {{expression}}
+HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?\s*@?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
 
-// need to capture the first non-whitespace string and capture the rest
-/* '{{' '~'? '# or ^' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? non-greedy '}}' and not follow by '}' */
-HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\^]\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
-/* '{{' '~'? '/' 'space'* ('not \s{}~'+) 'space'* ('not {}~')* '~'? non-greedy '}}' and not follow by '}' */
-HandlebarsUtils.branchEndExpressionRegExp = /^\{\{~?\/\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
-/* '{{' '~'? 'space'* 'else' 'space'* '~'? non-greedy '}}' and not follow by '}' */
-HandlebarsUtils.elseExpressionRegExp = /^\{\{~?\s*else\s*~??\}\}(?!})/;
-/* '{{' '~'? 'space'* '^'{1} 'space'* '~'? non-greedy '}}' and not follow by '}' */
-HandlebarsUtils.elseShortFormExpressionRegExp = /^\{\{~?\s*\^{1}\s*~??\}\}(?!})/;
+/* '{{' '~'? '>' '\s'* ('not \s, special-char'+) '\s'* 'not ~{}'* non-greedy '}}' and not follow by '}' */
+HandlebarsUtils.PARTIAL_EXPRESSION = 3; // {{>.*}}
+HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^~\}\{]*~??\}\}(?!})/;
 
-// @function HandlebarsUtils.getExpressionType
-HandlebarsUtils.getExpressionType = function(input, i, len) {
-    // TODO: can optimize
+/* '{{' '~'? '&' '\s'* ('not \s, special-char'+) '\s'* 'not ~{}'* non-greedy '}}' and not follow by '}' */
+HandlebarsUtils.REFERENCE_EXPRESSION = 11; // {{&.*}}
+HandlebarsUtils.referenceExpressionRegExp = /^\{\{~?&\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^~\}\{]*~??\}\}(?!})/;
+
+/* '{{' '~'? '# or ^' '\s'* ('not \s, special-char'+) '\s'* 'not {}~'* '~'? non-greedy '}}' and not follow by '}' */
+HandlebarsUtils.BRANCH_EXPRESSION = 4; // {{#.*}}, {{^.*}}
+HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\^]\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^\}\{~]*~??\}\}(?!})/;
+/* '{{' '~'? '/' '\s'* ('not \s, special-char'+) '\s'* 'not {}~'* '~'? non-greedy '}}' and not follow by '}' */
+HandlebarsUtils.BRANCH_END_EXPRESSION = 5; // {{/.*}}
+HandlebarsUtils.branchEndExpressionRegExp = /^\{\{~?\/\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^\}\{~]*~??\}\}(?!})/;
+
+/* '{{' '~'? '\s'* 'else' '\s'* 'not {}~'* '~'? non-greedy '}}' and not follow by '}' */
+HandlebarsUtils.ELSE_EXPRESSION = 6; // {{else}}, {{^}}
+HandlebarsUtils.elseExpressionRegExp = /^\{\{~?\s*else\s*[^\}\{~]*~??\}\}(?!})/;
+/* '{{' '~'? '^'{1} '~'? non-greedy '}}' and not follow by '}' */
+HandlebarsUtils.elseShortFormExpressionRegExp = /^\{\{~?\^{1}~??\}\}(?!})/;
+
+/* '{{' '~'? '!--' */
+HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM = 7; // {{!--.*--}}
+HandlebarsUtils.commentLongFormExpressionRegExp = /^\{\{~?!--/;
+/* '{{' '~'? '!' */
+HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM = 8; // {{!.*}}
+HandlebarsUtils.commentShortFormExpressionRegExp = /^\{\{~?!/;
+
+// @function HandlebarsUtils.lookAheadTest
+HandlebarsUtils.lookAheadTest = function(input, i) {
+    var len = input.length,
+        re;
+
     if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '>') ||
         (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '>') 
     ) {
         return HandlebarsUtils.PARTIAL_EXPRESSION;
-    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '@') ||
-        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '@') 
-    ) {
-        return HandlebarsUtils.DATA_VAR_EXPRESSION;
     } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '#') ||
         (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '#') 
     ) {
@@ -82,8 +89,12 @@ HandlebarsUtils.getExpressionType = function(input, i, len) {
         (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '/') 
     ) {
         return HandlebarsUtils.BRANCH_END_EXPRESSION;
+    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '&') ||
+        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '&') 
+    ) {
+        return HandlebarsUtils.REFERENCE_EXPRESSION;
     } else if ((input[i] === '{' && i+4<len && input[i+1] === '{' && input[i+2] === '!' && input[i+3] === '-' && input[i+4] === '-') ||
-        (input[i] === '{' && i+4<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '!' && input[i+4] === '-' && input[i+5] === '-')
+        (input[i] === '{' && i+5<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '!' && input[i+4] === '-' && input[i+5] === '-') 
     ) {
         return HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM;
     } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '!') ||
@@ -91,27 +102,20 @@ HandlebarsUtils.getExpressionType = function(input, i, len) {
     ) {
         return HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM;
     }
+
     return HandlebarsUtils.ESCAPE_EXPRESSION;
 };
 
 // @function HandlebarsUtils.isValidExpression
 HandlebarsUtils.isValidExpression = function(input, i, type) {
     var re = {};
-    re.tag = false;
-    re.result = false;
     var s = input.slice(i);
     switch(type) {
         case HandlebarsUtils.RAW_BLOCK:
             re = HandlebarsUtils.rawBlockRegExp.exec(s);
-            if (re !== null) {
-                re.tag = re[1];
-            }
             break;
         case HandlebarsUtils.RAW_END_BLOCK:
             re = HandlebarsUtils.rawEndBlockRegExp.exec(s);
-            if (re !== null) {
-                re.tag = re[1];
-            }
             break;
         case HandlebarsUtils.RAW_EXPRESSION:
             re = HandlebarsUtils.rawExpressionRegExp.exec(s);
@@ -120,28 +124,26 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
             re = HandlebarsUtils.escapeExpressionRegExp.exec(s);
             if (re !== null && re[1] !== undefined) {
                 if (HandlebarsUtils.isReservedChar(re[1], 0)) {
+                    re.tag = false;
+                    re.isSingleID = false;
                     re.result = false;
                     return re;
+                }
+                if (re[2] === '') {
+                    re.isSingleID = true;
+                } else {
+                    re.isSingleID = false;
                 }
             }
             break;
         case HandlebarsUtils.PARTIAL_EXPRESSION:
             re = HandlebarsUtils.partialExpressionRegExp.exec(s);
             break;
-        case HandlebarsUtils.DATA_VAR_EXPRESSION:
-            re = HandlebarsUtils.dataVarExpressionRegExp.exec(s);
-            break;
         case HandlebarsUtils.BRANCH_EXPRESSION:
             re = HandlebarsUtils.branchExpressionRegExp.exec(s);
-            if (re !== null) {
-                re.tag = re[1];
-            }
             break;
         case HandlebarsUtils.BRANCH_END_EXPRESSION:
             re = HandlebarsUtils.branchEndExpressionRegExp.exec(s);
-            if (re !== null) {
-                re.tag = re[1];
-            }
             break;
         case HandlebarsUtils.ELSE_EXPRESSION:
             re = HandlebarsUtils.elseExpressionRegExp.exec(s);
@@ -149,15 +151,28 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
                 re = HandlebarsUtils.elseShortFormExpressionRegExp.exec(s);
             }
             break;
+        case HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
+            re = HandlebarsUtils.commentLongFormExpressionRegExp.exec(s);
+            break;
+        case HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
+            re = HandlebarsUtils.commentShortFormExpressionRegExp.exec(s);
+            break;
+        case HandlebarsUtils.REFERENCE_EXPRESSION:
+            re = HandlebarsUtils.referenceExpressionRegExp.exec(s);
+            break;
         default:
             return re;
     }
 
     if (re !== null) {
         re.result = true;
+        if (re !== null && re[1]) {
+            re.tag = re[1];
+        }
     } else {
         re = {};
         re.tag = false;
+        re.isSingleID = false;
         re.result = false;
     }
     return re;
@@ -170,7 +185,7 @@ HandlebarsUtils.isReservedChar = function(input, i) {
         ch = input[i+1];
     }
 
-    if (ch === '#' || ch === '/' || ch === '>' || ch === '@' || ch === '^' || ch === '!') {
+    if (ch === '#' || ch === '/' || ch === '>' || ch === '^' || ch === '!' || ch === '&') {
         return true;
     } else {
         return false;

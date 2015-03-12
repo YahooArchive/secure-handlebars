@@ -19,6 +19,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
     var NO_OF_TEMPLATE = 24,
         NO_OF_FILTER_TEMPLATE = 20;
 
+    var config = {};
+    config.printCharEnable = false;
+
     describe("Handlebars PreCompiler Test Suite", function() {
 
         // basic test
@@ -37,7 +40,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             it("ContextParserHandlebars#contextualize template " + id + " test", function() {
                 var file = './tests/samples/files/handlebarsjs_template_'+id+'.hbs';
                 var data = fs.readFileSync(file, 'utf-8');
-                var parser = new ContextParserHandlebars(false);
+                var parser = new ContextParserHandlebars(config);
                 try {
                     parser.contextualize(data);
                     var output = parser.getBuffer().join('');
@@ -58,7 +61,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             it("ContextParserHandlebars#contextualize filter " + id + " test", function() {
                 var file = './tests/samples/files/handlebarsjs_filter_'+id+'.hbs';
                 var data = fs.readFileSync(file, 'utf-8');
-                var parser = new ContextParserHandlebars(false);
+                var parser = new ContextParserHandlebars(config);
                 try {
                     parser.contextualize(data);
                     var output = parser.getBuffer().join('');

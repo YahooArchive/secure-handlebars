@@ -11,238 +11,135 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     mocha = require("mocha");
     var expect = require('chai').expect,
+        utils = require('../utils.js'),
         handlebars = require('handlebars');
 
-    describe("Handlebars Parsing Test Suite", function() {
+    describe("Handlebars 3.0 Parsing Test Suite", function() {
 
-        /* we are not using handlebars to build the AST, so the following test can be skipped
-        *
-        it("handlebars {{expression}} test", function() {
-            [
-                '{{expression}}',
-                '{{expression}} }',
-            ].forEach(function(t) {
-                var ast = handlebars.parse(t);
-	        expect(ast.statements[0].type).to.equal('mustache');
-            });
-            [
-                '{ {expression}}',
-            ].forEach(function(t) {
-                var ast = handlebars.parse(t);
-	        expect(ast.statements[0].type).to.equal('content');
-            });
-        });
-
-        it("handlebars {{expression}} subexpression with \\r\\n test", function() {
-            [
-                '{{expression\rion}}',
-                '{{expression\nion}}',
-                '{{expression\r\nion}}',
-            ].forEach(function(t) {
-                var ast = handlebars.parse(t);
-	        expect(ast.statements[0].type).to.equal('mustache');
-	        expect(ast.statements[0].params[0].string).to.equal('ion');
-	        expect(ast.statements[0].isHelper).to.equal(true);
-            });
-            ].forEach(function(testObj) {
+        /* Handlebars basic {{expression}} test */
+        it("handlebars basic {{expression}} test", function() {
+            utils.expressionTestPatterns.forEach(function(testObj) {
                 var ast;
                 try {
-                    ast = handlebars.parse(testObj.expression);
+                    ast = handlebars.parse(testObj.syntax);
                     expect(ast.body).to.be.ok;
-                    expect(ast.body[0].type).to.equal(testObj.result);
+                    expect(testObj.result[0]).to.equal(ast.body[0].type);
                 } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(ast).to.equal(undefined); 
+                    expect(testObj.result[0]).to.equal(false);
                 }
             });
         });
 
-        /* we are not using handlebars to build the AST, so the following test can be skipped
-        *
-        it("handlebars {{expression}} test", function() {
-            [
-                '{{expression}}',
-                '{{expression}} }',
-            ].forEach(function(t) {
-                var ast = handlebars.parse(t);
-	        expect(ast.statements[0].type).to.equal('mustache');
-            });
-            [
-                '{ {expression}}',
-            ].forEach(function(t) {
-                var ast = handlebars.parse(t);
-	        expect(ast.statements[0].type).to.equal('content');
-            });
-        });
-
-        it("handlebars {{expression}} subexpression with \\r\\n test", function() {
-            [
-                '{{expression\rion}}',
-                '{{expression\nion}}',
-                '{{expression\r\nion}}',
-            ].forEach(function(t) {
-                var ast = handlebars.parse(t);
-	        expect(ast.statements[0].type).to.equal('mustache');
-	        expect(ast.statements[0].params[0].string).to.equal('ion');
-	        expect(ast.statements[0].isHelper).to.equal(true);
-            });
-        });
-
-        it("handlebars invalid {{expression}} test", function() {
-            [
-                '{ {anything}}', 
-                '{{anything}', '{{anything} }', '{{anything}}}',
-                '{{    {anything}}', '{{    }anything}}',
-                '{{}}'
-            ].forEach(function(e) {
-                try {
-                    var ast = handlebars.parse(e);
-                    expect(false).to.equal(true);
-                } catch (err) {
-                    expect(true).to.equal(true);
-                }
-            });
-        });
-
+        /* Handlebars {{{raw expression}}} test */
         it("handlebars {{{raw expression}}} test", function() {
-            [
-                '{{{expression}}}',
-                '{{{expression}}} }',
-            ].forEach(function(t) {
-                var ast = handlebars.parse(t);
-	        expect(ast.statements[0].type).to.equal('mustache');
-            });
-            [
-                '{ { {expression}}}',
-            ].forEach(function(t) {
-                var ast = handlebars.parse(t);
-	        expect(ast.statements[0].type).to.equal('content');
-            });
-        });
-
-        it("handlebars invalid {{{raw expression}}} test", function() {
-            [
-                '{ {{anything}}}', '{{ {anything}}}',
-                '{{{anything}', '{{{anything}}', '{{{anything}}}}',
-                '{{{    {anything}}}', '{{{    }anything}}}',
-                '{{{}}}'
-            ].forEach(function(e) {
+            utils.rawExpressionTestPatterns.forEach(function(testObj) {
+                var ast;
                 try {
-                    var ast = handlebars.parse(e);
-                    expect(false).to.equal(true);
-                } catch (err) {
-                    expect(true).to.equal(true);
-                }
-            });
-        });
-
-        it("handlebars white space control test", function() {
-            [
-                '{{#each nav ~}}\
-                    xxx\
-                {{~/each}}',
-                '{{#each nav ~}}\
-                    xxx\
-                {{~/   each}}'
-            ].forEach(function(t) {
-                var ast = handlebars.parse(t);
-                expect(ast.statements[0].program.statements[0].string).to.equal('xxx');
-            });
-            [
-                // cannot have space between ~ and }}
-                '{{#each nav ~   }}\
-                    xxx\
-                {{~/each}}',
-                // cannot have space between ~ and /
-                '{{#each nav ~}}\
-                    xxx\
-                {{~  /   each}}'
-            ].forEach(function(t) {
-                try {
-                    var ast = handlebars.parse(e);
-                    expect(false).to.equal(true);
-                } catch (err) {
-                    expect(true).to.equal(true);
+                    ast = handlebars.parse(testObj.syntax);
+                    expect(ast.body).to.be.ok;
+                    expect(testObj.result[0]).to.equal(ast.body[0].type);
+                } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(ast).to.equal(undefined); 
+                    expect(testObj.result[0]).to.equal(false);
                 }
             });
         });
 
         /* Handlebars {{{{raw block}}}} test */
         it("handlebars {{{{raw block}}}} test", function() {
-            [
-                // valid syntax
-                {
-                    syntax: '{{{{rawblockname}}}} xxx {{{{/rawblockname}}}}',
-                    result: 'BlockStatement',
-                },
-                {
-                    // it is fine to have space in the start rawblockname.
-                    syntax: '{{{{  rawblockname   }}}} xxx {{{{/rawblockname}}}}',
-                    result: 'BlockStatement',
-                },
-
-                // invalid syntax
-                // throw exception if {{{{rawblockname}}}} end with unbalanced } count.
-                { syntax: '{{{{rawblockname} xxx {{{{/rawblockname}}}}    ', result: false, },
-                { syntax: '{{{{rawblockname}} xxx {{{{/rawblockname}}}}   ', result: false, },
-                { syntax: '{{{{rawblockname}}} xxx {{{{/rawblockname}}}}  ', result: false, },
-                { syntax: '{{{{rawblockname}}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                {
-                    // throw exception if {{{{/rawblockname}}}} with space.
-                    syntax: '{{{{rawblockname}}}} xxx {{{{/    rawblockname}}}}',
-                    result: false,
-                },
-                {
-                    // throw exception if {{{{/rawblockname}}}} with space.
-                    syntax: '{{{{rawblockname}}}} xxx {{{{/rawblockname    }}}}',
-                    result: false,
-                },
-                {
-                    // throw exception if unbalanced {{{{rawblockname}}}}.
-                    syntax: '{{{{rawblockname1}}}} xxx {{{{/rawblockname2}}}}',
-                    result: false,
-                },
-                {
-                    // throw exception if another {{{{rawblock}}}} within another {{{{rawblock}}}}.
-                    syntax: '{{{{rawblockname}}}} {{{{rawblock}}}} xxx {{{{/rawblock}}}} {{{{/rawblockname}}}}',
-                    result: false,
-                },
-
-                // throw exception, {{{{rawblockname}}}} does not support special character and white space control.
-                // reference http://handlebarsjs.com/expressions.html
-                { syntax: '{{{{!rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{"rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { synatx: '{{{{#rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{%rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{&rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: "{{{{'rawblockname}}}} xxx {{{{/rawblockname}}}}", result: false, },
-                { syntax: '{{{{(rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{)rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{*rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{+rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{,rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{.rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{/rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{;rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{>rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{=rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{<rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{@rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{[rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{^rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{]rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{`rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{{rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{}rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{~rawblockname}}}} xxx {{{{/rawblockname}}}}', result: false, },
-                { syntax: '{{{{rawblockname~}}}} xxx {{{{/rawblockname}}}}', result: false, },
-
-            ].forEach(function(testObj) {
+            utils.rawBlockTestPatterns.forEach(function(testObj) {
                 var ast;
                 try {
                     ast = handlebars.parse(testObj.syntax);
                     expect(ast.body).to.be.ok;
-                    expect(ast.body[0].type).to.equal(testObj.result);
+                    expect(testObj.result[0]).to.equal(ast.body[0].type);
                 } catch (e) {
-                    expect(testObj.result).to.equal(false);
+                    // guard against AssertionError, any good method to do it?
+                    expect(ast).to.equal(undefined); 
+                    expect(testObj.result[0]).to.equal(false);
+                }
+            });
+        });
+
+        /* Handlebars {{escape expression}} test */
+        it("handlebars {{escape expression}} test", function() {
+            utils.escapeExpressionTestPatterns.forEach(function(testObj) {
+                var ast;
+                try {
+                    ast = handlebars.parse(testObj.syntax);
+                    expect(ast.body).to.be.ok;
+                    expect(testObj.result[0]).to.equal(ast.body[0].type);
+                } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(ast).to.equal(undefined); 
+                    expect(testObj.result[0]).to.equal(false);
+                }
+            });
+        });
+
+        /* Handlebars {{>partial}} test */
+        it("handlebars {{>partial}} test", function() {
+            utils.partialExpressionTestPatterns.forEach(function(testObj) {
+                var ast;
+                try {
+                    ast = handlebars.parse(testObj.syntax);
+                    expect(ast.body).to.be.ok;
+                    expect(testObj.result[0]).to.equal(ast.body[0].type);
+                } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(ast).to.equal(undefined); 
+                    expect(testObj.result[0]).to.equal(false);
+                }
+            });
+        });
+
+        /* Handlebars {{&reference}} test */
+        it("handlebars {{&reference}} test", function() {
+            utils.referenceExpressionTestPatterns.forEach(function(testObj) {
+                var ast;
+                try {
+                    ast = handlebars.parse(testObj.syntax);
+                    expect(ast.body).to.be.ok;
+                    expect(testObj.result[0]).to.equal(ast.body[0].type);
+                } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(ast).to.equal(undefined); 
+                    expect(testObj.result[0]).to.equal(false);
+                }
+            });
+        });
+
+        /* Handlebars {{[#|^]branch}} test */
+        it("handlebars {{[#|^]branch}} test", function() {
+            utils.branchExpressionTestPatterns.forEach(function(testObj) {
+                var ast;
+                try {
+                    ast = handlebars.parse(testObj.syntax);
+                    expect(ast.body).to.be.ok;
+                    expect(testObj.result[0]).to.equal(ast.body[0].type);
+                } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(ast).to.equal(undefined); 
+                    expect(testObj.result[0]).to.equal(false);
+                }
+            });
+        });
+
+        /* Handlebars {{!comment}} test */
+        it("handlebars {{!comment}} test", function() {
+            utils.commentExpressionTestPatterns.forEach(function(testObj) {
+                var ast;
+                try {
+                    ast = handlebars.parse(testObj.syntax);
+                    expect(ast.body).to.be.ok;
+                    expect(testObj.result[0]).to.equal(ast.body[0].type);
+                } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(ast).to.equal(undefined); 
+                    expect(testObj.result[0]).to.equal(false);
                 }
             });
         });

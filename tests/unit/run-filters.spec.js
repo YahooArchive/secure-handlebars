@@ -15,6 +15,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         utils = require('../utils.js'),
         ContextParserHandlebars = require("../../src/context-parser-handlebars");
 
+    var config = {};
+    config.printCharEnable = false;
+
     /* 
     * the following test make sure the correct filters/helpers are added to the hbs template
     */
@@ -409,7 +412,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         it("Filter - subexpression format test", function() {
-            var t1 = new ContextParserHandlebars(false);
+            var t1 = new ContextParserHandlebars(config);
             var data = "<html><title>{{title}}</title></html>";
             t1.contextualize(data);
             var output = t1.getBuffer().join('');

@@ -7,6 +7,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
          Albert Yu <albertyu@yahoo-inc.com>
          Adonis Fung <adon@yahoo-inc.com>
 */
+/*jshint -W030 */
 (function () {
 "use strict";
 
@@ -25,7 +26,8 @@ var filter = require('xss-filters')._privFilters;
 /** 
 * @module ContextParserHandlebars
 */
-function ContextParserHandlebars(printChar) {
+function ContextParserHandlebars(config) {
+    config || (config = {});
 
     /* super() */
     contextParser.Parser.call(this);
@@ -46,13 +48,18 @@ function ContextParserHandlebars(printChar) {
     this._knownFilters.push(filter.FILTER_NOT_HANDLE);
 
     /* the flag is used to print out the char to console */
-    this._printCharEnable = typeof printChar !== undefined? printChar : true;
+    this._printCharEnable = config.printCharEnable === undefined ? true : config.printCharEnable;
+
+    /* the flag is used to strict mode of handling un-handled state */
+    this._strictMode = config.strictMode === undefined ? false: config.strictMode;
 
     /* save the line number being processed */
     this._lineNo = 1;
     this._charNo = 1;
 
+    debug("_printChar:"+config.printCharEnable);
     debug("_printChar:"+this._printCharEnable);
+    debug("_strictMode:"+this._strictMode);
 }
 
 function ContextParserHandlebarsException(msg, lineNo, charNo) {
@@ -143,57 +150,6 @@ ContextParserHandlebars.prototype._countNewLineChar = function(ch) {
 * FILTERS LOGIC
 **********************************/
 
-// TODO: no need to check prefix filter, 
-// if the template has been processed, the expression will convert into raw expression 
-// and those will be skipped.
-//
-/* '{{' '~'? 'space'* ('not space{}~'+) 'space'* ('not {}~'*) '~'? non-greedy '}}' and not follow by '}' */
-ContextParserHandlebars.expressionRegExp = /^\{\{~?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
-
-// @function module:ContextParserHandlebars._parseExpression
-ContextParserHandlebars.prototype._parseExpression = function(input, i) {
-
-    var obj = {
-            filter: '',
-            isPrefixWithKnownFilter: false,
-            isSingleIdentifier: false
-        };
-
-    var str = input.slice(i);
-    var m = ContextParserHandlebars.expressionRegExp.exec(str);
-
-    if (m !== null) {
-        if (m[1] !== undefined && m[2] !== undefined) {
-            if (m[1] === 'else') {
-                obj.isSingleIdentifier = false;
-                obj.isPrefixWithKnownFilter = true;
-                return obj;
-            }
-            if (m[1] === '^' && m[2] === '') {
-                obj.isSingleIdentifier = false;
-                obj.isPrefixWithKnownFilter = true;
-                return obj;
-            }
-            if (handlebarsUtils.isReservedChar(m[1], 0)) {
-                obj.isSingleIdentifier = false;
-                obj.isPrefixWithKnownFilter = false;
-                return obj;
-            }
-            if (m[2] === '') {
-                obj.isSingleIdentifier = true;
-            } else {
-                obj.filter = m[1];
-                var k = this._knownFilters.indexOf(obj.filter);
-                if (k !== -1) {
-                    obj.isPrefixWithKnownFilter = true;
-                }
-            }
-        }
-    }
-    debug("_parseExpression:"+obj);
-    return obj;
-};
-
 // @function module:ContextParserHandlebars._addFilters
 ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input) {
 
@@ -219,23 +175,23 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
     // 5
     } else if (state === stateMachine.State.STATE_RAWTEXT) {
         /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-        * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
+        * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
         
         msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_RAWTEXT state.";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-        handlebarsUtils.handleError(exceptionObj);
+        handlebarsUtils.handleError(exceptionObj, this._strictMode);
         return filters;
     // 6
     } else if (state === stateMachine.State.STATE_SCRIPT_DATA) {
         /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-        * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
+        * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
         msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_SCRIPT_DATA state.";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-        handlebarsUtils.handleError(exceptionObj);
+        handlebarsUtils.handleError(exceptionObj, this._strictMode);
         return filters;
     // 34
     } else if (state === stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME) {
@@ -243,12 +199,12 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
     // 35
     } else if (state === stateMachine.State.STATE_ATTRIBUTE_NAME) {
         /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-        * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
+        * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
         msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_ATTRIBUTE_NAME state.";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-        handlebarsUtils.handleError(exceptionObj);
+        handlebarsUtils.handleError(exceptionObj, this._strictMode);
         return filters;
     // 36
     } else if (state === stateMachine.State.STATE_AFTER_ATTRIBUTE_NAME) {
@@ -269,7 +225,7 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
             filters.push(filter.FILTER_NOT_HANDLE);
             msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ attribute URI Javascript context.";
             exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj);
+            handlebarsUtils.handleError(exceptionObj, this._strictMode);
             /* this one is safe to return */
             return filters;
         }
@@ -322,12 +278,12 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
         /* we don't support css parser yet
         *
         * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-        * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
+        * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
         msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ attribute style CSS context.";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-        handlebarsUtils.handleError(exceptionObj);
+        handlebarsUtils.handleError(exceptionObj, this._strictMode);
         return filters;
     // 38, 39, 40 + Javascript spec
     } else if ((state === stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED || 
@@ -337,12 +293,12 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
         /* we don't support js parser yet
         *
         * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-        * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
+        * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
         msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ attrubute on* Javascript context.";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-        handlebarsUtils.handleError(exceptionObj);
+        handlebarsUtils.handleError(exceptionObj, this._strictMode);
         return filters;
     // 38, 39, 40 ONLY and should be placed at last.
     } else if (state === stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED || 
@@ -371,12 +327,12 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
         /* 
         * please refer to tests/unit/run-states-spec.js, '{' triggers state change to 12.2.4.34
         * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-        * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
+        * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
         */
         filters.push(filter.FILTER_NOT_HANDLE);
         msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_AFTER_ATTRIBUTE_VALUE_QUOTED state.";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-        handlebarsUtils.handleError(exceptionObj);
+        handlebarsUtils.handleError(exceptionObj, this._strictMode);
         return filters;
     // 48
     } else if (state === stateMachine.State.STATE_COMMENT) {
@@ -385,12 +341,12 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
     }
 
     /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-    * and we fall back to default Handlebars 'h' filter. IT IS UNSAFE.
+    * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
     */
     filters.push(filter.FILTER_NOT_HANDLE);
     msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ NOT HANDLE state.";
     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-    handlebarsUtils.handleError(exceptionObj);
+    handlebarsUtils.handleError(exceptionObj, this._strictMode);
     return filters;
 };
 
@@ -398,30 +354,81 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
 * HANDLING TEMPLATE LOGIC
 **********************************/
 
-// @function module:ContextParserHandlebars._handleRawExpression
-ContextParserHandlebars.prototype._handleRawExpression = function(input, i, len, state) {
+// @function module:ContextParserHandlebars._consumeExpression
+ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, printChar) {
     var msg, exceptionObj, 
+        len = input.length,
+        str = '', t = 0,
         obj = {};
     for(var j=i;j<len;++j) {
-        if (input[j] === '}' && j+2<len && input[j+1] === '}' && input[j+2] === '}') {
-                this._printChar('}}}');
-                j=j+2;
+        switch (type) {
+            case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
+                if (input[j] === '-' && j+3<len && input[j+1] === '-' && input[j+2] === '}' && input[j+3] === '}') {
+                    if (printChar) {
+                        this._printChar('--}}');
+                    } else {
+                        str += '--}}';
+                    }
+                    j=j+3;
 
-                /* update the Context Parser's state if it is raw expression,
-                   and no need to update other internal var as {{expression}} will not alter those vars. */
-                this.state = state;
+                    obj.index = j;
+                    obj.str = str;
+                    return obj;
+                } else if (input[j] === '-' && j+4<len && input[j+1] === '-' && input[j+2] === '~' && input[j+3] === '}' && input[j+4] === '}') {
+                    if (printChar) {
+                        this._printChar('--~}}');
+                    } else {
+                        str += '--~}}';
+                    }
+                    j=j+4;
 
-                /* for printCharWithState */
-                this.bytes[j+1] = input[j];
-                this.symbols[j+1] = this.lookupChar(input[j]);
-                this.states[j+1] = state;
+                    obj.index = j;
+                    obj.str = str;
+                    return obj;
+                }
+                break;
+            case handlebarsUtils.RAW_EXPRESSION:
+                if (input[j] === '}' && j+2<len && input[j+1] === '}' && input[j+2] === '}') {
+                    if (printChar) {
+                        this._printChar('}}}');
+                    } else {
+                        str += '}}}';
+                    }
+                    j=j+2;
 
-                obj.index = j;
-                return obj;
+                    obj.index = j;
+                    obj.str = str;
+                    return obj;
+                }
+                break;
+            case handlebarsUtils.ESCAPE_EXPRESSION:
+            case handlebarsUtils.PARTIAL_EXPRESSION:
+            case handlebarsUtils.BRANCH_EXPRESSION:
+            case handlebarsUtils.BRANCH_END_EXPRESSION:
+            case handlebarsUtils.ELSE_EXPRESSION:
+            case handlebarsUtils.REFERENCE_EXPRESSION:
+            case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
+                if (input[j] === '}' && j+1<len && input[j+1] === '}') {
+                    if (printChar) {
+                        this._printChar('}}');
+                    } else {
+                        str += '}}';
+                    }
+                    j=j+1;
+
+                    obj.index = j;
+                    obj.str = str;
+                    return obj;
+                }
+                break;
         }
-        this._printChar(input[j]);
+        if (printChar) {
+            this._printChar(input[j]);
+        } else {
+            str += input[j];
+        }
     }
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}}' close brace of raw expression.";
+    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter close brace of expression.";
     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
     handlebarsUtils.handleError(exceptionObj, true);
 };
@@ -433,7 +440,7 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
         obj = {};
 
     /* parse expression */
-    var extraExpressionInfo = this._parseExpression(input, i),
+    var re = handlebarsUtils.isValidExpression(input, i, handlebarsUtils.ESCAPE_EXPRESSION),
         filters = [];
 
     /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}} */
@@ -443,7 +450,7 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
     var stateObj = this.getInternalState();
     filters = this._addFilters(state, stateObj, input);
     for(var k=filters.length-1;k>=0;--k) {
-        if (extraExpressionInfo.isSingleIdentifier && k === 0) {
+        if (re.isSingleID && k === 0) {
             str += filters[k] + " ";
         } else {
             str += filters[k] + " (";
@@ -454,7 +461,7 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
     for(var j=i+2;j<len;++j) {
         if (input[j] === '}' && j+1<len && input[j+1] === '}') {
             for(var l=filters.length-1;l>=0;--l) {
-                if (extraExpressionInfo.isSingleIdentifier && l === 0) {
+                if (re.isSingleID && l === 0) {
                 } else {
                     this._printChar(')');
                 }
@@ -486,86 +493,15 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
     handlebarsUtils.handleError(exceptionObj, true);
 };
 
-// @function module:ContextParserHandlebars._handleCommentExpression
-ContextParserHandlebars.prototype._handleCommentExpression = function(input, i, len, type, printChar) {
-    var msg, exceptionObj, 
-        str = '',
-        obj = {};
-    for(var j=i;j<len;++j) {
-        if (type === handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM) {
-            if (input[j] === '-' && j+3<len && input[j+1] === '-' && input[j+2] === '}' && input[j+3] === '}') {
-                if (printChar) {
-                    this._printChar('--}}');
-                } else {
-                    str += '--}}';
-                }
-                j=j+3;
-
-                obj.index = j;
-                obj.str = str;
-                return obj;
-            }
-        } else if (type === handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM) {
-            if (input[j] === '}' && j+1<len && input[j+1] === '}') {
-                if (printChar) {
-                    this._printChar('}}');
-                } else {
-                    str += '}}';
-                }
-                j=j+1;
-
-                obj.index = j;
-                obj.str = str;
-                return obj;
-            }
-        }
-        if (printChar) {
-            this._printChar(input[j]);
-        } else {
-            str += input[j];
-        }
-    }
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' or '--}}' close brace of comment expression.";
-    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-    handlebarsUtils.handleError(exceptionObj, true);
-};
-
-// @function module:ContextParserHandlebars._handleExpression
-ContextParserHandlebars.prototype._handleExpression = function(input, i, len, printChar) {
-    var msg, exceptionObj, 
-        str = '',
-        obj = {};
-    for(var j=i;j<len;++j) {
-        if (input[j] === '}' && j+1<len && input[j+1] === '}') {
-            if (printChar) {
-                this._printChar('}}');
-            } else {
-                str += '}}';
-            }
-            j=j+1;
-
-            obj.index = j;
-            obj.str = str;
-            return obj;
-        }
-        if (printChar) {
-            this._printChar(input[j]);
-        } else {
-            str += input[j];
-        }
-    }
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of expression.";
-    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-    handlebarsUtils.handleError(exceptionObj, true);
-};
-
 // @function module:ContextParserHandlebars._handleRawBlock
-ContextParserHandlebars.prototype._handleRawBlock = function(input, i, tag) {
+ContextParserHandlebars.prototype._handleRawBlock = function(input, i) {
     var msg, exceptionObj, 
         obj = {};
     var isStartExpression = true,
         len = input.length,
-        re;
+        re = handlebarsUtils.isValidExpression(input, i, handlebarsUtils.RAW_BLOCK),
+        tag = re.tag;
+
     for(var j=i;j<len;++j) {
         if (isStartExpression && input[j] === '}' && j+3<len && input[j+1] === '}' && input[j+2] === '}' && input[j+3] === '}') {
             this._printChar('}}}}');
@@ -694,8 +630,11 @@ ContextParserHandlebars.prototype._analyzeContext = function(stateObj, obj) {
 
     /* factory class */
     var parser,
-        ContextParserHandlebars = require('./context-parser-handlebars');
-    parser = new ContextParserHandlebars(false);
+        ContextParserHandlebars = require('./context-parser-handlebars'),
+        config = {};
+
+    config.printCharEnable = false;
+    parser = new ContextParserHandlebars(config);
 
     /* set the internal state */
     parser.setInternalState(stateObj);
@@ -859,7 +798,7 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
 
                 /* consume the start branch expression */
                 startPos = j;
-                obj = this._handleExpression(input, j, len, false);
+                obj = this._consumeExpression(input, j, handlebarsUtils.BRANCH_EXPRESSION, false);
                 endPos = j = obj.index;
                 debugBranch("_buildBranchAst,branch,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
@@ -923,7 +862,7 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
 
             /* consume the else expression */
             startPos = j;
-            obj = this._handleExpression(input, j, len, false);
+            obj = this._consumeExpression(input, j, handlebarsUtils.ELSE_EXPRESSION, false);
             endPos = j = obj.index;
             debugBranch("_buildBranchAst,else,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
@@ -953,7 +892,7 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
 
                 /* consume the expression */
                 startPos = j;
-                obj = this._handleExpression(input, j, len, false);
+                obj = this._consumeExpression(input, j, handlebarsUtils.BRANCH_END_EXPRESSION, false);
                 endPos = j = obj.index;
                 debugBranch("_buildBranchAst,branchend,startPos:"+startPos+",endPos:"+endPos+",lineNo:"+lineNo+",j:"+j);
 
@@ -974,12 +913,12 @@ ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
                 handlebarsUtils.handleError(exceptionObj, true);
             }
         } else {
-            var expressionType = handlebarsUtils.getExpressionType(input, j, len);
+            var expressionType = handlebarsUtils.lookAheadTest(input, j);
             if (expressionType === handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM ||
                 expressionType === handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM) {
                 /* consume the comment expression */
                 startPos = j;
-                obj = this._handleCommentExpression(input, j, len, expressionType, false);
+                obj = this._consumeExpression(input, j, expressionType, false);
                 endPos = j = obj.index;
 
                 content += obj.str;
@@ -1049,7 +988,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
 
         /* _handleRawBlock */
         debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
-        obj = this._handleRawBlock(input, i, re.tag);
+        obj = this._handleRawBlock(input, i);
         /* advance the index pointer by 1 to the char after the last brace of expression. */
         return obj.index+1;
     } else if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
@@ -1061,19 +1000,16 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
             handlebarsUtils.handleError(exceptionObj, true);
         }
 
-        /* for printCharWithState */
-        this.bytes[i+1] = input[i];
-        this.symbols[i+1] = this.lookupChar(input[i]);
-        this.states[i+1] = state;
-
         /* _handleRawExpression */
         debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
-        obj = this._handleRawExpression(input, i, len, state);
+        obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
+        /* update the Context Parser's state if it is raw expression. */
+        this.state = state;
         /* advance the index pointer by 1 to the char after the last brace of expression. */
         return obj.index+1;
     } else if (input[i] === '{' && i+1<len && input[i+1] === '{') {
         // this type may not be 100% correct (the case is BRANCH_EXPRESSION), so it need the isValidExpression call below.
-        handlebarsExpressionType = handlebarsUtils.getExpressionType(input, i, len);
+        handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, i);
         switch (handlebarsExpressionType) {
             case handlebarsUtils.ESCAPE_EXPRESSION:
                 re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
@@ -1101,22 +1037,22 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
                     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
                     handlebarsUtils.handleError(exceptionObj, true);
                 }
-                /* _handleExpression */
+                /* _consumeExpression */
                 debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
-                obj = this._handleExpression(input, i, len, true);
+                obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
 
-            case handlebarsUtils.DATA_VAR_EXPRESSION:
+            case handlebarsUtils.REFERENCE_EXPRESSION:
                 re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
                 if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid data var expression.";
+                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid reference expression.";
                     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
                     handlebarsUtils.handleError(exceptionObj, true);
                 }
-                /* _handleExpression */
+                /* _consumeExpression */
                 debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
-                obj = this._handleExpression(input, i, len, true);
+                obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
 
@@ -1141,17 +1077,17 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
 
             case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
                 // no need to validate the comment expression as the content inside are skipped.
-                /* _handleCommentExpression */
+                /* _consumeExpression */
                 debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
-                obj = this._handleCommentExpression(input, i, len, handlebarsExpressionType, true);
+                obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
 
             case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
                 // no need to validate the comment expression as the content inside are skipped.
-                /* _handleCommentExpression */
+                /* _consumeExpression */
                 debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
-                obj = this._handleCommentExpression(input, i, len, handlebarsExpressionType, true);
+                obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
 

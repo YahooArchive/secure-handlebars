@@ -31,7 +31,9 @@ This utility parse the handlebars template file and add the customized filters
         if (fs.existsSync(file)) {
             try {
                 var data = fs.readFileSync(file, 'utf-8');
-                var parser = new ContextParserHandlebars(printChar);
+                var config = {};
+                config.printCharEnable = printChar;
+                var parser = new ContextParserHandlebars(config);
                 parser.contextualize(data);
                 parser.printCharWithState();
             } catch (err) {
