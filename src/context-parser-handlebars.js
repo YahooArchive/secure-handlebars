@@ -57,7 +57,6 @@ function ContextParserHandlebars(config) {
     this._lineNo = 1;
     this._charNo = 1;
 
-    debug("_printChar:"+config.printCharEnable);
     debug("_printChar:"+this._printCharEnable);
     debug("_strictMode:"+this._strictMode);
 }
