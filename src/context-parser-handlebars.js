@@ -554,7 +554,7 @@ ContextParserHandlebars.prototype.setInternalState = function(stateObj) {
 ContextParserHandlebars.prototype._deepCompareState = function(stateObj1, stateObj2) {
     var r = true;
     [ 'state',
-      'tagNameIdx',
+      // 'tagNameIdx',
       // attributeName/Value does not affect the state transition
       // 'attributeName', 'attributeValue' 
     ].forEach(function(key) {
