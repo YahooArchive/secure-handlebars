@@ -18,6 +18,11 @@ This utility benchmarks the throughput of handlebars context parser.
         noOfArgs = 0,
         path = '';
 
+    var start = new Date().getTime(),
+        end, time,
+        noOfFile = 0;
+        dataSize = 0;
+
     process.argv.forEach(function (val, index) {
         ++noOfArgs;
         if (index === 2) {
@@ -25,31 +30,42 @@ This utility benchmarks the throughput of handlebars context parser.
         }
     });
 
+    var parseDir = function(path) {
+        files = fs.readdirSync(path);
+        files.forEach(function(file) {
+            var stat = fs.statSync(path+"/"+file);
+            console.log("processing ... "+path+"/"+file);
+            if (stat.isFile()) {
+                parseFile(path+"/"+file);
+            } else if (stat.isDirectory()) {
+                parseDir(path+"/"+file);
+            }
+        });
+    };
+
+    var parseFile = function(file) {
+        try {
+            ++noOfFile;
+            var data = fs.readFileSync(file, 'utf-8');
+            dataSize += data.length;
+            var config = {};
+            config.printCharEnable = false;
+            var parser = new ContextParserHandlebars(config);
+            parser.contextualize(data);
+        } catch (err) {
+            console.log(err);
+        }
+    };
+
     if (noOfArgs >= 3) {
         if (fs.existsSync(path)) {
-            var start = new Date().getTime(),
-                end, time,
-                files = fs.readdirSync(path),
-                dataSize = 0;
-
-            files.forEach(function(file) {
-                try {
-                    console.log("processing ... " + path + "/" + file);
-                    var data = fs.readFileSync(path + "/" + file, 'utf-8');
-                    dataSize += data.length;
-                    var config = {};
-                    config.printCharEnable = false;
-                    var parser = new ContextParserHandlebars(config);
-                    parser.contextualize(data);
-                } catch (err) {
-                    console.log(err);
-                }
-            });
+            parseDir(path);
             end = new Date().getTime();
             time = end - start;
 
             console.log("=================================");
             console.log('[INFO] Data Size: ' + dataSize + ' bytes');
+            console.log('[INFO] No of Files: ' + noOfFile);
             console.log('[INFO] Execution time: ' + time + ' milliseconds');
             console.log('[INFO] Bandwidth: ' + (dataSize/(1024*1024))/(time/1000) + ' Mb/sec');
             process.exit(0);

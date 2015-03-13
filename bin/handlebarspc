@@ -9,7 +9,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
          Adonis Fung <adon@yahoo-inc.com>
 */
 /**
-This utility parse the handlebars template file and add the customized filters
+This utility parses the handlebars template file and add the customized filters
 */
 (function() {
 
