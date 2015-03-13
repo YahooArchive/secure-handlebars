@@ -1,15 +1,54 @@
 #!/usr/bin/env node
-/*
+/* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
 See the accompanying LICENSE file for terms.
+
+Authors: Nera Liu <neraliu@yahoo-inc.com>
+         Albert Yu <albertyu@yahoo-inc.com>
+         Adonis Fung <adon@yahoo-inc.com>
 */
-var path = require('path'),
-    fs = require('fs'),
-    lib = path.join(path.dirname(fs.realpathSync(__filename)), '../src');
-if (fs.existsSync(lib + '/handlebarspc.js')) {
-    require(lib + '/handlebarspc.js');
-} else {
-    console.log(lib + '/handlebarspc.js not found!');
-    process.exit(1);
-}
+/**
+This utility parses the handlebars template file and add the customized filters
+*/
+(function() {
+
+    var fs = require('fs'),
+        ContextParserHandlebars = require("../src/context-parser-handlebars.js"),
+        noOfArgs = 0,
+        file = '',
+        printChar = true;
+
+    process.argv.forEach(function (val, index) {
+        ++noOfArgs;
+        if (index === 2) {
+            file = val;
+        } else if (index === 3) {
+            printChar = val;
+        }
+    });
+
+    if (noOfArgs >= 3 && noOfArgs <= 4) {
+        if (fs.existsSync(file)) {
+            try {
+                var data = fs.readFileSync(file, 'utf-8');
+                var config = {};
+                config.printCharEnable = printChar;
+                var parser = new ContextParserHandlebars(config);
+                parser.contextualize(data);
+                parser.printCharWithState();
+            } catch (err) {
+                console.log(err);
+                throw err;
+            }
+            process.exit(0);
+        } else {
+            console.log("[ERROR] "+file+" not exist");
+            process.exit(1);
+        }
+    } else {
+        console.log("Usage: handlebarspc <Handlebars template file> <printChar? true|false>");
+        process.exit(1);
+    }
+
+}).call(this);

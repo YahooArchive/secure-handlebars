@@ -23,6 +23,17 @@ var contextParser = require('context-parser'),
 
 var filter = require('xss-filters')._privFilters;
 
+filter.FILTER_NOT_HANDLE = "y";
+filter.FILTER_DATA = "yd";
+filter.FILTER_COMMENT = "yc";
+filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED = "yavd";
+filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED = "yavs";
+filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED = "yavu";
+filter.FILTER_ENCODE_URI = "yu";
+filter.FILTER_ENCODE_URI_COMPONENT = "yuc";
+filter.FILTER_URI_SCHEME_BLACKLIST = "yubl";
+filter.FILTER_FULL_URI = "yufull";
+
 /** 
 * @module ContextParserHandlebars
 */
@@ -34,18 +45,6 @@ function ContextParserHandlebars(config) {
 
     /* save the processed char */
     this._buffer = [];
-
-    this._knownFilters = [];
-    this._knownFilters.push(filter.FILTER_DATA);
-    this._knownFilters.push(filter.FILTER_COMMENT);
-    this._knownFilters.push(filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED);
-    this._knownFilters.push(filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED);
-    this._knownFilters.push(filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED);
-    this._knownFilters.push(filter.FILTER_ENCODE_URI);
-    this._knownFilters.push(filter.FILTER_ENCODE_URI_COMPONENT);
-    this._knownFilters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
-    this._knownFilters.push(filter.FILTER_FULL_URI);
-    this._knownFilters.push(filter.FILTER_NOT_HANDLE);
 
     /* the flag is used to print out the char to console */
     this._printCharEnable = config.printCharEnable === undefined ? true : config.printCharEnable;
@@ -81,18 +80,6 @@ ContextParserHandlebars.prototype._printChar = function(ch) {
         process.stdout.write(ch);
     }
     this._buffer.push(ch);
-};
-
-/**
-* @function module:ContextParserHandlebars.getBuffer
-*
-* @description
-* <p>Get the internal _buffer of processed chars.</p>
-*
-*/
-// TODO: remove this
-ContextParserHandlebars.prototype.getBuffer = function() {
-    return this._buffer;
 };
 
 /**
@@ -363,22 +350,14 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
         switch (type) {
             case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
                 if (input[j] === '-' && j+3<len && input[j+1] === '-' && input[j+2] === '}' && input[j+3] === '}') {
-                    if (printChar) {
-                        this._printChar('--}}');
-                    } else {
-                        str += '--}}';
-                    }
+                    printChar === true ? this._printChar('--}}') : str += '--}}';
                     j=j+3;
 
                     obj.index = j;
                     obj.str = str;
                     return obj;
                 } else if (input[j] === '-' && j+4<len && input[j+1] === '-' && input[j+2] === '~' && input[j+3] === '}' && input[j+4] === '}') {
-                    if (printChar) {
-                        this._printChar('--~}}');
-                    } else {
-                        str += '--~}}';
-                    }
+                    printChar === true ? this._printChar('--~}}') : str += '--~}}';
                     j=j+4;
 
                     obj.index = j;
@@ -388,11 +367,7 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
                 break;
             case handlebarsUtils.RAW_EXPRESSION:
                 if (input[j] === '}' && j+2<len && input[j+1] === '}' && input[j+2] === '}') {
-                    if (printChar) {
-                        this._printChar('}}}');
-                    } else {
-                        str += '}}}';
-                    }
+                    printChar === true ? this._printChar('}}}') : str += '}}}';
                     j=j+2;
 
                     obj.index = j;
@@ -408,11 +383,7 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
             case handlebarsUtils.REFERENCE_EXPRESSION:
             case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
                 if (input[j] === '}' && j+1<len && input[j+1] === '}') {
-                    if (printChar) {
-                        this._printChar('}}');
-                    } else {
-                        str += '}}';
-                    }
+                    printChar === true ? this._printChar('}}') : str += '}}';
                     j=j+1;
 
                     obj.index = j;
@@ -421,11 +392,7 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
                 }
                 break;
         }
-        if (printChar) {
-            this._printChar(input[j]);
-        } else {
-            str += input[j];
-        }
+        printChar === true ? this._printChar(input[j]) : str += input[j];
     }
     msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter close brace of expression.";
     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
@@ -471,15 +438,6 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
 
             /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}}, no need to increase j by 1. */
             this._printChar('}');
-
-            /* update the Context Parser's state if it is not reserved tag, 
-               and no need to update other internal var as {{expression}} will not alter those vars. */
-            this.state = state;
-
-            /* for printCharWithState */
-            this.bytes[j+1] = input[j];
-            this.symbols[j+1] = this.lookupChar(input[j]);
-            this.states[j+1] = state;
 
             obj.index = j;
             return obj;
@@ -974,6 +932,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
     /* Handlebars expression type */
     var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
 
+    // we don't care about the expression with more than 4 braces, handlebars will handle it.
     /* handling different type of expression */
     if ((input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{')
     ) {
@@ -990,6 +949,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
         obj = this._handleRawBlock(input, i);
         /* advance the index pointer by 1 to the char after the last brace of expression. */
         return obj.index+1;
+
     } else if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
         handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
         re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
@@ -1006,8 +966,9 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
         this.state = state;
         /* advance the index pointer by 1 to the char after the last brace of expression. */
         return obj.index+1;
+
     } else if (input[i] === '{' && i+1<len && input[i+1] === '{') {
-        // this type may not be 100% correct (the case is BRANCH_EXPRESSION), so it need the isValidExpression call below.
+        // this is just for lookAhead, does not guarantee the valid expression.
         handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, i);
         switch (handlebarsExpressionType) {
             case handlebarsUtils.ESCAPE_EXPRESSION:
@@ -1017,15 +978,11 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
                     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
                     handlebarsUtils.handleError(exceptionObj, true);
                 }
-
-                /* for printCharWithState */
-                this.bytes[i+1] = input[i];
-                this.symbols[i+1] = this.lookupChar(input[i]);
-                this.states[i+1] = state;
-
                 /* _handleEscapeExpression */
                 debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
                 obj = this._handleEscapeExpression(input, i, len, state);
+                /* update the Context Parser's state if it is raw expression. */
+                this.state = state;
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
 

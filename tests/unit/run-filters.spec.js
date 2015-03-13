@@ -415,7 +415,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var t1 = new ContextParserHandlebars(config);
             var data = "<html><title>{{title}}</title></html>";
             t1.contextualize(data);
-            var output = t1.getBuffer().join('');
+            var output = t1.getOutput();
             var arr = [
                 /{{{yd title}}}/
             ];
@@ -424,7 +424,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var t2 = new ContextParserHandlebars(false);
             var data = "<a href='{{url}}'>link</a>";
             t2.contextualize(data);
-            var output = t2.getBuffer().join('');
+            var output = t2.getOutput();
             var arr = [
                 /{{{yubl \(yavs \(yufull url\)\)}}}/
             ];

@@ -1,0 +1,81 @@
+#!/usr/bin/env node
+/* 
+Copyright (c) 2015, Yahoo Inc. All rights reserved.
+Copyrights licensed under the New BSD License.
+See the accompanying LICENSE file for terms.
+
+Authors: Nera Liu <neraliu@yahoo-inc.com>
+         Albert Yu <albertyu@yahoo-inc.com>
+         Adonis Fung <adon@yahoo-inc.com>
+*/
+/**
+This utility benchmarks the throughput of handlebars context parser.
+*/
+(function() {
+
+    var fs = require('fs'),
+        ContextParserHandlebars = require("../src/context-parser-handlebars.js"),
+        noOfArgs = 0,
+        path = '';
+
+    var start = new Date().getTime(),
+        end, time,
+        noOfFile = 0;
+        dataSize = 0;
+
+    process.argv.forEach(function (val, index) {
+        ++noOfArgs;
+        if (index === 2) {
+            path = val;
+        }
+    });
+
+    var parseDir = function(path) {
+        files = fs.readdirSync(path);
+        files.forEach(function(file) {
+            var stat = fs.statSync(path+"/"+file);
+            console.log("processing ... "+path+"/"+file);
+            if (stat.isFile()) {
+                parseFile(path+"/"+file);
+            } else if (stat.isDirectory()) {
+                parseDir(path+"/"+file);
+            }
+        });
+    };
+
+    var parseFile = function(file) {
+        try {
+            ++noOfFile;
+            var data = fs.readFileSync(file, 'utf-8');
+            dataSize += data.length;
+            var config = {};
+            config.printCharEnable = false;
+            var parser = new ContextParserHandlebars(config);
+            parser.contextualize(data);
+        } catch (err) {
+            console.log(err);
+        }
+    };
+
+    if (noOfArgs >= 3) {
+        if (fs.existsSync(path)) {
+            parseDir(path);
+            end = new Date().getTime();
+            time = end - start;
+
+            console.log("=================================");
+            console.log('[INFO] Data Size: ' + dataSize + ' bytes');
+            console.log('[INFO] No of Files: ' + noOfFile);
+            console.log('[INFO] Execution time: ' + time + ' milliseconds');
+            console.log('[INFO] Bandwidth: ' + (dataSize/(1024*1024))/(time/1000) + ' Mb/sec');
+            process.exit(0);
+        } else {
+            console.log("[ERROR] "+path+" not exist");
+            process.exit(1);
+        }
+    } else {
+        console.log("Usage: benchmark <path>");
+        process.exit(1);
+    }
+
+}).call(this);
