@@ -15,323 +15,40 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         handlebarsUtils = require("../../src/handlebars-utils.js"),
         ContextParserHandlebars = require("../../src/context-parser-handlebars.js");
 
+    var config = {};
+    config.printCharEnable = false;
+
     describe("context-parser-handlebars test suite", function() {
 
         it("context-parser-handlebars#_countNewLineChar test", function() {
-        });
-
-        it("context-parser-handlebars#_parseExpression invalid format test", function() {
+            // no need to test it directly
         });
 
         it("context-parser-handlebars#_addFilters invalid format test", function() {
-        });
-
-        it("context-parser-handlebars#_parseExpression {{else}} test", function() {
-            var parser = new ContextParserHandlebars();
-            [
-                // test for {{else}}
-                {str:'{{else}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                // test for {{else}} with space after else 
-                {str:'{{else   }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                // test for {{else}} with space before/after else
-                {str:'{{    else   }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                // invalid format
-                {str:'{else}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-
-                // with ~
-                {str:'{{~else}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{~else~}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{~  else}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{~  else  ~}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-
-                {str:'{{^}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{^    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{    ^    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-
-                // with ~
-                {str:'{{~^}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{~^~}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{~    ^}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{~    ^    ~}}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-            ].forEach(function(obj) {
-                var r = parser._parseExpression(obj.str, 0);
-                utils.testExpression(r, obj); 
-            });
-        });
-
-        it("context-parser-handlebars#_parseExpression basic test", function() {
-            var parser = new ContextParserHandlebars();
-            [
-                // test for single identifier with the same name as known filter {{y}}
-                {str:'{{y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{y    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{    y    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-
-                // with ~
-                {str:'{{~y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{~y    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{~    y    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{~y~}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{~y    ~}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{~    y    ~}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-
-                // test for single identifier with the same name as known default filter {{h}}
-                {str:'{{h}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                // test for single identifier with dot notation
-                {str:'{{people.name}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                // test for single identifier with ../
-                {str:'{{../name}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                // test for single identifier with /
-                {str:'{{article/name}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                // test for single identifier with []
-                {str:'{{article[0]}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                // test for single identifier with []
-                {str:'{{article.[0].[#comments]}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                // test for expression with \r and \n as separator
-                {str:'{{y\rparam}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{y\nparam}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{y\r\nparam}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-            ].forEach(function(obj) {
-                var r = parser._parseExpression(obj.str, 0);
-                utils.testExpression(r, obj); 
-            });
-        });
-
-        it("context-parser-handlebars#_parseExpression test", function() {
-            var parser = new ContextParserHandlebars();
-            [
-                // test for expression with the same name as known filter {{y}}
-                {str:'{{y output}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{y    output}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{     y    output}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                // test for expression with the same name as default filter {h}}
-                {str:'{{h output}}', isPrefixWithKnownFilter:false, filter:'h', isSingleIdentifier:false},
-                {str:'{{h    output}}', isPrefixWithKnownFilter:false, filter:'h', isSingleIdentifier:false},
-                {str:'{{    h    output}}', isPrefixWithKnownFilter:false, filter:'h', isSingleIdentifier:false},
-
-                // with ~
-                {str:'{{~y output}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{~y    output}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{~     y    output}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{~h output}}', isPrefixWithKnownFilter:false, filter:'h', isSingleIdentifier:false},
-                {str:'{{~h    output}}', isPrefixWithKnownFilter:false, filter:'h', isSingleIdentifier:false},
-                {str:'{{~    h    output}}', isPrefixWithKnownFilter:false, filter:'h', isSingleIdentifier:false},
-
-                // test for expression with dot notation filter
-                {str:'{{people.name output}}', isPrefixWithKnownFilter:false, filter:'people.name', isSingleIdentifier:false},
-                // test for expression with ../ filter
-                {str:'{{../name output}}', isPrefixWithKnownFilter:false, filter:'../name', isSingleIdentifier:false},
-
-                // test for expression with the same name as known filter {{y}} and parameter in dot notation
-                {str:'{{y people.name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-		{str:'{{y    people.name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{     y    people.name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-
-                // test for expression with the same name as known filter {{y}} and parameter with ../
-                {str:'{{y ../output}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-		{str:'{{y    ../output}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{     y    ../output}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-            ].forEach(function(obj) {
-                var r = parser._parseExpression(obj.str, 0);
-                utils.testExpression(r, obj); 
-            });
-        });
-
-        it("context-parser-handlebars#_parseExpression 2 arguments test", function() {
-            var parser = new ContextParserHandlebars();
-            [
-                // test for expression with the same name as known filter {{y}}
-                {str:'{{y xxx zzz}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{y   xxx   zzz}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{   y    xxx    zzz}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-
-                // with ~
-                {str:'{{~y xxx zzz}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{~y   xxx   zzz}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{~   y    xxx    zzz}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-
-                // test for expression with the same name as unknown filter
-                {str:'{{unknown xxx zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
-                {str:'{{unknown xxx   zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
-                {str:'{{   unknown    xxx    zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
-
-                // with ~
-                {str:'{{~unknown xxx zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
-                {str:'{{~unknown xxx   zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
-                {str:'{{~   unknown    xxx    zzz}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false}
-            ].forEach(function(obj) {
-                var r = parser._parseExpression(obj.str, 0);
-                utils.testExpression(r, obj); 
-            });
-        });
-
-        it("context-parser-handlebars#_parseExpression 2 arguments (reference format) test", function() {
-            var parser = new ContextParserHandlebars();
-            [
-                // test for expression with the same name as known filter {{y}} with different parameter format
-                {str:'{{y people.name ../name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{y article[0] article/name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{y article.[0].[#comments] article/name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-
-                // with ~
-                {str:'{{~y people.name ../name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{~y article[0] article/name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{~y article.[0].[#comments] article/name}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-
-                // test for expression with the same name as known filter {{unknown}} with different parameter format
-                {str:'{{unknown people.name ../name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
-                {str:'{{unknown article[0] article/name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
-                {str:'{{unknown article.[0].[#comments] article/name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
-
-                {str:'{{~unknown people.name ../name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
-                {str:'{{~unknown article[0] article/name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false},
-                {str:'{{~unknown article.[0].[#comments] article/name}}', isPrefixWithKnownFilter:false, filter:'unknown', isSingleIdentifier:false}
-            ].forEach(function(obj) {
-                var r = parser._parseExpression(obj.str, 0);
-                utils.testExpression(r, obj); 
-            });
-        });
-
-        it("context-parser-handlebars#_parseExpression reserved tag test", function() {
-            var parser = new ContextParserHandlebars();
-            [
-                // test for reserved expression {{#.*}}
-                {str:'{{#y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{{#   y   xxx}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                // with ~
-                {str:'{{~#y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{{~#   y   xxx}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                // test for reserved expression {{/.*}}
-                {str:'{{/y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{{/   y    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                // with ~
-                {str:'{{~/y}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{{~/   y    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                // test for reserved expression {{>.*}}
-                {str:'{{>partial}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{{>   partial    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                // with ~
-                {str:'{{~>partial}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{{~>   partial    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                // test for reserved expression {{^.*}}
-                {str:'{{^negation}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{{^   negation   }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                // with ~
-                {str:'{{~^negation}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{{~^   negation   }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                // test for reserved expression {{!.*}}
-                {str:'{{!comment}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{{!   comment    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                // with ~
-                {str:'{{~!comment}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{{~!   comment    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                // test for reserved expression {{@.*}}
-                {str:'{{@var}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{{@   var   }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                // with ~
-                {str:'{{~@var}}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false},
-                {str:'{{~@   var   }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:false}
-            ].forEach(function(obj) {
-                var r = parser._parseExpression(obj.str, 0);
-                utils.testExpression(r, obj); 
-            });
-        });
-
-        it("context-parser-handlebars#_parseExpression subexpression test", function() {
-            var parser = new ContextParserHandlebars();
-            [
-                // not a valid handlebars syntax, no need to test
-                // {str:'{{y(output)}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                // subexpression with one chain
-                {str:'{{y (output)}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{y    (   output   )    }}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                // subexpression with two chain
-                {str:'{{y (helper xxx)}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{y    (   helper    xxx   )   }}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{y (helper "xxx")}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{y    (   helper    "xxx"   )   }}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                // subexpression with three chain
-                {str:'{{y helper2 (helper1 xxx)}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{y    helper2    (   helper1    xxx   )}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                {str:'{{y    helper2    (   helper1    "xxx"   )}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-                //
-                {str:'{{y     (    outer-helper (inner-helper "abc") "def")}}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false}
-            ].forEach(function(obj) {
-                var r = parser._parseExpression(obj.str, 0);
-                utils.testExpression(r, obj); 
-            });
-        });
-
-        it("context-parser-handlebars#_parseExpression greedy match test", function() {
-            var parser = new ContextParserHandlebars();
-            [
-                // immediate after an expression
-                {str:'{{else}}{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{y}}{{h    zzz    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{y param}}{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-
-                // with ~
-                {str:'{{~else}}{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{~else~}}{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{~y}}{{h    zzz    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{~y~}}{{h    zzz    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{~y param}}{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-
-                // not immediate after an expression
-                {str:'{{else}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{y}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{y param}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false},
-
-                // with ~
-                {str:'{{~else}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{~else~}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'', isSingleIdentifier:false},
-                {str:'{{~y}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{~y~}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:false, filter:'', isSingleIdentifier:true},
-                {str:'{{~y param}}xxxx{{h    zzz    }}', isPrefixWithKnownFilter:true, filter:'y', isSingleIdentifier:false}
-            ].forEach(function(obj) {
-                var r = parser._parseExpression(obj.str, 0);
-                utils.testExpression(r, obj); 
-            });
-        });
-
-        it("context-parser-handlebars#_handleRawExpression test", function() {
+            // no need to test it directly
         });
 
         it("context-parser-handlebars#_handleEscapeExpression test", function() {
+            // no need to test it directly
         });
 
-        it("context-parser-handlebars#_handleCommentExpression test", function() {
-            var parser = new ContextParserHandlebars();
-            [
-                {str: '{{! comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:13},
-                {str: '{{! comment }} }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:13},
-                {str: '{{!-- comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:17},
-                {str: '{{!-- comment --}}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:17},
-                {str: '{{!-- comment }}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:21},
-
-                {str: '{{~! comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:14},
-                {str: '{{~! comment }} }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:14},
-                {str: '{{~!-- comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:18},
-                {str: '{{~!-- comment --}}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:18},
-                {str: '{{~!-- comment }}  --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:22},
-
-                // these cases are guarded against by isCommentExpression
-                {str: '{{!-- comment }}', type:handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, result:15},
-                {str: '{{! comment --}}', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, result:15}
-            ].forEach(function(obj) {
-                var r = parser._handleCommentExpression(obj.str, 0, obj.str.length, obj.type, false);
-                expect(r.index).to.equal(obj.result);
+        /* handleBranchExpression test */
+        it("context-parser-handlebars#_handleBranchExpression test", function() {
+            utils.branchExpressionTestPatterns.forEach(function(testObj) {
+                try {
+                    var parser = new ContextParserHandlebars(config);
+                    var r = parser._handleBranchExpression(testObj.syntax, 0, 1);
+                    expect(testObj.result[2]).to.equal(r.index);
+                } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(r).to.equal(undefined);
+                    expect(testObj.result[2]).to.equal(false);
+                }
             });
         });
 
-        it("context-parser-handlebars#_handleExpression test", function() {
-        });
-
-        it("context-parser-handlebars#_handleBranchExpression test", function() {
-        });
-
-        it("context-parser-handlebars - basic branch AST test", function() {
-            var parser = new ContextParserHandlebars();
+        it("context-parser-handlebars#basic branch AST test", function() {
+            var parser = new ContextParserHandlebars(config);
             var s = "{{#if xxx}} a b {{/if}}xxxxxxx";
             var ast = parser._buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
@@ -348,8 +65,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(r.output).to.equal('{{#if xxx}} a b {{/if}}');
         });
 
-        it("context-parser-handlebars - basic branch with {{expression}} AST test", function() {
-            var parser = new ContextParserHandlebars();
+        it("context-parser-handlebars#basic branch with {{expression}} AST test", function() {
+            var parser = new ContextParserHandlebars(config);
             var s = "{{#if xxx}} a b {{expression}} {{/if}}xxxxxxx";
             var ast = parser._buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
@@ -366,8 +83,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(r.output).to.equal('{{#if xxx}} a b {{{yd expression}}} {{/if}}');
         });
 
-        it("context-parser-handlebars - basic branch with {{!comment}} AST test", function() {
-            var parser = new ContextParserHandlebars();
+        it("context-parser-handlebars#basic branch with {{!comment}} AST test", function() {
+            var parser = new ContextParserHandlebars(config);
             var s = "{{#if xxx}} a b {{!--comment  {{#if xxx}} abc {{/if}} --}} {{/if}}xxxxxxx";
             var ast = parser._buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
@@ -399,8 +116,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(r.output).to.equal('{{#if xxx}} a b {{!comment  {{#if xxx}} abc {{/if}}');
         });
 
-        it("context-parser-handlebars - basic branch with inverse AST test", function() {
-            var parser = new ContextParserHandlebars();
+        it("context-parser-handlebars#basic branch with inverse AST test", function() {
+            var parser = new ContextParserHandlebars(config);
             var s = "{{#if xxx}} a {{else}} b {{/if}}xxxxxxxx";
             var ast = parser._buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
@@ -421,8 +138,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(r.output).to.equal('{{#if xxx}} a {{else}} b {{/if}}');
         });
 
-        it("context-parser-handlebars - nested branch AST test", function() {
-            var parser = new ContextParserHandlebars();
+        it("context-parser-handlebars#nested branch AST test", function() {
+            var parser = new ContextParserHandlebars(config);
             var s = "{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{else}} e {{#if}} f {{else}} g {{/if}} h {{/if}}xxxxxx";
             var ast = parser._buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
@@ -469,8 +186,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(r.output).to.equal('{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{else}} e {{#if}} f {{else}} g {{/if}} h {{/if}}');
         });
 
-        it("context-parser-handlebars - parallel branch AST test", function() {
-            var parser = new ContextParserHandlebars();
+        it("context-parser-handlebars#parallel branch AST test", function() {
+            var parser = new ContextParserHandlebars(config);
             var s = "{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{#if}} e {{else}} f {{/if}} g {{/if}}xxxxxxx";
             var ast = parser._buildBranchAst(s, 0);
             expect(ast.program[0].type).to.equal('branch');
@@ -507,46 +224,93 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[6].content).to.equal('{{/if}}');
             expect(ast.index).to.equal(86);
             var stateObj = parser.getInternalState();
+            stateObj.state = 1;
             var r = parser._analyseBranchAst(ast, stateObj);
             expect(r.output).to.equal('{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{#if}} e {{else}} f {{/if}} g {{/if}}');
         });
 
-        it("context-parser-handlebars - branch with <script> test", function() {
-            var parser = new ContextParserHandlebars();
+        it("context-parser-handlebars#branch with <script> test", function() {
+            var parser = new ContextParserHandlebars(config);
             var s = "{{#if}} <script> {{#if xxx}} path2 {{else}} path3 {{/if}} </script> {{else}} path4 {{/if}}";
             var ast = parser._buildBranchAst(s, 0);
             var stateObj = parser.getInternalState();
+            stateObj.state = 1;
             var r = parser._analyseBranchAst(ast, stateObj);
             expect(r.output).to.equal(s);
         });
 
-        /* handleRawBlock test
-           Please refer to "handlebars {{{{raw block}}}} test" in run-handlebars-3.0-spec.js */
-        it("context-parser-handlebars#_handleRawBlock test", function() {
-            [
-                // valid {{{{raw block}}}}
-                {str: '{{{{rawblock}}}} {{{{/rawblock}}}}      ', tag:'rawblock', result:33},
-                {str: '{{{{   rawblock}}}} {{{{/rawblock}}}}   ', tag:'rawblock', result:36},
-                {str: '{{{{rawblock   }}}} {{{{/rawblock}}}}   ', tag:'rawblock', result:36},
-                {str: '{{{{   rawblock   }}}} {{{{/rawblock}}}}', tag:'rawblock', result:39},
-
-                // invalid {{{{raw block}}}}
-                {str: '{{{{rawblockname}}}} xxx {{{{/    rawblockname}}}}', tag:'rawblockname',  result:false},
-                {str: '{{{{rawblockname}}}} xxx {{{{/rawblockname    }}}}', tag:'rawblockname',  result:false},
-                {str: '{{{{rawblockname1}}}} xxx {{{{/rawblockname2}}}}  ', tag:'rawblockname1', result:false},
-                {str: '{{{{rawblockname}}}} {{{{rawblock}}}} xxx {{{{/rawblock}}}} {{{{/rawblockname}}}}', tag:'rawblockname', result:false},
-
-            ].forEach(function(testObj) {
+        /* consumeExpression test */
+        it("context-parser-handlebars#_consumeExpression test", function() {
+            utils.partialExpressionTestPatterns.forEach(function(testObj) {
                 try {
-                    var parser = new ContextParserHandlebars();
-                    var r = parser._handleRawBlock(testObj.str, 0, testObj.tag);
-                    expect(r.index).to.equal(testObj.result);
+                    var parser = new ContextParserHandlebars(config);
+                    var r = parser._consumeExpression(testObj.syntax, 0, testObj.type, 1);
+                    expect(testObj.result[2]).to.equal(r.index);
                 } catch (e) {
-                    expect(false).to.equal(testObj.result);
+                    // guard against AssertionError, any good method to do it?
+                    expect(r).to.equal(undefined);
+                    expect(testObj.result[2]).to.equal(false);
+                }
+            });
+            utils.referenceExpressionTestPatterns.forEach(function(testObj) {
+                try {
+                    var parser = new ContextParserHandlebars(config);
+                    var r = parser._consumeExpression(testObj.syntax, 0, testObj.type, 1);
+                    expect(testObj.result[2]).to.equal(r.index);
+                } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(r).to.equal(undefined);
+                    expect(testObj.result[2]).to.equal(false);
                 }
             });
         });
 
+        /* handleRawExpression test */
+        it("context-parser-handlebars#_handleRawExpression test", function() {
+            utils.rawExpressionTestPatterns.forEach(function(testObj) {
+                try {
+                    var parser = new ContextParserHandlebars(config);
+                    var r = parser._consumeExpression(testObj.syntax, 0, testObj.type, false);
+                    expect(testObj.result[2]).to.equal(r.index);
+                } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(r).to.equal(undefined);
+                    expect(testObj.result[2]).to.equal(false);
+                }
+            });
+        });
+
+        /* handleRawBlock test */
+        it("context-parser-handlebars#_handleRawBlock test", function() {
+            utils.rawBlockTestPatterns.forEach(function(testObj) {
+                try {
+                    var parser = new ContextParserHandlebars(config);
+                    var r = parser._handleRawBlock(testObj.syntax, 0);
+                    expect(testObj.result[2]).to.equal(r.index);
+                } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(r).to.equal(undefined);
+                    expect(testObj.result[2]).to.equal(false);
+                }
+            });
+        });
+
+        /* handleCommentExpression test */
+        it("context-parser-handlebars#_handleCommentExpression test", function() {
+            utils.commentExpressionTestPatterns.forEach(function(testObj) {
+                try {
+                    var parser = new ContextParserHandlebars(config);
+                    var r = parser._consumeExpression(testObj.syntax, 0, testObj.type, false);
+                    expect(testObj.result[2]).to.equal(r.index);
+                } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(r).to.equal(undefined);
+                    expect(testObj.result[2]).to.equal(false);
+                }
+            });
+        });
+
+        /* handleTemplate test */
         it("context-parser-handlebars#_handleTemplate test", function() {
             // no need to test it directly
         });
@@ -578,8 +342,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 {s1:"<script>alert(0);", s2:"alert(0);</script>", result:false},
 
             ].forEach(function(testObj) {
-                var parser1 = new ContextParserHandlebars();
-                var parser2 = new ContextParserHandlebars();
+                var parser1 = new ContextParserHandlebars(config);
+                var parser2 = new ContextParserHandlebars(config);
                 var stateObj1, stateObj2;
                 parser1.contextualize(testObj.s1);
                 parser2.contextualize(testObj.s2);
