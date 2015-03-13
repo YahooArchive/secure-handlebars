@@ -43,7 +43,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 var parser = new ContextParserHandlebars(config);
                 try {
                     parser.contextualize(data);
-                    var output = parser.getBuffer().join('');
+                    var output = parser.getOutput();
                     fs.writeFileSync("./tests/samples/files/handlebarsjs_template_"+id+".hbs.precompiled", output, {flag:'w'});
                 } catch (err) {
                     console.log(err)
@@ -64,7 +64,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 var parser = new ContextParserHandlebars(config);
                 try {
                     parser.contextualize(data);
-                    var output = parser.getBuffer().join('');
+                    var output = parser.getOutput();
                     fs.writeFileSync("./tests/samples/files/handlebarsjs_filter_"+id+".hbs.precompiled", output, {flag:'w'});
                 } catch (err) {
                     console.log(err)                    

@@ -17,8 +17,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 */
 var HandlebarsUtils = {};
 
-/* Handlebars for tokenization */
-var Handlebars = require('handlebars');
+/* filter */
+var filter = require('xss-filters')._privFilters;
 
 /* type of expression */
 HandlebarsUtils.NOT_EXPRESSION = 0;
@@ -72,6 +72,7 @@ HandlebarsUtils.lookAheadTest = function(input, i) {
     var len = input.length,
         re;
 
+    /* reserved char must be the immediate char right after brace */
     if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '>') ||
         (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '>') 
     ) {
@@ -205,29 +206,14 @@ HandlebarsUtils.handleError = function(exceptionObj, throwErr) {
     }
 };
 
-/* 
-* @function HandlebarsUtils.blacklistProtocol
-*
-* Reference:
-* https://github.com/yahoo/xss-filters/blob/master/src/private-xss-filters.js#L266
-*/
-HandlebarsUtils._URI_BLACKLIST = null;
-HandlebarsUtils._URI_BLACKLIST_REGEXPSTR = "^(?:&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*(?:(?:j|J|&#[xX]0*(?:6|4)[aA];?|&#0*(?:106|74);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:a|A|&#[xX]0*(?:6|4)1;?|&#0*(?:97|65);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:v|V|&#[xX]0*(?:7|5)6;?|&#0*(?:118|86);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:a|A|&#[xX]0*(?:6|4)1;?|&#0*(?:97|65);?)|(?:v|V|&#[xX]0*(?:7|5)6;?|&#0*(?:118|86);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:b|B|&#[xX]0*(?:6|4)2;?|&#0*(?:98|66);?))(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:s|S|&#[xX]0*(?:7|5)3;?|&#0*(?:115|83);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:c|C|&#[xX]0*(?:6|4)3;?|&#0*(?:99|67);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:r|R|&#[xX]0*(?:7|5)2;?|&#0*(?:114|82);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:i|I|&#[xX]0*(?:6|4)9;?|&#0*(?:105|73);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:p|P|&#[xX]0*(?:7|5)0;?|&#0*(?:112|80);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?:t|T|&#[xX]0*(?:7|5)4;?|&#0*(?:116|84);?)(?:&#[xX]0*[9aAdD];?|&#0*(?:9|10|13);?|&Tab;|&NewLine;)*(?::|&#[xX]0*3[aA];?|&#0*58;?)";
+// @function HandlebarsUtils.blacklistProtocol
 HandlebarsUtils.blacklistProtocol = function(s) {
-    var URI_FASTLANE = ['&', 'j', 'J', 'v', 'V'];
-    if (URI_FASTLANE.indexOf(s[0]) === -1) {
-        return false;
-    } else {
-        if (HandlebarsUtils._URI_BLACKLIST === null) {
-            HandlebarsUtils._URI_BLACKLIST = new RegExp(HandlebarsUtils._URI_BLACKLIST_REGEXPSTR);
-        }
-        if (HandlebarsUtils._URI_BLACKLIST.test(s)) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-    return true;
+    /* the assumption of the blacklist filter behavior is to modify the input 
+       if it is blacklisted
+    */
+    var es = encodeURI(s),
+        ns = filter.yubl(es);
+    return (ns[0] !== es[0] || ns[1] !== es[1]);
 };
 
 module.exports = HandlebarsUtils;
