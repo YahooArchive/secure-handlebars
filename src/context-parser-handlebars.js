@@ -375,6 +375,7 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
                     return obj;
                 }
                 break;
+            case handlebarsUtils.NOT_HANDLE_EXPRESSION:
             case handlebarsUtils.ESCAPE_EXPRESSION:
             case handlebarsUtils.PARTIAL_EXPRESSION:
             case handlebarsUtils.BRANCH_EXPRESSION:
@@ -971,6 +972,16 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
         // this is just for lookAhead, does not guarantee the valid expression.
         handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, i);
         switch (handlebarsExpressionType) {
+            case handlebarsUtils.NOT_HANDLE_EXPRESSION:
+                msg = "[WARNING] ContextParserHandlebars: Not supported expression.";
+                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                handlebarsUtils.handleError(exceptionObj, false);
+                /* _consumeExpression */
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
+                obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
+                /* advance the index pointer by 1 to the char after the last brace of expression. */
+                return obj.index+1;
+
             case handlebarsUtils.ESCAPE_EXPRESSION:
                 re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
                 if (re.result === false) {
