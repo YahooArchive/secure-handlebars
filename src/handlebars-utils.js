@@ -177,15 +177,11 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
 // @function HandlebarsUtils.isReservedChar
 HandlebarsUtils.isReservedChar = function(input, i) {
     var ch = input[i];
-    if (ch === '~' && input.length > i+1) {
+    if (ch === '~' && i+1<input.length) {
         ch = input[i+1];
     }
 
-    if (ch === '#' || ch === '/' || ch === '>' || ch === '^' || ch === '!' || ch === '&') {
-        return true;
-    } else {
-        return false;
-    }
+    return (ch === '#' || ch === '/' || ch === '>' || ch === '^' || ch === '!' || ch === '&');
 };
 
 // @function HandlebarsUtils.handleError

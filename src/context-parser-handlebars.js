@@ -344,34 +344,27 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
 ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, printChar) {
     var msg, exceptionObj, 
         len = input.length,
-        str = '', t = 0,
+        str = '',
         obj = {};
+
+    obj.str = '';
     for(var j=i;j<len;++j) {
         switch (type) {
             case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
                 if (input[j] === '-' && j+3<len && input[j+1] === '-' && input[j+2] === '}' && input[j+3] === '}') {
-                    printChar === true ? this._printChar('--}}') : str += '--}}';
-                    j=j+3;
-
-                    obj.index = j;
-                    obj.str = str;
+                    printChar === true ? this._printChar('--}}') : obj.str += '--}}';
+                    obj.index = j+3;
                     return obj;
                 } else if (input[j] === '-' && j+4<len && input[j+1] === '-' && input[j+2] === '~' && input[j+3] === '}' && input[j+4] === '}') {
-                    printChar === true ? this._printChar('--~}}') : str += '--~}}';
-                    j=j+4;
-
-                    obj.index = j;
-                    obj.str = str;
+                    printChar === true ? this._printChar('--~}}') : obj.str += '--~}}';
+                    obj.index = j+4;
                     return obj;
                 }
                 break;
             case handlebarsUtils.RAW_EXPRESSION:
                 if (input[j] === '}' && j+2<len && input[j+1] === '}' && input[j+2] === '}') {
-                    printChar === true ? this._printChar('}}}') : str += '}}}';
-                    j=j+2;
-
-                    obj.index = j;
-                    obj.str = str;
+                    printChar === true ? this._printChar('}}}') : obj.str += '}}}';
+                    obj.index = j+2;
                     return obj;
                 }
                 break;
@@ -384,16 +377,13 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
             case handlebarsUtils.REFERENCE_EXPRESSION:
             case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
                 if (input[j] === '}' && j+1<len && input[j+1] === '}') {
-                    printChar === true ? this._printChar('}}') : str += '}}';
-                    j=j+1;
-
-                    obj.index = j;
-                    obj.str = str;
+                    printChar === true ? this._printChar('}}') : obj.str += '}}';
+                    obj.index = j+1;
                     return obj;
                 }
                 break;
         }
-        printChar === true ? this._printChar(input[j]) : str += input[j];
+        printChar === true ? this._printChar(input[j]) : obj.str += input[j];
     }
     msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter close brace of expression.";
     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
