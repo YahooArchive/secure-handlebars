@@ -21,6 +21,8 @@ var HandlebarsUtils = {};
 var filter = require('xss-filters')._privFilters;
 
 /* type of expression */
+HandlebarsUtils.UNHANDLED_EXPRESSION = -1;
+
 HandlebarsUtils.NOT_EXPRESSION = 0;
 
 /* '{{{{' '\s'* ('not \s, special-char'+) '\s'* non-greedy '}}}}' and not follow by '}' */
@@ -70,41 +72,34 @@ HandlebarsUtils.commentShortFormExpressionRegExp = /^\{\{~?!/;
 // @function HandlebarsUtils.lookAheadTest
 HandlebarsUtils.lookAheadTest = function(input, i) {
     var len = input.length,
-        re;
+        j;
 
     /* reserved char must be the immediate char right after brace */
-    if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '>') ||
-        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '>') 
-    ) {
-        return HandlebarsUtils.PARTIAL_EXPRESSION;
-    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '#') ||
-        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '#') 
-    ) {
-        return HandlebarsUtils.BRANCH_EXPRESSION;
-    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '^') ||
-        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '^') 
-    ) {
-        // this one is not exact, {{~?^}} will pass!
-        return HandlebarsUtils.BRANCH_EXPRESSION;
-    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '/') ||
-        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '/') 
-    ) {
-        return HandlebarsUtils.BRANCH_END_EXPRESSION;
-    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '&') ||
-        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '&') 
-    ) {
-        return HandlebarsUtils.REFERENCE_EXPRESSION;
-    } else if ((input[i] === '{' && i+4<len && input[i+1] === '{' && input[i+2] === '!' && input[i+3] === '-' && input[i+4] === '-') ||
-        (input[i] === '{' && i+5<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '!' && input[i+4] === '-' && input[i+5] === '-') 
-    ) {
-        return HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM;
-    } else if ((input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '!') ||
-        (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '~' && input[i+3] === '!') 
-    ) {
-        return HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM;
-    }
+    if (input[i] === '{' && i+2<len && input[i+1] === '{') {
+        j = input[i+2] === '~' ? 3 : 2;
 
-    return HandlebarsUtils.ESCAPE_EXPRESSION;
+        switch(input[i+j]) {
+            case '>':
+                return HandlebarsUtils.PARTIAL_EXPRESSION;
+            case '#':
+                return HandlebarsUtils.BRANCH_EXPRESSION;
+            case '^':
+                // {{~?^}} will pass!, but isValidExpression can guard against
+                return HandlebarsUtils.BRANCH_EXPRESSION;
+            case '/':
+                return HandlebarsUtils.BRANCH_END_EXPRESSION;
+            case '&':
+                return HandlebarsUtils.REFERENCE_EXPRESSION;
+            case '!':
+                if (i+j+2<len && input[i+j+1] === '-' && input[i+j+2] === '-') {
+                    return HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM;
+                }
+                return HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM;
+            default: 
+                return HandlebarsUtils.ESCAPE_EXPRESSION;
+        }
+    }
+    return HandlebarsUtils.UNHANDLED_EXPRESSION;
 };
 
 // @function HandlebarsUtils.isValidExpression
@@ -182,15 +177,11 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
 // @function HandlebarsUtils.isReservedChar
 HandlebarsUtils.isReservedChar = function(input, i) {
     var ch = input[i];
-    if (ch === '~' && input.length > i+1) {
+    if (ch === '~' && i+1<input.length) {
         ch = input[i+1];
     }
 
-    if (ch === '#' || ch === '/' || ch === '>' || ch === '^' || ch === '!' || ch === '&') {
-        return true;
-    } else {
-        return false;
-    }
+    return (ch === '#' || ch === '/' || ch === '>' || ch === '^' || ch === '!' || ch === '&');
 };
 
 // @function HandlebarsUtils.handleError
