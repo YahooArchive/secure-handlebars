@@ -176,13 +176,12 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
             handlebarsUtils.handleError(exceptionObj, this._strictMode);
             return filters;
         case stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME: // 34
-            /* never fall into this state */
-            /*
-            msg = "[WARNING] ContextParserHandlebars:";
+            /* never fall into state 34 */
+            filters.push(filter.FILTER_NOT_HANDLE);
+            msg = "[WARNING] ContextParserHandlebars: Unexpected output expression @ STATE_BEFORE_ATTRIBUTE_NAME state.";
             exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj, true);
-            */
-            break;
+            handlebarsUtils.handleError(exceptionObj, this._strictMode);
+            return filters;
         case stateMachine.State.STATE_ATTRIBUTE_NAME: // 35
             /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
             * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
@@ -193,14 +192,19 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
             handlebarsUtils.handleError(exceptionObj, this._strictMode);
             return filters;
         case stateMachine.State.STATE_AFTER_ATTRIBUTE_NAME: // 36
-        case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
-            /* never fall into this state, please refer to tests/unit/run-states-spec.js */
-            /*
-            msg = "[WARNING] ContextParserHandlebars:";
+            /* never fall into state 36 */
+            filters.push(filter.FILTER_NOT_HANDLE);
+            msg = "[WARNING] ContextParserHandlebars: Unexpected output expression @ STATE_AFTER_ATTRIBUTE_NAME state.";
             exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj, true);
-            */
-            break;
+            handlebarsUtils.handleError(exceptionObj, this._strictMode);
+            return filters;
+        case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
+            /* never fall into state 37 */
+            filters.push(filter.FILTER_NOT_HANDLE);
+            msg = "[WARNING] ContextParserHandlebars: Unexpected output expression @ STATE_BEFORE_ATTRIBUTE_VALUE state.";
+            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+            handlebarsUtils.handleError(exceptionObj, this._strictMode);
+            return filters;
         case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED: // 38
         case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED: // 39
         case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED: // 40
@@ -301,11 +305,7 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
             }
             break;
         case stateMachine.State.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED: // 42
-            /* 
-            * please refer to tests/unit/run-states-spec.js, '{' triggers state change to 12.2.4.34
-            * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-            * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-            */
+            /* never fall into state 42 */
             filters.push(filter.FILTER_NOT_HANDLE);
             msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_AFTER_ATTRIBUTE_VALUE_QUOTED state.";
             exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
