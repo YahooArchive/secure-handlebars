@@ -21,8 +21,6 @@ var contextParser = require('context-parser'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = contextParser.StateMachine;
 
-var util = require('util');
-
 var filter = require('xss-filters')._privFilters;
 
 filter.FILTER_NOT_HANDLE = "y";
@@ -95,9 +93,9 @@ contextParser.Parser.prototype.setInternalState = function(stateObj) {
 contextParser.Parser.prototype._deepCompareState = function(stateObj1, stateObj2) {
     var r = true;
     [ 'state', // test for the HTML5 state.
-      'tagNameIdx', // test for the close tag in the branching logic.
+      // 'tagNameIdx', // test for the close tag in the branching logic, but it is not balanced.
       // 'attributeName', 'attributeValue' // not necessary the same in branching logic.
-    ].forEach(function(key) {
+    ].some(function(key) {
         if (stateObj1[key] !== '' && stateObj2[key] !== '' && stateObj1[key] !== stateObj2[key]) {
             r = false;
         }
@@ -121,7 +119,7 @@ contextParser.Parser.prototype._deepCompareState = function(stateObj1, stateObj2
 };
 
 /* inherit the prototype of contextParser.Parser */
-util.inherits(ContextParserHandlebars, contextParser.Parser);
+ContextParserHandlebars.prototype = Object.create(contextParser.Parser.prototype);
 
 /**********************************
 * OUTPUT FACILITY
