@@ -43,6 +43,7 @@
   "dependencies": {
     "context-parser": "^1.0.0",
     "debug": "^2.1.2",
+    "util": "^0.10.3",
     "xss-filters": "^1.0.4"
   },
   "devDependencies": {

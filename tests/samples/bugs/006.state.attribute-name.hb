@@ -1,3 +1,8 @@
+{{!-- 
+This bug is fixed for adding the correct filters 
+with different attribute name for a nested branching logic 
+--}}
+
 {{#if wallartPapertypesEnabled}}
 <div {{attr}} style="wallart-options-bar
 {{#ifCond typeName '===' 'mounted'}} {{styleoutput}} is-mounted{{/ifCond}}

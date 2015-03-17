@@ -21,6 +21,8 @@ var contextParser = require('context-parser'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = contextParser.StateMachine;
 
+var util = require('util');
+
 var filter = require('xss-filters')._privFilters;
 
 filter.FILTER_NOT_HANDLE = "y";
@@ -66,9 +68,60 @@ function ContextParserHandlebarsException(msg, lineNo, charNo) {
     this.charNo = charNo;
 }
 
-// TODO: use util
+// @function ContextParser.getInternalState
+contextParser.Parser.prototype.getInternalState = function() {
+    var stateObj = {};
+    stateObj.state = this.state;
+    stateObj.tagNames = this.tagNames;
+    stateObj.tagNameIdx = this.tagNameIdx;
+    stateObj.attributeName = this.attributeName;
+    stateObj.attributeValue = this.attributeValue;
+    return stateObj;
+};
+
+// @function ContextParser.setInternalState
+contextParser.Parser.prototype.setInternalState = function(stateObj) {
+    // TODO: these 2 apis need to combine.
+    this.setInitState(stateObj.state);
+    this.setCurrentState(stateObj.state);
+
+    this.tagNames = stateObj.tagNames.slice(0); // need deep copy
+    this.tagNameIdx = stateObj.tagNameIdx;
+    this.attributeName = stateObj.attributeName;
+    this.attributeValue = stateObj.attributeValue;
+};
+
+// @function ContextParser._deepCompareState
+contextParser.Parser.prototype._deepCompareState = function(stateObj1, stateObj2) {
+    var r = true;
+    [ 'state', // test for the HTML5 state.
+      'tagNameIdx', // test for the close tag in the branching logic.
+      // 'attributeName', 'attributeValue' // not necessary the same in branching logic.
+    ].forEach(function(key) {
+        if (stateObj1[key] !== '' && stateObj2[key] !== '' && stateObj1[key] !== stateObj2[key]) {
+            r = false;
+        }
+    });
+    /*
+    [
+      // 'tagNames' // not necessary the same in branching logic.
+    ].forEach(function(key) {
+        if (!(stateObj1[key] instanceof Array) || !(stateObj2[key] instanceof Array)) {
+            r = false;
+            return;
+        }
+        for(var i=0;i<stateObj1[key].length;++i) {
+            if (stateObj1[key][i] !== stateObj2[key][i]) {
+                r = false;
+            }
+        }
+    });
+    */
+    return r;
+};
+
 /* inherit the prototype of contextParser.Parser */
-ContextParserHandlebars.prototype = Object.create(contextParser.Parser.prototype);
+util.inherits(ContextParserHandlebars, contextParser.Parser);
 
 /**********************************
 * OUTPUT FACILITY
@@ -511,60 +564,6 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
     }
 };
 
-// TODO: context-parser dependent, should move back to context-parser later
-// @function ContextParserHandlebars.getInternalState
-ContextParserHandlebars.prototype.getInternalState = function() {
-    var stateObj = {};
-    stateObj.state = this.state;
-    stateObj.tagNames = this.tagNames;
-    stateObj.tagNameIdx = this.tagNameIdx;
-    stateObj.attributeName = this.attributeName;
-    stateObj.attributeValue = this.attributeValue;
-    return stateObj;
-};
-
-// TODO: context-parser dependent, should move back to context-parser later
-// @function ContextParserHandlebars.setInternalState
-ContextParserHandlebars.prototype.setInternalState = function(stateObj) {
-    // TODO: these 2 apis need to combine.
-    this.setInitState(stateObj.state);
-    this.setCurrentState(stateObj.state);
-
-    this.tagNames = stateObj.tagNames;
-    this.tagNameIdx = stateObj.tagNameIdx;
-    this.attributeName = stateObj.attributeName;
-    this.attributeValue = stateObj.attributeValue;
-};
-
-// TODO: context-parser dependent, should move back to context-parser later
-// @function ContextParserHandlebars._deepCompareState
-ContextParserHandlebars.prototype._deepCompareState = function(stateObj1, stateObj2) {
-    var r = true;
-    [ 'state',
-      // 'tagNameIdx',
-      // attributeName/Value does not affect the state transition
-      // 'attributeName', 'attributeValue' 
-    ].forEach(function(key) {
-        if (stateObj1[key] !== '' && stateObj2[key] !== '' && stateObj1[key] !== stateObj2[key]) {
-            r = false;
-        }
-    });
-    [
-        'tagNames'
-    ].forEach(function(key) {
-        if (!(stateObj1[key] instanceof Array) || !(stateObj2[key] instanceof Array)) {
-            r = false;
-            return;
-        }
-        for(var i=0;i<stateObj1.length;++i) {
-            if (stateObj1[key][i] !== stateObj2[key][i]) {
-                r = false;
-            }
-        }
-    });
-    return r;
-};
-
 // @function module:ContextParserHandlebars._analyzeContext
 ContextParserHandlebars.prototype._analyzeContext = function(stateObj, obj) {
     var r = {
@@ -626,7 +625,6 @@ ContextParserHandlebars.prototype._analyseBranchAst = function(ast, stateObj) {
             r.lastStates[0] = t.stateObj;
             programDebugOutput += t.output;
 
-            debugBranch("_analyzeBranchAst:after:program:content");
             debugBranch(r.lastStates[0]);
 
         } else if (obj.type === 'node') {
@@ -639,7 +637,6 @@ ContextParserHandlebars.prototype._analyseBranchAst = function(ast, stateObj) {
             r.output += t.output;
             programDebugOutput += t.output;
 
-            debugBranch("_analyzeBranchAst:after:program:node");
             debugBranch(r.lastStates[0]);
 
         } else if (obj.type === 'branch' ||
@@ -662,7 +659,6 @@ ContextParserHandlebars.prototype._analyseBranchAst = function(ast, stateObj) {
             r.lastStates[1] = t.stateObj;
             inverseDebugOutput += t.output;
 
-            debugBranch("_analyzeBranchAst:after:inverse:content");
             debugBranch(r.lastStates[1]);
 
         } else if (obj.type === 'node') {
@@ -675,7 +671,6 @@ ContextParserHandlebars.prototype._analyseBranchAst = function(ast, stateObj) {
             r.output += t.output;
             inverseDebugOutput += t.output;
 
-            debugBranch("_analyzeBranchAst:before:inverse:node");
             debugBranch(r.lastStates[1]);
 
         } else if (obj.type === 'branch' ||
@@ -695,9 +690,11 @@ ContextParserHandlebars.prototype._analyseBranchAst = function(ast, stateObj) {
     }
 
     if (!this._deepCompareState(r.lastStates[0], r.lastStates[1])) {
-        msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsitent HTML5 state after conditional branches. Please fix your template! \n";
-        msg += "[ERROR] #if.. branch: " + programDebugOutput.slice(0, 50) + "... ("+JSON.stringify(r.lastStates[0])+"\n";
-        msg += "[ERROR] else branch: " + inverseDebugOutput.slice(0, 50) + "... ("+JSON.stringify(r.lastStates[1])+")";
+        msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsitent HTML5 state OR without close tag after conditional branches. Please fix your template! \n";
+        msg += "[ERROR] #if  branch: " + programDebugOutput.slice(0, 50) + "...\n";
+        msg += "[ERROR] else branch: " + inverseDebugOutput.slice(0, 50) + "...\n";
+        msg += JSON.stringify(r.lastStates[0]) + "\n";
+        msg += JSON.stringify(r.lastStates[1]) + "\n";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
