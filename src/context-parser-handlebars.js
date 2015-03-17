@@ -372,15 +372,6 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
             handlebarsUtils.handleError(exceptionObj, this._strictMode);
             return filters;
     }
-
-    /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-    * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-    */
-    filters.push(filter.FILTER_NOT_HANDLE);
-    msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ NOT HANDLE state.";
-    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-    handlebarsUtils.handleError(exceptionObj, this._strictMode);
-    return filters;
 };
 
 /**********************************
