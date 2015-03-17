@@ -438,7 +438,7 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
 };
 
 // @function module:ContextParserHandlebars._handleEscapeExpression
-ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, len, state) {
+ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, len, nextState) {
     var msg, exceptionObj,
         str = '{{',
         obj = {};
@@ -452,7 +452,7 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
 
     /* get the customized filter based on the current HTML5 state before the Handlebars template expression. */
     var stateObj = this.getInternalState();
-    filters = this._addFilters(state, stateObj, input);
+    filters = this._addFilters(nextState, stateObj, input);
     for(var k=filters.length-1;k>=0;--k) {
         if (re.isSingleID && k === 0) {
             str += filters[k] + " ";
@@ -534,7 +534,7 @@ ContextParserHandlebars.prototype._handleRawBlock = function(input, i) {
 };
 
 // @function module:ContextParserHandlebars._handleBranchExpression
-ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, state) {
+ContextParserHandlebars.prototype._handleBranchExpression = function(input, i) {
     var msg, exceptionObj, 
         obj = {};
     try {
@@ -554,7 +554,7 @@ ContextParserHandlebars.prototype._handleBranchExpression = function(input, i, s
         /* update the char pointer */
         obj.index = ast.index;
 
-        debug("_handleBranchTemplate: state:"+this.state+",new i:"+ast.index+",lineNo:"+this._lineNo);
+        debug("_handleBranchTemplate: state:"+result.lastStates[0].state+",new i:"+ast.index+",lineNo:"+this._lineNo);
         return obj;
     } catch (err) {
         exceptionObj = new ContextParserHandlebarsException(err.msg, this._lineNo, this._charNo);
@@ -901,7 +901,7 @@ ContextParserHandlebars.prototype._getSaveObject = function(type, content, start
 * @returns {integer} The index right after the last '}' if it is Handlebars expression or return immediately if it is not Handlebars.
 *
 */
-ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
+ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState) {
 
     /* the max length of the input string */
     var len = input.length;
@@ -927,7 +927,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
         }
 
         /* _handleRawBlock */
-        debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
+        debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
         obj = this._handleRawBlock(input, i);
         /* advance the index pointer by 1 to the char after the last brace of expression. */
         return obj.index+1;
@@ -942,10 +942,10 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
         }
 
         /* _handleRawExpression */
-        debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
+        debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
         obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
         /* update the Context Parser's state if it is raw expression. */
-        this.state = state;
+        this.state = nextState;
         /* advance the index pointer by 1 to the char after the last brace of expression. */
         return obj.index+1;
 
@@ -958,7 +958,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
                 exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
                 handlebarsUtils.handleError(exceptionObj, false);
                 /* _consumeExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
                 obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
@@ -971,10 +971,10 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
                     handlebarsUtils.handleError(exceptionObj, true);
                 }
                 /* _handleEscapeExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
-                obj = this._handleEscapeExpression(input, i, len, state);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
+                obj = this._handleEscapeExpression(input, i, len, nextState);
                 /* update the Context Parser's state if it is raw expression. */
-                this.state = state;
+                this.state = nextState;
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
 
@@ -986,7 +986,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
                     handlebarsUtils.handleError(exceptionObj, true);
                 }
                 /* _consumeExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
                 obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
@@ -999,7 +999,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
                     handlebarsUtils.handleError(exceptionObj, true);
                 }
                 /* _consumeExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
                 obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
@@ -1012,8 +1012,8 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
                     handlebarsUtils.handleError(exceptionObj, true);
                 }
                 /* _handleBranchExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
-                obj = this._handleBranchExpression(input, i, state);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
+                obj = this._handleBranchExpression(input, i);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
 
@@ -1026,7 +1026,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
             case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
                 // no need to validate the comment expression as the content inside are skipped.
                 /* _consumeExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
                 obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
@@ -1034,7 +1034,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, state) {
             case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
                 // no need to validate the comment expression as the content inside are skipped.
                 /* _consumeExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+state);
+                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
                 obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
                 /* advance the index pointer by 1 to the char after the last brace of expression. */
                 return obj.index+1;
