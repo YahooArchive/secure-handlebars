@@ -107,10 +107,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 title: '/bin/handlebarspc html5 inconsistent state (42/34) test',
                 file: './tests/samples/bugs/003.html5.inconsitent.hb',
             },
+            /* remove this test as we don't test for tagNameIdx in deepCompare
             {
                 title: 'state (missing close tag) in branching template test',
                 file: './tests/samples/bugs/006.state.missing-close-tag.hb',
             },
+            */
         ].forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
