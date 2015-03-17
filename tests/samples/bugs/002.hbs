@@ -1,8 +1,0 @@
-<div class="ui-display-widget-fave">
-	{{#if state.activated}}
-        <a href="#" data-action="fave" {{#unless isOwner}}title="{{#if isFaved}}Remove this photo from your favorites?{{else}}Add this photo to your favorites?{{/if}}"{{/unless}}>
-            <span class="fave-star {{#if isFaved}}is-faved{{/if}} {{#if isOwner}}can-not-fave{{/if}}"></span>
-            <span class="fave-counter">{{faveCount}}</span>
-        </a>
-	{{/if}}
-</div>

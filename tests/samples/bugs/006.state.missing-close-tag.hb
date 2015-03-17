@@ -1,3 +1,7 @@
+{{!-- 
+this is being tested for the inverse statement without the close tag 
+--}}
+
 {{#if xxx}}
    <span class="photo-count secondary"></span>
 {{else}}
