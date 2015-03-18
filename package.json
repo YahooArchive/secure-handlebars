@@ -50,6 +50,7 @@
     "chai": "^2.*",
     "grunt": "^0.4.5",
     "grunt-cli": "0.1.*",
+    "grunt-browserify": "^3.3.0",
     "grunt-contrib-clean": "^0.6.0",
     "grunt-contrib-jshint": "^0.11.0",
     "grunt-mocha-istanbul": "^2.3.0",
