@@ -2187,6 +2187,19 @@ filter.FILTER_ENCODE_URI_COMPONENT = "yuc";
 filter.FILTER_URI_SCHEME_BLACKLIST = "yubl";
 filter.FILTER_FULL_URI = "yufull";
 
+// extracted from xss-filters
+/*
+['^(?:',
+    [
+        '[\\u0000-\\u0020]',
+        '&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?',     // &#x1-20 in hex
+        '&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?',   // &#1-32  in dec
+        '&Tab;', '&NewLine;'                    // space, newline in char entities
+    ].join('|'),
+')*'].join('');
+*/
+var reURIContextStartWhitespaces = /^(?:[\u0000-\u0020]|&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*/;
+
 /** 
 * @module ContextParserHandlebars
 */
@@ -2344,7 +2357,7 @@ ContextParserHandlebars.prototype._countNewLineChar = function(ch) {
 ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input) {
 
     /* transitent var */
-    var e, f, msg, exceptionObj;
+    var isFullUri, f, msg, exceptionObj;
 
     /* return filters */
     var filters = [],
@@ -2430,18 +2443,12 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
                 }
 
                 /* add the correct uri filter */
-                var isFullUri = true;
-                if (attributeValue.trim() === "") {
+                if (attributeValue.replace(reURIContextStartWhitespaces, '') === "") {
+                    isFullUri = true;
                     f = filter.FILTER_FULL_URI;
                 } else {
                     isFullUri = false;
-                    f = filter.FILTER_ENCODE_URI;
-                    e = attributeValue.length;
-                    for(var i=0;i<e;++i) {
-                        if (attributeValue[i] === '=') {
-                            f = filter.FILTER_ENCODE_URI_COMPONENT;
-                        }
-                    }
+                    f = (attributeValue.indexOf('=') === -1) ? filter.FILTER_ENCODE_URI : filter.FILTER_ENCODE_URI_COMPONENT;
                 }
                 filters.push(f);
 
