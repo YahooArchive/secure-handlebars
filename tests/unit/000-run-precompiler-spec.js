@@ -104,9 +104,15 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 file: './tests/samples/files/handlebarsjs_template_024.hbs',
             },
             {
-                title: '/bin/handlebarspc html5 inconsistent state test',
+                title: '/bin/handlebarspc html5 inconsistent state (42/34) test',
                 file: './tests/samples/bugs/003.html5.inconsitent.hb',
             },
+            /* remove this test as we don't test for tagNameIdx in deepCompare
+            {
+                title: 'state (missing close tag) in branching template test',
+                file: './tests/samples/bugs/006.state.missing-close-tag.hb',
+            },
+            */
         ].forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
@@ -120,36 +126,19 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* reported bug tests */
         [
-            /* remove unnecessary test
-            {
-                title: '/bin/handlebarspc html5 inconsistent state test',
-                file: './tests/samples/bugs/001.hbs',
-                result: [],
-            },
-            {
-                title: '/bin/handlebarspc html5 inconsistent state test',
-                file: './tests/samples/bugs/001.hbs.original',
-                result: [],
-            },
-            {
-                title: '/bin/handlebarspc html5 inconsistent state test',
-                file: './tests/samples/bugs/002.hbs',
-                result: [],
-            },
-            */
-            {
-                title: './bin/handlebarspc html5 inconsistent state test',
-                file: './tests/samples/bugs/004.script.hb',
-                result: [],
-            },
             {
                 title: './bin/handlebarspc line no and char no reporting test',
                 file: './tests/samples/bugs/005.line.report.hb',
                 result: [ /lineNo:2,charNo:38/, /lineNo:4,charNo:91/, /lineNo:8,charNo:177/, /lineNo:10,charNo:274/, /lineNo:12,charNo:298/ ],
             },
             {
-                title: 'state (attribute name) propagation in logical template test',
-                file: './tests/samples/bugs/006.state.hb',
+                title: 'state (tag name) propagation in branching template test',
+                file: './tests/samples/bugs/004.script.hb',
+                result: [],
+            },
+            {
+                title: 'state (attribute name) propagation in branching template test',
+                file: './tests/samples/bugs/006.state.attribute-name.hb',
                 result: [ /{{{y styleoutput}}}/, /{{{yavd classoutput}}}/ ],
             },
         ].forEach(function(testObj) {

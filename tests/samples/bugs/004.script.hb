@@ -1,3 +1,8 @@
+{{!-- 
+this test is being used for testing the <script>
+tagNames has been set before entering the nested branching logic
+--}}
+
 {{#if}}
     <script>
     {{#if ../../embedrVTwo}}
