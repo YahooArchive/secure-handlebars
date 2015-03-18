@@ -431,40 +431,31 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
 // @function module:ContextParserHandlebars._handleEscapeExpression
 ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, len, nextState) {
     var msg, exceptionObj,
-        str = '{{',
         obj = {};
+
+    this._printChar('{{');
+    /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}} */
+    this._printChar('{');
 
     /* parse expression */
     var re = handlebarsUtils.isValidExpression(input, i, handlebarsUtils.ESCAPE_EXPRESSION),
         filters = [];
 
-    /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}} */
-    str += '{';
-
     /* get the customized filter based on the current HTML5 state before the Handlebars template expression. */
     var stateObj = this.getInternalState();
     filters = this._addFilters(nextState, stateObj, input);
     for(var k=filters.length-1;k>=0;--k) {
-        if (re.isSingleID && k === 0) {
-            str += filters[k] + " ";
-        } else {
-            str += filters[k] + " (";
-        }
+        (re.isSingleID && k === 0) ? this._printChar(filters[k]+" ") : this._printChar(filters[k]+" (");
     }
-    this._printChar(str);
 
     for(var j=i+2;j<len;++j) {
         if (input[j] === '}' && j+1<len && input[j+1] === '}') {
             for(var l=filters.length-1;l>=0;--l) {
-                if (re.isSingleID && l === 0) {
-                } else {
-                    this._printChar(')');
-                }
+                (re.isSingleID && l === 0) ? this._printChar('') : this._printChar(')');
             }
 
             this._printChar('}}');
             j=j+1;
-
             /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}}, no need to increase j by 1. */
             this._printChar('}');
 
