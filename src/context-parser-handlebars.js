@@ -46,6 +46,7 @@ filter.FILTER_FULL_URI = "yufull";
 ')*'].join('');
 */
 var reURIContextStartWhitespaces = /^(?:[\u0000-\u0020]|&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*/;
+var uriAttributeNames = ['href', 'src', 'action', 'formaction', 'background', 'cite', 'longdesc', 'usemap', 'poster', 'xlink:href'];
 
 /** 
 * @module ContextParserHandlebars
@@ -104,14 +105,13 @@ contextParser.Parser.prototype.setInternalState = function(stateObj) {
 
 // @function ContextParser._deepCompareState
 contextParser.Parser.prototype._deepCompareState = function(stateObj1, stateObj2) {
-    var r = true;
-    [ 'state', // test for the HTML5 state.
-      // 'tagNameIdx', // test for the close tag in the branching logic, but it is not balanced.
-      // 'attributeName', 'attributeValue' // not necessary the same in branching logic.
+    // var r = true;
+    return ![
+        'state', // test for the HTML5 state.
+        // 'tagNameIdx', // test for the close tag in the branching logic, but it is not balanced.
+        // 'attributeName', 'attributeValue' // not necessary the same in branching logic.
     ].some(function(key) {
-        if (stateObj1[key] !== '' && stateObj2[key] !== '' && stateObj1[key] !== stateObj2[key]) {
-            r = false;
-        }
+        return (stateObj1[key] !== '' && stateObj2[key] !== '' && stateObj1[key] !== stateObj2[key]);
     });
     /*
     [
@@ -128,7 +128,7 @@ contextParser.Parser.prototype._deepCompareState = function(stateObj1, stateObj2
         }
     });
     */
-    return r;
+    // return r;
 };
 
 /* inherit the prototype of contextParser.Parser */
@@ -204,180 +204,123 @@ ContextParserHandlebars.prototype._countNewLineChar = function(ch) {
 ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input) {
 
     /* transitent var */
-    var isFullUri, f, msg, exceptionObj;
-
-    /* return filters */
-    var filters = [],
+    var isFullUri, f, filters, exceptionObj,
         attributeName = stateObj.attributeName,
         attributeValue = stateObj.attributeValue;
 
     debug("_addFilters:state:"+state);
     debug(stateObj);
 
-    switch(state) {
-        case stateMachine.State.STATE_DATA: // 1
-            filters.push(filter.FILTER_DATA);
-            return filters;
-        case stateMachine.State.STATE_RCDATA: // 3
-            filters.push(filter.FILTER_DATA);
-            return filters;
-        case stateMachine.State.STATE_RAWTEXT:  // 5
-            /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-            * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-            */
-            filters.push(filter.FILTER_NOT_HANDLE);
-            msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_RAWTEXT state.";
-            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj, this._strictMode);
-            return filters;
-        case stateMachine.State.STATE_SCRIPT_DATA: // 6
-            /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-            * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-            */
-            filters.push(filter.FILTER_NOT_HANDLE);
-            msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_SCRIPT_DATA state.";
-            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj, this._strictMode);
-            return filters;
-        case stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME: // 34
-            /* never fall into state 34 */
-            filters.push(filter.FILTER_NOT_HANDLE);
-            msg = "[WARNING] ContextParserHandlebars: Unexpected output expression @ STATE_BEFORE_ATTRIBUTE_NAME state.";
-            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj, this._strictMode);
-            return filters;
-        case stateMachine.State.STATE_ATTRIBUTE_NAME: // 35
-            /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-            * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-            */
-            filters.push(filter.FILTER_NOT_HANDLE);
-            msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_ATTRIBUTE_NAME state.";
-            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj, this._strictMode);
-            return filters;
-        case stateMachine.State.STATE_AFTER_ATTRIBUTE_NAME: // 36
-            /* never fall into state 36 */
-            filters.push(filter.FILTER_NOT_HANDLE);
-            msg = "[WARNING] ContextParserHandlebars: Unexpected output expression @ STATE_AFTER_ATTRIBUTE_NAME state.";
-            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj, this._strictMode);
-            return filters;
-        case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
-            /* never fall into state 37 */
-            filters.push(filter.FILTER_NOT_HANDLE);
-            msg = "[WARNING] ContextParserHandlebars: Unexpected output expression @ STATE_BEFORE_ATTRIBUTE_VALUE state.";
-            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj, this._strictMode);
-            return filters;
-        case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED: // 38
-        case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED: // 39
-        case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED: // 40
+    try {
+        switch(state) {
+            case stateMachine.State.STATE_DATA: // 1
+                return [filter.FILTER_DATA];
+            case stateMachine.State.STATE_RCDATA: // 3
+                return [filter.FILTER_DATA];
+            case stateMachine.State.STATE_RAWTEXT:  // 5
+                /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
+                * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
+                */
+                throw 'Unsafe output expression @ STATE_RAWTEXT state';
+            case stateMachine.State.STATE_SCRIPT_DATA: // 6
+                /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
+                * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
+                */
+                throw 'Unsafe output expression @ STATE_SCRIPT_DATA state.';
+            case stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME: // 34
+                /* never fall into state 34 */
+                throw 'Unexpected output expression @ STATE_BEFORE_ATTRIBUTE_NAME state';
+            case stateMachine.State.STATE_ATTRIBUTE_NAME: // 35
+                /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
+                * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
+                */
+                throw 'Unsafe output expression @ STATE_ATTRIBUTE_NAME state';
+            case stateMachine.State.STATE_AFTER_ATTRIBUTE_NAME: // 36
+                /* never fall into state 36 */
+                throw 'Unexpected output expression @ STATE_AFTER_ATTRIBUTE_NAME state';
+            case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
+                /* never fall into state 37 */
+                throw 'Unexpected output expression @ STATE_BEFORE_ATTRIBUTE_VALUE state';
+            case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED: // 38
+            case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED: // 39
+            case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED: // 40
+                filters = [];
+                // URI scheme
+                if (uriAttributeNames.indexOf(attributeName) !== -1) {
+                    /* we don't support javascript parsing yet */
+                    // TODO: this filtering rule cannot cover all cases.
+                    if (handlebarsUtils.blacklistProtocol(attributeValue)) {
+                        throw 'Unsafe output expression @ attribute URI Javascript context';
+                    }
 
-            // URI scheme
-            if (attributeName === "href" || attributeName === "src" || attributeName === "action" ||
-                attributeName === "formaction" || attributeName === "background" || attributeName === "cite" || 
-                attributeName === "longdesc" || attributeName === "usemap" || attributeName === "xlink:href"
-            ) {
-                /* we don't support javascript parsing yet */
-                // TODO: this filtering rule cannot cover all cases.
-                if (handlebarsUtils.blacklistProtocol(attributeValue)) {
-                    filters.push(filter.FILTER_NOT_HANDLE);
-                    msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ attribute URI Javascript context.";
-                    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                    handlebarsUtils.handleError(exceptionObj, this._strictMode);
-                    /* this one is safe to return */
+                    /* add the correct uri filter */
+                    if (attributeValue.replace(reURIContextStartWhitespaces, '') === "") {
+                        isFullUri = true;
+                        f = filter.FILTER_FULL_URI;
+                    } else {
+                        isFullUri = false;
+                        f = (attributeValue.indexOf('=') === -1) ? filter.FILTER_ENCODE_URI : filter.FILTER_ENCODE_URI_COMPONENT;
+                    }
+                    filters.push(f);
+
+                    /* add the attribute value filter */
+                    switch(state) {
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
+                            break;
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
+                            break;
+                        default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
+                    }
+                    filters.push(f);
+
+                    /* add blacklist filters at the end of filtering chain */
+                    if (isFullUri) {
+                        /* blacklist the URI scheme for full uri */
+                        filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
+                    }
                     return filters;
-                }
-
-                /* add the correct uri filter */
-                if (attributeValue.replace(reURIContextStartWhitespaces, '') === "") {
-                    isFullUri = true;
-                    f = filter.FILTER_FULL_URI;
+                } else if (attributeName === "style") {  // CSS
+                    /* we don't support css parser yet
+                    * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
+                    * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
+                    */
+                    throw 'Unsafe output expression @ attribute style CSS context';
+                } else if (attributeName.match(/^on/i)) { // Javascript
+                    /* we don't support js parser yet
+                    * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
+                    * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
+                    */
+                    throw 'Unsafe output expression @ attrubute on* Javascript context';
                 } else {
-                    isFullUri = false;
-                    f = (attributeValue.indexOf('=') === -1) ? filter.FILTER_ENCODE_URI : filter.FILTER_ENCODE_URI_COMPONENT;
+                    /* add the attribute value filter */
+                    switch(state) {
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
+                            return [filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED];
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
+                            return [filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED];
+                        default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
+                            return [filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED];
+                    }
                 }
-                filters.push(f);
-
-                /* add the attribute value filter */
-                f = filter.FILTER_NOT_HANDLE;
-                switch(state) {
-                    case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
-                        f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
-                        break;
-                    case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
-                        f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
-                        break;
-                    case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
-                        f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
-                        break;
-                    default:
-                        break;
-                }
-                filters.push(f);
-
-                /* add blacklist filters at the end of filtering chain */
-                if (isFullUri) {
-                    /* blacklist the URI scheme for full uri */
-                    filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
-                }
-                return filters;
-            } else if (attributeName === "style") {  // CSS
-                /* we don't support css parser yet
-                * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                */
-                filters.push(filter.FILTER_NOT_HANDLE);
-                msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ attribute style CSS context.";
-                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                handlebarsUtils.handleError(exceptionObj, this._strictMode);
-                return filters;
-            } else if (attributeName.match(/^on/i)) { // Javascript
-                /* we don't support js parser yet
-                * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                */
-                filters.push(filter.FILTER_NOT_HANDLE);
-                msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ attrubute on* Javascript context.";
-                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                handlebarsUtils.handleError(exceptionObj, this._strictMode);
-                return filters;
-            } else {
-                /* add the attribute value filter */
-                f = filter.FILTER_NOT_HANDLE;
-                switch(state) {
-                    case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
-                        f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
-                        break;
-                    case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
-                        f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
-                        break;
-                    case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
-                        f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
-                        break;
-                    default:
-                        break;
-                }
-                filters.push(f);
-                return filters;
-            }
-            break;
-        case stateMachine.State.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED: // 42
-            /* never fall into state 42 */
-            filters.push(filter.FILTER_NOT_HANDLE);
-            msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ STATE_AFTER_ATTRIBUTE_VALUE_QUOTED state.";
-            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj, this._strictMode);
-            return filters;
-        case stateMachine.State.STATE_COMMENT: // 48
-            filters.push(filter.FILTER_COMMENT);
-            return filters;
-        default:
-            filters.push(filter.FILTER_NOT_HANDLE);
-            msg = "[WARNING] ContextParserHandlebars: Unsafe output expression @ NOT HANDLE state.";
-            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj, this._strictMode);
-            return filters;
+                break;
+            case stateMachine.State.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED: // 42
+                /* never fall into state 42 */
+                throw 'Unsafe output expression @ STATE_AFTER_ATTRIBUTE_VALUE_QUOTED state';
+            case stateMachine.State.STATE_COMMENT: // 48
+                return [filter.FILTER_COMMENT];
+            default:
+                throw 'Unsafe output expression @ NOT HANDLE state';
+        }
+    } catch (stateRelatedMessage) {
+        exceptionObj = new ContextParserHandlebarsException(
+            '[WARNING] ContextParserHandlebars: ' + stateRelatedMessage, 
+            this._lineNo, 
+            this._charNo);
+        handlebarsUtils.handleError(exceptionObj, this._strictMode);
+        return [filter.FILTER_NOT_HANDLE];
     }
 };
 
