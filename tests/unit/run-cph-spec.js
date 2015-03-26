@@ -352,5 +352,18 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 expect(parser1._deepCompareState(stateObj1, stateObj2)).to.equal(testObj.result);
             });
         });
+
+        it("context-parser-handlebars#buildAst test", function() {
+            utils.buildAstProgramPatterns.forEach(function(testObj) {
+                var parser = new ContextParserHandlebars(config);
+                var ast = parser._buildAst(testObj.syntax);
+                ast.program.forEach(function(r, i) {
+                    expect(r.type).to.equal(testObj.rtype[i]);
+                    if (testObj.rstr[i] !== undefined) {
+                        expect(r.content).to.equal(testObj.rstr[i]);
+                    }
+                });
+            });
+        });
     });
 }());

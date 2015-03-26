@@ -532,4 +532,28 @@ var commentExpressionTestPatterns = [
 ];
 exports.commentExpressionTestPatterns = commentExpressionTestPatterns;
 
+var buildAstProgramPatterns = [
+    { syntax: 'xxxx{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}xxxx', 
+      rstr: [ 'xxxx', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', 'xxxx' ], 
+      rtype: [ 'content', 'rawblock', 'content' ],
+    },
+    { syntax: 'xxxx{{{rawexpression}}} {{{rawexpression}}} xxxx', 
+      rstr: [ 'xxxx', '{{{rawexpression}}}', ' ', '{{{rawexpression}}}', ' xxxx' ],
+      rtype: [ 'content', 'rawexpression', 'content', 'rawexpression', 'content' ],
+    },
+    { syntax: 'xxxx{{escapeexpression}} {{>partial}} {{&reference}} xxxx', 
+      rstr: [ 'xxxx', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' xxxx' ],
+      rtype: [ 'content', 'escapeexpression', 'content', 'expression', 'content', 'expression', 'content' ],
+    },
+    { syntax: 'xxxx{{! comment }} {{!-- }} --}} xxxx',
+      rstr: [ 'xxxx', '{{! comment }}', ' ', '{{!-- }} --}}', ' xxxx' ],
+      rtype: [ 'content', 'expression', 'content', 'expression', 'content' ],
+    },
+    { syntax: 'xxxx{{#if abc}} yyyy {{else}} zzzz {{/if}} xxxx',
+      rstr: [ 'xxxx', undefined, ' xxxx' ],
+      rtype: [ 'content', 'node', 'content' ],
+    },
+];
+exports.buildAstProgramPatterns = buildAstProgramPatterns;
+
 })();
