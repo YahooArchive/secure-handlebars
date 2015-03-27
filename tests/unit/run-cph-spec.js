@@ -353,16 +353,23 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
-        it("context-parser-handlebars#buildAst test", function() {
-            utils.buildAstProgramPatterns.forEach(function(testObj) {
+        it("context-parser-handlebars#buildAst/analyzeAst test", function() {
+            utils.buildAstPatterns.forEach(function(testObj) {
                 var parser = new ContextParserHandlebars(config);
-                var ast = parser._buildAst(testObj.syntax);
+                var ast = parser.buildAst(testObj.syntax, 0);
                 ast.program.forEach(function(r, i) {
                     expect(r.type).to.equal(testObj.rtype[i]);
-                    if (testObj.rstr[i] !== undefined) {
+                    if (r.type !== 'node') {
                         expect(r.content).to.equal(testObj.rstr[i]);
+                    } else {
+                        utils.testBranch(r.content, testObj.rstr[i]);
                     }
                 });
+
+                var stateObj = parser.getInternalState();
+                stateObj.state = 1;
+                var r = parser.analyzeAst(ast, stateObj);
+                expect(r.output).to.equal(testObj.output);
             });
         });
     });

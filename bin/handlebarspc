@@ -35,7 +35,9 @@ This utility parses the handlebars template file and add the customized filters
                 var config = {};
                 config.printCharEnable = printChar;
                 var parser = new ContextParserHandlebars(config);
-                parser.contextualize(data);
+//              parser.contextualize(data);
+var output = parser.analyzeContext(data);
+process.stdout.write(output);
                 parser.printCharWithState();
             } catch (err) {
                 console.log(err);

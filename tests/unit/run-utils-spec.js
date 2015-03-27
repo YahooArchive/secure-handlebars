@@ -22,6 +22,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             [
                 {str:'{{#xxxxxxxx   ', type:handlebarsUtils.BRANCH_EXPRESSION},
                 {str:'{{^xxxxxxxx   ', type:handlebarsUtils.BRANCH_EXPRESSION},
+                {str:'{{^}}',          type:handlebarsUtils.ELSE_EXPRESSION},
+                {str:'{{else}}',       type:handlebarsUtils.ELSE_EXPRESSION},
                 {str:'{{/xxxxxxxx   ', type:handlebarsUtils.BRANCH_END_EXPRESSION},
                 {str:'{{>xxxxxxxx   ', type:handlebarsUtils.PARTIAL_EXPRESSION},
                 {str:'{{!--xxxxxx   ', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM},
@@ -29,6 +31,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
                 {str:'{{~#xxxxxxxx  ', type:handlebarsUtils.BRANCH_EXPRESSION},
                 {str:'{{~^xxxxxxxx  ', type:handlebarsUtils.BRANCH_EXPRESSION},
+                {str:'{{~^~}}',        type:handlebarsUtils.ELSE_EXPRESSION},
+                {str:'{{~else~}}',     type:handlebarsUtils.ELSE_EXPRESSION},
                 {str:'{{~/xxxxxxxx  ', type:handlebarsUtils.BRANCH_END_EXPRESSION},
                 {str:'{{~>xxxxxxxx  ', type:handlebarsUtils.PARTIAL_EXPRESSION},
                 {str:'{{~!--xxxxxx  ', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM},
