@@ -101,7 +101,7 @@ HandlebarsUtils.lookAheadTest = function(input, i) {
                 return re.result === true ? HandlebarsUtils.ELSE_EXPRESSION : HandlebarsUtils.ESCAPE_EXPRESSION;
         }
     }
-    /* never falls into this */
+    /* never falls into this and should throw error */
     return HandlebarsUtils.UNHANDLED_EXPRESSION;
 };
 

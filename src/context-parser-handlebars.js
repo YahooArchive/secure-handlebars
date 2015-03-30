@@ -134,20 +134,68 @@ contextParser.Parser.prototype._deepCompareState = function(stateObj1, stateObj2
     // return r;
 };
 
+/**********************************
+* INHERITANCE & OVERRIDEN
+**********************************/
+
 /* inherit the prototype of contextParser.Parser */
 ContextParserHandlebars.prototype = Object.create(contextParser.Parser.prototype);
 
-/**********************************
-* OUTPUT FACILITY
-**********************************/
+/* overriding the HTML5 Context Parser's beforeWalk for printing out */
+ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
 
-// @function module:ContextParserHandlebars._printChar
-ContextParserHandlebars.prototype._printChar = function(ch) {
-    if (this._printCharEnable) {
-        process.stdout.write(ch);
+    var len = input.length,
+        symbol = this.lookupChar(input[i]);
+
+    while(true) {
+
+        /* 
+        * before passing to the _handleTemplate function, 
+        * we need to judge the exact state of output expression,
+        * querying the new state based on previous state this.state.
+        */
+        var _s = stateMachine.lookupStateFromSymbol[symbol][this.state];
+
+        /* process the char */
+        var j = this._handleTemplate(input, i, _s);
+
+        /* 
+        * break immediately as the char is non-template char.
+        */
+        if (i === j) {
+            break;
+        }
+
+        /* update the i, it is the index right after the handlebars expression */
+        i = j;
+
+        /*
+        * break immediately if out of character 
+        * (no need to throw error as outer loop will handle it).
+        */
+        if (j >= len) {
+            break;
+        }
+
+        /* read the new char to handle, may be template char again! */
+        symbol = this.lookupChar(input[i]);
     }
-    this._buffer.push(ch);
+
+    return i;
 };
+
+/* overriding the HTML5 Context Parser's afterWalk for printing out */
+ContextParserHandlebars.prototype.afterWalk = function(ch) {
+    this._printChar(ch);
+
+    /* for reporting ONLY */
+    this._lineNo += this._countNewLineChar(ch);
+    this._charNo += ch.length;
+};
+
+/**********************************
+* PUBLIC API
+**********************************/
 
 /**
 * @function module:ContextParserHandlebars.getOutput
@@ -164,7 +212,7 @@ ContextParserHandlebars.prototype.getOutput = function() {
 * @function module:ContextParserHandlebars.printCharWithState
 *
 * @description
-* <p>Print the internal states of the Context Parser when DEBUG=context-parser-handlebars.</p>
+* <p>Print the internal states of the Context Parser when DEBUG=cph-dump.</p>
 *
 */
 ContextParserHandlebars.prototype.printCharWithState = function() {
@@ -188,15 +236,68 @@ ContextParserHandlebars.prototype.printCharWithState = function() {
 };
 
 /**
-* @function module:ContextParserHandlebars._countNewLineChar
-*
-* @description
-* <p>Count the number of new line for reporting.</p>
-*
+* @function module:ContextParserHandlebars.analyzeContext
 */
+ContextParserHandlebars.prototype.analyzeContext = function(input) {
+    // the last parameter is the hack till we move to LR parser
+    var ast = this.buildAst(input, 0, []);
+    var stateObj = this.getInternalState();
+    var r = this.analyzeAst(ast, stateObj);
+    this._printChar(r.output);
+    return r.output;
+};
+
+/**********************************
+* UTILITY FUNCTIONS
+**********************************/
+
+// @function module:ContextParserHandlebars._printChar
+ContextParserHandlebars.prototype._printChar = function(ch) {
+    if (this._printCharEnable) {
+        process.stdout.write(ch);
+    }
+    this._buffer.push(ch);
+};
+
+// @function module:ContextParserHandlebars._countNewLineChar
 ContextParserHandlebars.prototype._countNewLineChar = function(ch) {
     var noOfNewLineChar = (ch.match(/\n/g) || []).length;
     return noOfNewLineChar;
+};
+
+// @function module:ContextParserHandlebars._analyzeContext
+// _analyzeContext cannot handle branching statement
+ContextParserHandlebars.prototype._analyzeContext = function(stateObj, obj) {
+    var r = {
+        output: '',
+        stateObj: {}
+    };
+
+    /* factory class */
+    var parser,
+        ContextParserHandlebars = require('./context-parser-handlebars'),
+        config = {};
+
+    config.printCharEnable = false;
+    parser = new ContextParserHandlebars(config);
+
+    /* set the internal state */
+    parser.setInternalState(stateObj);
+
+    /* just for reporting. */
+    parser._lineNo = obj.startLineNo;
+    parser._charNo = obj.startPos;
+
+    /* analyze */
+    parser.contextualize(obj.content);
+
+    /* get the output string */
+    r.output = parser.getOutput();
+
+    /* get the internal state */
+    r.stateObj = parser.getInternalState();
+
+    return r;
 };
 
 /**********************************
@@ -332,7 +433,7 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
 **********************************/
 
 // @function module:ContextParserHandlebars._consumeExpression
-ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, printChar) {
+ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, saveToBuffer) {
     var msg, exceptionObj, 
         len = input.length,
         str = '',
@@ -343,18 +444,18 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
         switch (type) {
             case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
                 if (input[j] === '-' && j+3<len && input[j+1] === '-' && input[j+2] === '}' && input[j+3] === '}') {
-                    printChar === true ? this._printChar('--}}') : obj.str += '--}}';
+                    saveToBuffer === true ? this._printChar('--}}') : obj.str += '--}}';
                     obj.index = j+3;
                     return obj;
                 } else if (input[j] === '-' && j+4<len && input[j+1] === '-' && input[j+2] === '~' && input[j+3] === '}' && input[j+4] === '}') {
-                    printChar === true ? this._printChar('--~}}') : obj.str += '--~}}';
+                    saveToBuffer === true ? this._printChar('--~}}') : obj.str += '--~}}';
                     obj.index = j+4;
                     return obj;
                 }
                 break;
             case handlebarsUtils.RAW_EXPRESSION:
                 if (input[j] === '}' && j+2<len && input[j+1] === '}' && input[j+2] === '}') {
-                    printChar === true ? this._printChar('}}}') : obj.str += '}}}';
+                    saveToBuffer === true ? this._printChar('}}}') : obj.str += '}}}';
                     obj.index = j+2;
                     return obj;
                 }
@@ -368,13 +469,13 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
             case handlebarsUtils.REFERENCE_EXPRESSION:
             case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
                 if (input[j] === '}' && j+1<len && input[j+1] === '}') {
-                    printChar === true ? this._printChar('}}') : obj.str += '}}';
+                    saveToBuffer === true ? this._printChar('}}') : obj.str += '}}';
                     obj.index = j+1;
                     return obj;
                 }
                 break;
         }
-        printChar === true ? this._printChar(input[j]) : obj.str += input[j];
+        saveToBuffer === true ? this._printChar(input[j]) : obj.str += input[j];
     }
     msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter close brace of expression.";
     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
@@ -382,15 +483,15 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
 };
 
 // @function module:ContextParserHandlebars._handleEscapeExpression
-ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, len, nextState, printChar) {
+ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, len, nextState, saveToBuffer) {
     var msg, exceptionObj,
         obj = {};
 
     obj.str = '';
 
-    printChar === true ? this._printChar('{{') : obj.str += '{{';
+    saveToBuffer === true ? this._printChar('{{') : obj.str += '{{';
     /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}} */
-    printChar === true ? this._printChar('{') : obj.str += '{';
+    saveToBuffer === true ? this._printChar('{') : obj.str += '{';
 
     /* parse expression */
     var re = handlebarsUtils.isValidExpression(input, i, handlebarsUtils.ESCAPE_EXPRESSION),
@@ -400,7 +501,7 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
     var stateObj = this.getInternalState();
     filters = this._addFilters(nextState, stateObj, input);
     for(var k=filters.length-1;k>=0;--k) {
-        if (printChar) {
+        if (saveToBuffer) {
             (re.isSingleID && k === 0) ? this._printChar(filters[k]+" ") : this._printChar(filters[k]+" (");
         } else {
             (re.isSingleID && k === 0) ? obj.str += filters[k]+" " : obj.str += filters[k]+" (";
@@ -410,22 +511,22 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
     for(var j=i+2;j<len;++j) {
         if (input[j] === '}' && j+1<len && input[j+1] === '}') {
             for(var l=filters.length-1;l>=0;--l) {
-                if (printChar) {
+                if (saveToBuffer) {
                     (re.isSingleID && l === 0) ? this._printChar('') : this._printChar(')');
                 } else {
                     (re.isSingleID && l === 0) ? obj.str += '' : obj.str += ')';
                 }
             }
 
-            printChar === true ? this._printChar('}}') : obj.str += '}}';
+            saveToBuffer === true ? this._printChar('}}') : obj.str += '}}';
             j=j+1;
             /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}}, no need to increase j by 1. */
-            printChar === true ? this._printChar('}') : obj.str += '}';
+            saveToBuffer === true ? this._printChar('}') : obj.str += '}';
 
             obj.index = j;
             return obj;
         } else {
-            printChar === true ? this._printChar(input[j]) : obj.str += input[j];
+            saveToBuffer === true ? this._printChar(input[j]) : obj.str += input[j];
         }
     }
     msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of escape expression.";
@@ -434,7 +535,7 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
 };
 
 // @function module:ContextParserHandlebars._handleRawBlock
-ContextParserHandlebars.prototype._handleRawBlock = function(input, i, printChar) {
+ContextParserHandlebars.prototype._handleRawBlock = function(input, i, saveToBuffer) {
     var msg, exceptionObj, 
         obj = {};
     var isStartExpression = true,
@@ -445,7 +546,7 @@ ContextParserHandlebars.prototype._handleRawBlock = function(input, i, printChar
     obj.str = '';
     for(var j=i;j<len;++j) {
         if (isStartExpression && input[j] === '}' && j+3<len && input[j+1] === '}' && input[j+2] === '}' && input[j+3] === '}') {
-            printChar === true ? this._printChar('}}}}') : obj.str += '}}}}';
+            saveToBuffer === true ? this._printChar('}}}}') : obj.str += '}}}}';
             j=j+3;
     
             isStartExpression = false;
@@ -463,16 +564,16 @@ ContextParserHandlebars.prototype._handleRawBlock = function(input, i, printChar
             }
             for(var k=j;k<len;++k) {
                 if (input[k] === '}' && k+3<len && input[k+1] === '}' && input[k+2] === '}' && input[k+3] === '}') {
-                    printChar === true ? this._printChar('}}}}') : obj.str += '}}}}';
+                    saveToBuffer === true ? this._printChar('}}}}') : obj.str += '}}}}';
                     k=k+3;
 
                     obj.index = k;
                     return obj;
                 }
-                printChar === true ? this._printChar(input[k]) : obj.str += input[k];
+                saveToBuffer === true ? this._printChar(input[k]) : obj.str += input[k];
             }
         } else {
-            printChar === true ? this._printChar(input[j]) : obj.str += input[j];
+            saveToBuffer === true ? this._printChar(input[j]) : obj.str += input[j];
         }
     }
     msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}}}' close brace of raw block.";
@@ -480,171 +581,126 @@ ContextParserHandlebars.prototype._handleRawBlock = function(input, i, printChar
     handlebarsUtils.handleError(exceptionObj, true);
 };
 
-// @function module:ContextParserHandlebars._handleBranchExpression
-ContextParserHandlebars.prototype._handleBranchExpression = function(input, i) {
-    var msg, exceptionObj, 
-        obj = {};
+/*
+* @function module:ContextParserHandlebars._handleTemplate
+*
+* @param {string} input - The input string of the HTML5 web page.
+* @param {integer} i - The index of the current character in the input string.
+* @param {integer} state - The current HTML5 state of the current character before the Handlebars expression.
+* @returns {integer} The index right after the last '}' if it is Handlebars expression or return immediately if it is not Handlebars.
+*
+*/
+ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState) {
+
+    /* the max length of the input string */
+    var len = input.length;
+    /* regular expression validation result */
+    var re;
+    /* error msg */
+    var msg, exceptionObj;
+    /* _handleXXXX return object */
+    var obj;
+    /* Handlebars expression type */
+    var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
+
     try {
-        var ast = this._buildBranchAst(input, i);
-        var stateObj = this.getInternalState();
-        var result = this._analyseBranchAst(ast, stateObj);
+        // we don't care about the expression with more than 4 braces, handlebars will handle it.
+        /* handling different type of expression */
+        if (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{') {
+            handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
+            re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
+            if (re.result === false) {
+                throw "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw block expression.";
+            }
 
-        /* print the output */
-        this._printChar(result.output);
+            /* _handleRawBlock */
+            debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
+            obj = this._handleRawBlock(input, i, true);
+            /* advance the index pointer by 1 to the char after the last brace of expression. */
+            return obj.index+1;
 
-        /* update the state after branching expression, index 0 and 1 must be the same */
-        this.setInternalState(result.lastStates[0]);
- 
-        /* update the _lineNo */
-        this._lineNo += ast.noOfNewLineChar;
+        } else if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
+            handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
+            re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
+            if (re.result === false) {
+                throw "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw expression.";
+            }
 
-        /* update the char pointer */
-        obj.index = ast.index;
+            /* _handleRawExpression */
+            debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
+            obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
+            /* update the Context Parser's state if it is raw expression. */
+            this.state = nextState;
+            /* advance the index pointer by 1 to the char after the last brace of expression. */
+            return obj.index+1;
 
-        debug("_handleBranchTemplate: state:"+result.lastStates[0].state+",new i:"+ast.index+",lineNo:"+this._lineNo);
-        return obj;
-    } catch (err) {
-        exceptionObj = new ContextParserHandlebarsException(err.msg, this._lineNo, this._charNo);
+        } else if (input[i] === '{' && i+1<len && input[i+1] === '{') {
+            // this is just for lookAhead, does not guarantee the valid expression.
+            handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, i);
+            switch (handlebarsExpressionType) {
+                case handlebarsUtils.ESCAPE_EXPRESSION:
+                    re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
+                    if (re.result === false) {
+                        throw "[ERROR] ContextParserHandlebars: Parsing error! Invalid escape expression.";
+                    }
+
+                    /* _handleEscapeExpression */
+                    debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
+                    obj = this._handleEscapeExpression(input, i, len, nextState, true);
+                    /* update the Context Parser's state if it is raw expression. */
+                    this.state = nextState;
+                    /* advance the index pointer by 1 to the char after the last brace of expression. */
+                    return obj.index+1;
+
+                case handlebarsUtils.PARTIAL_EXPRESSION:
+                case handlebarsUtils.REFERENCE_EXPRESSION:
+                    re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
+                    if (re.result === false) {
+                        throw "[ERROR] ContextParserHandlebars: Parsing error! Invalid partial/reference expression.";
+                    }
+
+                    /* _consumeExpression */
+                    debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
+                    obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
+                    /* advance the index pointer by 1 to the char after the last brace of expression. */
+                    return obj.index+1;
+
+                case handlebarsUtils.BRANCH_EXPRESSION:
+                    throw "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{[#|^].*}} expression.";
+                case handlebarsUtils.BRANCH_END_EXPRESSION:
+                    throw "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{/.*}} expression.";
+                case handlebarsUtils.ELSE_EXPRESSION:
+                    throw "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{else}} or {{^}} expression.";
+                case handlebarsUtils.UNHANDLED_EXPRESSION:
+                    throw "[ERROR] ContextParserHandlebars: Parsing error! Unexpected expression.";
+                case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
+                case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
+                    // no need to validate the comment expression as the content inside are skipped.
+                    /* _consumeExpression */
+                    debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
+                    obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
+                    /* advance the index pointer by 1 to the char after the last brace of expression. */
+                    return obj.index+1;
+
+                default:
+                    throw "[ERROR] ContextParserHandlebars: Parsing error! Unknown expression.";
+            }
+        } else {
+            /* return immediately for non template start char '{' */
+            return i;
+        }
+    } catch (stateRelatedMessage) {
+        exceptionObj = new ContextParserHandlebarsException(
+            '[WARNING] ContextParserHandlebars: ' + stateRelatedMessage, 
+            this._lineNo, 
+            this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
 };
 
-// @function module:ContextParserHandlebars._analyzeContext
-ContextParserHandlebars.prototype._analyzeContext = function(stateObj, obj) {
-    var r = {
-        output: '',
-        stateObj: {}
-    };
-
-    /* factory class */
-    var parser,
-        ContextParserHandlebars = require('./context-parser-handlebars'),
-        config = {};
-
-    config.printCharEnable = false;
-    parser = new ContextParserHandlebars(config);
-
-    /* set the internal state */
-    parser.setInternalState(stateObj);
-
-    /* just for reporting. */
-    parser._lineNo = obj.startLineNo;
-    parser._charNo = obj.startPos;
-
-    /* analyze */
-    parser.contextualize(obj.content);
-
-    /* get the output string */
-    r.output = parser.getOutput();
-
-    /* get the internal state */
-    r.stateObj = parser.getInternalState();
-
-    return r;
-};
-
-// @function module:ContextParserHandlebars._analyseBranchAst
-ContextParserHandlebars.prototype._analyseBranchAst = function(ast, stateObj) {
-    var obj = {},
-        len = ast.program.length;
-
-    var r = {},
-        t, msg, exceptionObj;
-
-    r.lastStates = [];
-    r.lastStates[0] = stateObj;
-    r.lastStates[1] = stateObj;
-    r.output = '';
-    
-    var programDebugOutput = "", inverseDebugOutput = "";
-
-    for(var i=0;i<len;++i) {
-        obj = ast.program[i];
-        if (obj.type === 'content') {
-
-            debugBranch("_analyzeBranchAst:before:program:content:"+obj.content);
-            debugBranch(r.lastStates[0]);
-
-            t = this._analyzeContext(r.lastStates[0], obj);
-            r.output += t.output;
-            r.lastStates[0] = t.stateObj;
-            programDebugOutput += t.output;
-
-            debugBranch(r.lastStates[0]);
-
-        } else if (obj.type === 'node') {
-
-            debugBranch("_analyzeBranchAst:before:program:node");
-            debugBranch(r.lastStates[0]);
-
-            t = this._analyseBranchAst(obj.content, r.lastStates[0]);
-            r.lastStates[0] = t.lastStates[0]; // index 0 and 1 MUST be equal
-            r.output += t.output;
-            programDebugOutput += t.output;
-
-            debugBranch(r.lastStates[0]);
-
-        } else if (obj.type === 'branch' ||
-            obj.type === 'branchelse' ||
-            obj.type === 'branchend') {
-            r.output += obj.content;
-            programDebugOutput += obj.content;
-        }
-    }
-    len = ast.inverse.length;
-    for(i=0;i<len;++i) {
-        obj = ast.inverse[i];
-        if (obj.type === 'content') {
-
-            debugBranch("_analyzeBranchAst:before:inverse:content:"+obj.content);
-            debugBranch(r.lastStates[1]);
-
-            t = this._analyzeContext(r.lastStates[1], obj);
-            r.output += t.output;
-            r.lastStates[1] = t.stateObj;
-            inverseDebugOutput += t.output;
-
-            debugBranch(r.lastStates[1]);
-
-        } else if (obj.type === 'node') {
-
-            debugBranch("_analyzeBranchAst:before:inverse:node");
-            debugBranch(r.lastStates[1]);
-
-            t = this._analyseBranchAst(obj.content, r.lastStates[1]);
-            r.lastStates[1] = t.lastStates[1]; // index 0 and 1 MUST be equal
-            r.output += t.output;
-            inverseDebugOutput += t.output;
-
-            debugBranch(r.lastStates[1]);
-
-        } else if (obj.type === 'branch' ||
-            obj.type === 'branchelse' ||
-            obj.type === 'branchend') {
-            r.output += obj.content;
-            inverseDebugOutput += obj.content;
-        }
-    }
-
-    if (ast.program.length > 0 && ast.inverse.length === 0) {
-        debugBranch("_analyseBranchAst:["+r.lastStates[0].state+"/"+r.lastStates[0].state+"]");
-        r.lastStates[1] = r.lastStates[0];
-    } else if (ast.program.length === 0 && ast.inverse.length > 0) {
-        debugBranch("_analyseBranchAst:["+r.lastStates[1].state+"/"+r.lastStates[1].state+"]");
-        r.lastStates[0] = r.lastStates[1];
-    }
-
-    if (!this._deepCompareState(r.lastStates[0], r.lastStates[1])) {
-        msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsitent HTML5 state OR without close tag after conditional branches. Please fix your template! \n";
-        msg += "[ERROR] #if  branch: " + programDebugOutput.slice(0, 50) + "...\n";
-        msg += "[ERROR] else branch: " + inverseDebugOutput.slice(0, 50) + "...\n";
-        msg += JSON.stringify(r.lastStates[0]) + "\n";
-        msg += JSON.stringify(r.lastStates[1]) + "\n";
-        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-        handlebarsUtils.handleError(exceptionObj, true);
-    }
-    return r;
-};
+/**********************************
+* BUILDING AST 
+**********************************/
 
 // @function module:ContextParserHandlebars.analyzeAst
 ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj) {
@@ -689,6 +745,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj) {
             programDebugOutput += obj.content;
         }
     });
+    /* TODO: duplicated code, revise it later */
     ast.inverse.forEach(function(obj, i) {
         if (obj.type === 'content' ||
             obj.type === 'rawblock' ||
@@ -738,7 +795,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj) {
 };
 
 // @function module:ContextParserHandlebars.buildAst
-ContextParserHandlebars.prototype.buildAst = function(input, i) {
+ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
 
     /* init the data structure */
     var ast = {};
@@ -750,9 +807,9 @@ ContextParserHandlebars.prototype.buildAst = function(input, i) {
         re,
         msg, exceptionObj; // msg and exception
 
-    var sp = [], // for branching tag stack
-        content = '',
+    var content = '',
         inverse = false,
+        buildNode = false,
         saveObj = {},
         obj = {};
 
@@ -801,71 +858,77 @@ ContextParserHandlebars.prototype.buildAst = function(input, i) {
                 }
 
                 switch (handlebarsExpressionType) {
-                case handlebarsUtils.RAW_BLOCK:
-                    /* _handleRawBlock */
-                    startPos = j;
-                    obj = this._handleRawBlock(input, j, false);
-                    endPos = j = obj.index;
-                    saveObj = this._getSaveObject('rawblock', obj.str, startPos, lineNo);
-                    lineNo += this._countNewLineChar(obj.str);
-                    inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                    case handlebarsUtils.RAW_BLOCK:
+                        /* _handleRawBlock */
+                        startPos = j;
+                        obj = this._handleRawBlock(input, j, false);
+                        endPos = j = obj.index;
+                        saveObj = this._getSaveObject('rawblock', obj.str, startPos, lineNo);
+                        lineNo += this._countNewLineChar(obj.str);
+                        inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
                  
-                    break;
-                case handlebarsUtils.ELSE_EXPRESSION:
-                    /* inverse */
-                    inverse = true;
+                        break;
+                    case handlebarsUtils.ELSE_EXPRESSION:
+                        /* inverse */
+                        inverse = true;
 
-                    /* _consumeExpression */
-                    startPos = j;
-                    obj = this._consumeExpression(input, j, handlebarsExpressionType, false);
-                    endPos = j = obj.index;
-                    saveObj = this._getSaveObject(handlebarsExpressionTypeName, obj.str, startPos, lineNo);
-                    lineNo += this._countNewLineChar(obj.str);
-                    inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                        /* _consumeExpression */
+                        startPos = j;
+                        obj = this._consumeExpression(input, j, handlebarsExpressionType, false);
+                        endPos = j = obj.index;
+                        saveObj = this._getSaveObject(handlebarsExpressionTypeName, obj.str, startPos, lineNo);
+                        lineNo += this._countNewLineChar(obj.str);
+                        inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
 
-                    break;
-                case handlebarsUtils.BRANCH_EXPRESSION:
-                    /* _consumeExpression */
-                    startPos = j;
-                    obj = this._consumeExpression(input, j, handlebarsExpressionType, false);
-                    endPos = j = obj.index;
-                    var branchSaveObj = this._getSaveObject(handlebarsExpressionTypeName, obj.str, startPos, lineNo);
-                    lineNo += this._countNewLineChar(obj.str);
+                        break;
+                    case handlebarsUtils.BRANCH_EXPRESSION:
 
-                    /* buildAst recursively */
-                    startPos = j+1;
-                    obj = this.buildAst(input, j+1);
-                    /* push the branchstart in the front of the array */
-                    obj.program.unshift(branchSaveObj);
-                    if (obj.tag !== re.tag) {
-                        // broken template as the end expression does not match, throw exception before function returns 
-                        throw "[ERROR] ContextParserHandlebars: Template expression mismatch (startExpression:"+re.tag+"/endExpression:"+obj.tag+")";
-                    }
+                        if (sp.length === 0 || buildNode) {
+                            /* buildAst recursively */
+                            startPos = j;
+                            obj = this.buildAst(input, j, [re.tag]);
+                            endPos = j = obj.index;
+                            saveObj = this._getSaveObject('node', obj, startPos, lineNo);
+                            lineNo += obj.noOfNewLineChar;
+                            inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                        } else {
+                            /* _consumeExpression */
+                            startPos = j;
+                            obj = this._consumeExpression(input, j, handlebarsExpressionType, false);
+                            endPos = j = obj.index;
+                            saveObj = this._getSaveObject(handlebarsExpressionTypeName, obj.str, startPos, lineNo);
+                            lineNo += this._countNewLineChar(obj.str);
+                            inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                            buildNode = true;
+                        }
 
-                    endPos = j = obj.index;
-                    saveObj = this._getSaveObject('node', obj, startPos, lineNo);
-                    lineNo += obj.noOfNewLineChar;
-                    inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                        break;
+                    case handlebarsUtils.RAW_EXPRESSION:
+                    case handlebarsUtils.ESCAPE_EXPRESSION:
+                    case handlebarsUtils.PARTIAL_EXPRESSION:
+                    case handlebarsUtils.REFERENCE_EXPRESSION:
+                    case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
+                    case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
+                    case handlebarsUtils.BRANCH_END_EXPRESSION:
+                        if (handlebarsExpressionType === handlebarsUtils.BRANCH_END_EXPRESSION) {
+                            var startTag = sp.pop();
+                            if (startTag !== re.tag) {
+                                // broken template as the end expression does not match, throw exception before function returns 
+                                throw "[ERROR] ContextParserHandlebars: Template expression mismatch (startExpression:"+startTag+"/endExpression:"+re.tag+")";
+                            }
+                        }
 
-                    break;
-                case handlebarsUtils.RAW_EXPRESSION:
-                case handlebarsUtils.ESCAPE_EXPRESSION:
-                case handlebarsUtils.PARTIAL_EXPRESSION:
-                case handlebarsUtils.REFERENCE_EXPRESSION:
-                case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
-                case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
-                case handlebarsUtils.BRANCH_END_EXPRESSION:
-                    /* _consumeExpression */
-                    startPos = j;
-                    obj = this._consumeExpression(input, j, handlebarsExpressionType, false);
-                    endPos = j = obj.index;
-                    saveObj = this._getSaveObject(handlebarsExpressionTypeName, obj.str, startPos, lineNo);
-                    lineNo += this._countNewLineChar(obj.str);
-                    inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                        /* _consumeExpression */
+                        startPos = j;
+                        obj = this._consumeExpression(input, j, handlebarsExpressionType, false);
+                        endPos = j = obj.index;
+                        saveObj = this._getSaveObject(handlebarsExpressionTypeName, obj.str, startPos, lineNo);
+                        lineNo += this._countNewLineChar(obj.str);
+                        inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
 
-                    break;
-                default:
-                    throw "[ERROR] ContextParserHandlebars: Parsing error! Unexcepted error.";
+                        break;
+                    default:
+                        throw "[ERROR] ContextParserHandlebars: Parsing error! Unexcepted error.";
                 }
 
                 /* return for handlebarsUtils.BRANCH_END_EXPRESSION */
@@ -879,6 +942,10 @@ ContextParserHandlebars.prototype.buildAst = function(input, i) {
             } else {
                 content += input[j];
             }
+        }
+
+        if (sp.length > 0) {
+            throw "[ERROR] ContextParserHandlebars: Template does not have branching close expression";
         }
     } catch (stateRelatedMessage) {
         exceptionObj = new ContextParserHandlebarsException(
@@ -902,140 +969,6 @@ ContextParserHandlebars.prototype.buildAst = function(input, i) {
     return ast;
 };
 
-// @function module:ContextParserHandlebars._buildBranchAst
-ContextParserHandlebars.prototype._buildBranchAst = function(input, i) {
-
-    /* init the data structure */
-    var ast = {};
-    ast.program = [];
-    ast.inverse = [];
-
-    var j = 0,
-        len = input.length,
-        msg, exceptionObj; // msg and exception
-
-    var sp = [], // for branching tag stack
-        content = '',
-        inverse = false,
-        saveObj = {},
-        obj = {};
-
-    var startPos = 0,
-        endPos = 0, 
-        lineNo = 0;
-
-    for(j=i;j<len;++j) {
-        var exp = handlebarsUtils.isValidExpression(input, j, handlebarsUtils.BRANCH_EXPRESSION).tag,
-            endExpression = handlebarsUtils.isValidExpression(input, j, handlebarsUtils.BRANCH_END_EXPRESSION).tag;
-        
-        if (exp !== false) {
-            /* encounter the first branch expression */
-            if (sp.length === 0) {
-                /* save the branch expression name */
-                sp.push(exp);
-
-                /* reset the content */
-                content = '';
-                inverse = false;
-
-                /* consume the start branch expression */
-                startPos = j;
-                obj = this._consumeExpression(input, j, handlebarsUtils.BRANCH_EXPRESSION, false);
-                endPos = j = obj.index;
-                saveObj = this._getSaveObject('branch', obj.str, startPos, lineNo);
-                lineNo += this._countNewLineChar(obj.str);
-                inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
-
-            } else {
-                /* save content */
-                startPos = endPos+1;
-                endPos = startPos+content.length-1;
-                saveObj = this._getSaveObject('content', content, startPos, lineNo);
-                lineNo += this._countNewLineChar(content);
-                inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
-                content = '';
-
-                /* consume the branch recursively */
-                startPos = j;
-                obj = this._buildBranchAst(input, j);
-                endPos = j = obj.index;
-                saveObj = this._getSaveObject('node', obj, startPos, lineNo);
-                lineNo += obj.noOfNewLineChar;
-                inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
-            }
-        } else if (handlebarsUtils.isValidExpression(input, j, handlebarsUtils.ELSE_EXPRESSION).result) {
-            /* save content */
-            startPos = endPos+1;
-            endPos = startPos+content.length-1;
-            saveObj = this._getSaveObject('content', content, startPos, lineNo);
-            lineNo += this._countNewLineChar(content);
-            inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
-            content = '';
-
-            /* save content and flip */
-            inverse = true;
-
-            /* consume the else expression */
-            startPos = j;
-            obj = this._consumeExpression(input, j, handlebarsUtils.ELSE_EXPRESSION, false);
-            endPos = j = obj.index;
-            saveObj = this._getSaveObject('branchelse', obj.str, startPos, lineNo);
-            lineNo += this._countNewLineChar(obj.str);
-            inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
-
-        } else if (endExpression !== false) {
-            var t = sp.pop();
-            if (t === endExpression) {
-                /* save content */
-                startPos = endPos+1;
-                endPos = startPos+content.length-1;
-                saveObj = this._getSaveObject('content', content, startPos, lineNo);
-                lineNo += this._countNewLineChar(content);
-                inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
-
-                /* consume the expression */
-                startPos = j;
-                obj = this._consumeExpression(input, j, handlebarsUtils.BRANCH_END_EXPRESSION, false);
-                endPos = j = obj.index;
-                saveObj = this._getSaveObject('branchend', obj.str, startPos, lineNo);
-                lineNo += this._countNewLineChar(obj.str);
-                inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
-
-                break;
-            } else {
-                /* broken template as the end expression does not match, throw exception before function returns */
-                msg = "[ERROR] ContextParserHandlebars: Template expression mismatch (startExpression:"+t+"/endExpression:"+endExpression+")";
-                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                handlebarsUtils.handleError(exceptionObj, true);
-            }
-        } else {
-            var expressionType = handlebarsUtils.lookAheadTest(input, j);
-            if (expressionType === handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM ||
-                expressionType === handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM) {
-                /* consume the comment expression */
-                startPos = j;
-                obj = this._consumeExpression(input, j, expressionType, false);
-                endPos = j = obj.index;
-                content += obj.str;
-            } else {
-                /* capturing the string */
-                content += input[j];    
-            }
-        }
-    }
-
-    if (sp.length > 0) {
-        /* throw error on the template */
-        msg = "[ERROR] ContextParserHandlebars: Template does not have balanced branching expression.";
-        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-        handlebarsUtils.handleError(exceptionObj, true);
-    }
-
-    ast.index = j;
-    ast.noOfNewLineChar = lineNo;
-    return ast;
-};
-
 // @function ContextParserHandlebars._getSaveObject
 ContextParserHandlebars.prototype._getSaveObject = function(type, content, startPos, lineNo) {
     var obj = {};
@@ -1045,237 +978,6 @@ ContextParserHandlebars.prototype._getSaveObject = function(type, content, start
     obj.startPos = startPos;
     obj.startLineNo = this._lineNo + lineNo;
     return obj;
-};
-
-/*
-* @function module:ContextParserHandlebars._handleTemplate
-*
-* @param {string} input - The input string of the HTML5 web page.
-* @param {integer} i - The index of the current character in the input string.
-* @param {integer} state - The current HTML5 state of the current character before the Handlebars expression.
-* @returns {integer} The index right after the last '}' if it is Handlebars expression or return immediately if it is not Handlebars.
-*
-*/
-ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState) {
-
-    /* the max length of the input string */
-    var len = input.length;
-    /* regular expression validation result */
-    var re;
-    /* error msg */
-    var msg, exceptionObj;
-    /* _handleXXXX return object */
-    var obj;
-    /* Handlebars expression type */
-    var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
-
-    // we don't care about the expression with more than 4 braces, handlebars will handle it.
-    /* handling different type of expression */
-    if (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{') {
-        handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
-        re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
-        if (re.result === false) {
-            msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw block expression.";
-            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj, true);
-        }
-
-        /* _handleRawBlock */
-        debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
-        obj = this._handleRawBlock(input, i, true);
-        /* advance the index pointer by 1 to the char after the last brace of expression. */
-        return obj.index+1;
-
-    } else if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
-        handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
-        re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
-        if (re.result === false) {
-            msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw expression.";
-            exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-            handlebarsUtils.handleError(exceptionObj, true);
-        }
-
-        /* _handleRawExpression */
-        debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
-        obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
-        /* update the Context Parser's state if it is raw expression. */
-        this.state = nextState;
-        /* advance the index pointer by 1 to the char after the last brace of expression. */
-        return obj.index+1;
-
-    } else if (input[i] === '{' && i+1<len && input[i+1] === '{') {
-        // this is just for lookAhead, does not guarantee the valid expression.
-        handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, i);
-        switch (handlebarsExpressionType) {
-            case handlebarsUtils.UNHANDLED_EXPRESSION:
-                msg = "[WARNING] ContextParserHandlebars: Not supported expression.";
-                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                handlebarsUtils.handleError(exceptionObj, false);
-                /* _consumeExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
-                obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
-                /* advance the index pointer by 1 to the char after the last brace of expression. */
-                return obj.index+1;
-
-            case handlebarsUtils.ESCAPE_EXPRESSION:
-                re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
-                if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid escape expression.";
-                    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                    handlebarsUtils.handleError(exceptionObj, true);
-                }
-                /* _handleEscapeExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
-                obj = this._handleEscapeExpression(input, i, len, nextState, true);
-                /* update the Context Parser's state if it is raw expression. */
-                this.state = nextState;
-                /* advance the index pointer by 1 to the char after the last brace of expression. */
-                return obj.index+1;
-
-            case handlebarsUtils.PARTIAL_EXPRESSION:
-                re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
-                if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid partial expression.";
-                    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                    handlebarsUtils.handleError(exceptionObj, true);
-                }
-                /* _consumeExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
-                obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
-                /* advance the index pointer by 1 to the char after the last brace of expression. */
-                return obj.index+1;
-
-            case handlebarsUtils.REFERENCE_EXPRESSION:
-                re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
-                if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid reference expression.";
-                    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                    handlebarsUtils.handleError(exceptionObj, true);
-                }
-                /* _consumeExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
-                obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
-                /* advance the index pointer by 1 to the char after the last brace of expression. */
-                return obj.index+1;
-
-            case handlebarsUtils.BRANCH_EXPRESSION:
-//
-// TODO: no handlebarsUtils.BRANCH_EXPRESSION anymore
-//
-                re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
-                if (re.result === false) {
-                    msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid branch expression.";
-                    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                    handlebarsUtils.handleError(exceptionObj, true);
-                }
-                /* _handleBranchExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
-                obj = this._handleBranchExpression(input, i);
-                /* advance the index pointer by 1 to the char after the last brace of expression. */
-                return obj.index+1;
-
-            case handlebarsUtils.BRANCH_END_EXPRESSION:
-                msg = "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{/.*}} expression.";
-                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                handlebarsUtils.handleError(exceptionObj, true);
-                break;
-
-            case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
-                // no need to validate the comment expression as the content inside are skipped.
-                /* _consumeExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
-                obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
-                /* advance the index pointer by 1 to the char after the last brace of expression. */
-                return obj.index+1;
-
-            case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
-                // no need to validate the comment expression as the content inside are skipped.
-                /* _consumeExpression */
-                debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
-                obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
-                /* advance the index pointer by 1 to the char after the last brace of expression. */
-                return obj.index+1;
-
-            case handlebarsUtils.ELSE_EXPRESSION:
-                msg = "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{else}} or {{^}} expression.";
-                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                handlebarsUtils.handleError(exceptionObj, true);
-                break;
-
-            default:
-                msg = "[ERROR] ContextParserHandlebars: Parsing error! Unknown expression.";
-                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                handlebarsUtils.handleError(exceptionObj, true);
-                break;
-        }
-    } else {
-        /* return immediately for non template start char '{' */
-        return i;
-    }
-};
-
-/**********************************
-* HOOK LOGIC
-**********************************/
-
-// @function module:ContextParserHandlebars.analyzeContext
-ContextParserHandlebars.prototype.analyzeContext = function(input) {
-    var ast = this.buildAst(input, 0);
-    var stateObj = this.getInternalState();
-    var r = this.analyzeAst(ast, stateObj);
-    return r.output;
-};
-
-/* overriding the HTML5 Context Parser's beforeWalk for printing out */
-ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
-
-    var len = input.length,
-        symbol = this.lookupChar(input[i]);
-
-    while(true) {
-
-        /* 
-        * before passing to the _handleTemplate function, 
-        * we need to judge the exact state of output expression,
-        * querying the new state based on previous state this.state.
-        */
-        var _s = stateMachine.lookupStateFromSymbol[symbol][this.state];
-
-        /* process the char */
-        var j = this._handleTemplate(input, i, _s);
-
-        /* 
-        * break immediately as the char is non-template char.
-        */
-        if (i === j) {
-            break;
-        }
-
-        /* update the i, it is the index right after the handlebars expression */
-        i = j;
-
-        /*
-        * break immediately if out of character 
-        * (no need to throw error as outer loop will handle it).
-        */
-        if (j >= len) {
-            break;
-        }
-
-        /* read the new char to handle, may be template char again! */
-        symbol = this.lookupChar(input[i]);
-    }
-
-    return i;
-};
-
-/* overriding the HTML5 Context Parser's afterWalk for printing out */
-ContextParserHandlebars.prototype.afterWalk = function(ch) {
-    this._printChar(ch);
-
-    /* for reporting ONLY */
-    this._lineNo += this._countNewLineChar(ch);
-    this._charNo += ch.length;
 };
 
 /* exposing it */

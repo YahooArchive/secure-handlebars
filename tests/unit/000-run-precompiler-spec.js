@@ -37,13 +37,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* generate the template files */
         var genPrecompiledTemplateFiles = function(id) {
-            it("ContextParserHandlebars#contextualize template " + id + " test", function() {
+            it("ContextParserHandlebars#analyzeContext template " + id + " test", function() {
                 var file = './tests/samples/files/handlebarsjs_template_'+id+'.hbs';
                 var data = fs.readFileSync(file, 'utf-8');
                 var parser = new ContextParserHandlebars(config);
                 try {
-                    parser.contextualize(data);
-                    var output = parser.getOutput();
+                    var output = parser.analyzeContext(data);
                     fs.writeFileSync("./tests/samples/files/handlebarsjs_template_"+id+".hbs.precompiled", output, {flag:'w'});
                 } catch (err) {
                     console.log(err)
@@ -58,13 +57,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* generate the filter files */
         var genPrecompiledFilterFiles = function(id) {
-            it("ContextParserHandlebars#contextualize filter " + id + " test", function() {
+            it("ContextParserHandlebars#analyzeContext filter " + id + " test", function() {
                 var file = './tests/samples/files/handlebarsjs_filter_'+id+'.hbs';
                 var data = fs.readFileSync(file, 'utf-8');
                 var parser = new ContextParserHandlebars(config);
                 try {
-                    parser.contextualize(data);
-                    var output = parser.getOutput();
+                    var output = parser.analyzeContext(data);
                     fs.writeFileSync("./tests/samples/files/handlebarsjs_filter_"+id+".hbs.precompiled", output, {flag:'w'});
                 } catch (err) {
                     console.log(err)                    
@@ -87,12 +85,10 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 title: './bin/handlebarspc branching logic startName/endName mismatch template test',
                 file: './tests/samples/files/handlebarsjs_template_018.hbs',
             },
-/* need to fix
             {
                 title: './bin/handlebarspc broken conditional {{#if}} without {{#if}} template test',
                 file: './tests/samples/files/handlebarsjs_template_019.hbs',
             },
-*/
             {
                 title: './bin/handlebarspc invalid {{expression}} template test',
                 file: './tests/samples/files/handlebarsjs_template_021.hbs',
