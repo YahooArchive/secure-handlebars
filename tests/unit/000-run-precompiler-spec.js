@@ -124,7 +124,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* reported bug tests */
         [
-/* need to fix
+/* need to fix it later 
             {
                 title: './bin/handlebarspc line no and char no reporting test',
                 file: './tests/samples/bugs/005.line.report.hb',
