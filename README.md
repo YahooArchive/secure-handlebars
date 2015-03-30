@@ -1,55 +1,57 @@
-Handlebars Context Pre-compiler
+SecureHandlebars
 ===============================
-This pre-compiler is to **automatically** conduct HTML 5 context analysis on Handlebars templates, and insert markup of XSS filtering helpers to output expressions based on their surrounding contexts. 
-
-The resulted templates can then be further processed with the [vanilla Handlebars template engine](http://handlebarsjs.com). With the [context-sensitive helpers](https://www.npmjs.com/package/secure-handlebars-helpers) properly registered at runtime, the context-sensitive escaping will effectively defend against XSS attacks.
+SecureHandlebars can **automatically** conduct HTML 5 context analysis on Handlebars templates, and insert markup of XSS filtering helpers to output expressions based on their surrounding contexts. 
 
 ## Quick Start
 
-### Server-side (as a CLI utility)
+### Client-side
 
-Install the [context-parser-handlebars npm](https://www.npmjs.com/package/context-parser-handlebars) globally, so it can be used in any project.
-```sh
-npm install context-parser-handlebars -g
+Analyze the HTML contexts of Handlebars templates on client-side
+```html
+<!-- Disable the original handlebars-->
+<!--script src="dist/handlebars.min.js"></script-->
+
+<script src="dist/secure-handlebars.min.js"></script>
+<script>
+// given data stores a handlebars template as string
+var html = '<html><title>{{title}}</title></html>',
+	data = {title: 'Hello'};
+
+// analyze the HTML contexts, and return a handlebars template with context-sensitive helpers added! 
+var template = Handlebars.compile(html);
+// i.e., output is '<html><title>Hello</title></html>';
+alert(template(data));
+// ...
+</script>
 ```
 
-Given a handlebars template file like so:
+### Template PreCompilation at Server-side (using a CLI utility)
+
+We recommend using the [express-secure-handlebars npm](https://www.npmjs.com/package/express-secure-handlebars) for most use cases.
+
+Install the [secure-handlebars npm](https://www.npmjs.com/package/secure-handlebars) globally, so it can be used in any project.
+```sh
+npm install secure-handlebars -g
+```
+
+Given a handlebars template file named `sample.hbs` like so:
 ```html
 <html><title>{{title}}</title></html>
 ```
 
-Run through the handlebars template file with our Handlebars Context Pre-compiler, and you can see that context-sensitive helpers are added to output expressions like so:
+Preprocess the template:
 ```sh
-$ handlebarspc <handlebars template file>
-<html><title>{{{yd title}}}</title></html>
+$ handlebarspc sample.hbs > sample.shbs
 ```
 
-The resulted pre-compiled template file is fully-compatible with the vanilla Handlebars. See [secure-handlebars-helpers](https://www.npmjs.com/package/secure-handlebars-helpers) on how to register the corresponding helpers on the client-side for context-sensitive filtering.
+Precompile using the handlebars precompiler (for details, refer to the [original precompiler](https://github.com/wycats/handlebars.js#precompiling-templates)):
+```sh
+$ handlebars sample.shbs
+```
+
+The resulted pre-compiled template file is fully-compatible with the [original Handlebars runtime](http://builds.handlebarsjs.com.s3.amazonaws.com/handlebars.runtime.min-latest.js). See [secure-handlebars-helpers](https://www.npmjs.com/package/secure-handlebars-helpers) on how to register the corresponding helpers on the client-side for context-sensitive filtering.
 
 Note: the default [context-insensitive HTML escaping](http://handlebarsjs.com/#html-escaping) by Handlebars is disabled with the raw {{{expression}}} to prevent redundant escaping.
-
-### Server-side (as a Node.js library)
-
-Analyze the HTML contexts of Handlebars templates on server-side.
-```javascript
-// create the precompiler
-var ContextParserPreCompiler = require("context-parser-handlebars");
-var preCompiler = new ContextParserPreCompiler();
-
-// given data stores a handlebars template as string
-var data = '<html><title>{{title}}</title></html>';
-
-try {
-    // analyze the HTML contexts
-    // return a processed handlebars template with context-sensitive helpers added! 
-    // i.e., output is '<html><title>{{{yd title}}}</title></html>';
-    var output = preCompiler.analyzeContext(data);
-    // ...
-} catch (err) {
-    // ...
-}
-// ...
-```
 
 ## Development
 
