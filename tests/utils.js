@@ -14,6 +14,26 @@ exports.testArrMatch = function(data, arr) {
    });
 };
 
+var testBranch = function(ast, testObj) {
+   ast.program.forEach(function(obj, i) {
+       expect(obj.type).to.equal(testObj.program.rtype[i]);
+       if (obj.type !== 'node') {
+           expect(obj.content).to.equal(testObj.program.rstr[i]);
+       } else {
+           testBranch(obj.content, testObj.program.rstr[i]);
+       }
+   });
+   ast.inverse.forEach(function(obj, i) {
+       expect(obj.type).to.equal(testObj.inverse.rtype[i]);
+       if (obj.type !== 'node') {
+           expect(obj.content).to.equal(testObj.inverse.rstr[i]);
+       } else {
+           testBranch(obj.content, testObj.inverse.rstr[i]);
+       }
+   });
+};
+exports.testBranch = testBranch;
+
 exports.append_zero = function(i) {
     var s = i.toString();
     while(s.length < 3) {
@@ -531,5 +551,81 @@ var commentExpressionTestPatterns = [
     { syntax: '{{!--comment -- }}  ', type:handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, rstr: undefined, result: [ false, true, false ], },
 ];
 exports.commentExpressionTestPatterns = commentExpressionTestPatterns;
+
+var buildAstPatterns = [
+    { syntax: 'xxxx{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}xxxx', 
+      output: 'xxxx{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}xxxx', 
+      rstr: [ 'xxxx', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', 'xxxx' ], 
+      rtype: [ 'content', 'rawblock', 'content' ],
+    },
+    { syntax: 'xxxx{{{rawexpression}}} {{{rawexpression}}} xxxx', 
+      output: 'xxxx{{{rawexpression}}} {{{rawexpression}}} xxxx', 
+      rstr: [ 'xxxx', '{{{rawexpression}}}', ' ', '{{{rawexpression}}}', ' xxxx' ],
+      rtype: [ 'content', 'rawexpression', 'content', 'rawexpression', 'content' ],
+    },
+    { syntax: 'xxxx{{escapeexpression}} {{>partial}} {{&reference}} xxxx', 
+      output: 'xxxx{{{yd escapeexpression}}} {{>partial}} {{&reference}} xxxx', 
+      rstr: [ 'xxxx', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' xxxx' ],
+      rtype: [ 'content', 'escapeexpression', 'content', 'expression', 'content', 'expression', 'content' ],
+    },
+    { syntax: 'xxxx{{! comment }} {{!-- }} --}} xxxx',
+      output: 'xxxx{{! comment }} {{!-- }} --}} xxxx',
+      rstr: [ 'xxxx', '{{! comment }}', ' ', '{{!-- }} --}}', ' xxxx' ],
+      rtype: [ 'content', 'expression', 'content', 'expression', 'content' ],
+    },
+
+    // branching
+    { syntax: 'xxxx{{#if abc}} yyyy {{else}} zzzz {{/if}} xxxx',
+      output: 'xxxx{{#if abc}} yyyy {{else}} zzzz {{/if}} xxxx',
+      rstr: [ 'xxxx', { program: { 
+                                 rstr: [ '{{#if abc}}', ' yyyy ' ],
+                                 rtype: [ 'branchstart', 'content' ],
+                                 }, 
+                        inverse: {
+                                 rstr: [ '{{else}}', ' zzzz ', '{{/if}}' ],
+                                 rtype: [ 'branchelse', 'content', 'branchend' ],
+                                 } 
+                      }, ' xxxx' ],
+      rtype: [ 'content', 'node', 'content' ],
+    },
+
+    // branching with different types
+    { syntax: 'xxxx{{#if abc}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{escapeexpression}} {{>partial}} {{&reference}} yyyy {{else}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{escapeexpression}} {{>partial}} {{&reference}} zzzz {{/if}} xxxx',
+      output: 'xxxx{{#if abc}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{{yd escapeexpression}}} {{>partial}} {{&reference}} yyyy {{else}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{{yd escapeexpression}}} {{>partial}} {{&reference}} zzzz {{/if}} xxxx',
+      rstr: [ 'xxxx', 
+                      { program: { 
+                                 rstr: [ '{{#if abc}}', ' ', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', ' ', '{{{rawexpression}}}', ' ', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' yyyy ' ],
+                                 rtype: [ 'branchstart', 'content', 'rawblock', 'content', 'rawexpression', 'content', 'escapeexpression', 'content', 'expression', 'content', 'expression', 'content' ], }, 
+                        inverse: {
+                                 rstr: [ '{{else}}', ' ', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', ' ', '{{{rawexpression}}}', ' ', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' zzzz ', '{{/if}}' ],
+                                 rtype: [ 'branchelse', 'content', 'rawblock', 'content', 'rawexpression', 'content', 'escapeexpression', 'content', 'expression', 'content', 'expression', 'content', 'branchend' ], }, 
+                      }, ' xxxx' ],
+      rtype: [ 'content', 'node', 'content' ],
+    },
+    // branching (nested)
+    { syntax: 'xxxx{{#if abc}} yyyy {{#msg def}} 123 {{else}} 456 {{/msg}} {{else}} zzzz {{/if}} xxxx',
+      output: 'xxxx{{#if abc}} yyyy {{#msg def}} 123 {{else}} 456 {{/msg}} {{else}} zzzz {{/if}} xxxx',
+      rstr: [ 'xxxx', 
+                      { program: { 
+                                 rstr: [ '{{#if abc}}', ' yyyy ', { program: {
+                                                                             rstr: [ '{{#msg def}}', ' 123 ' ],
+                                                                             rtype: [ 'branchstart', 'content' ],
+                                                                             },
+                                                                    inverse: {
+                                                                             rstr: [ '{{else}}', ' 456 ', '{{/msg}}' ],
+                                                                             rtype: [ 'branchelse', 'content', 'branchend' ],
+                                                                             },
+                                                                    }, ' ' ],
+                                 rtype: [ 'branchstart', 'content', 'node', 'content' ],
+                                 }, 
+                        inverse: {
+                                 rstr: [ '{{else}}', ' zzzz ', '{{/if}}' ],
+                                 rtype: [ 'branchelse', 'content', 'branchend' ],
+                                 } 
+                      }, ' xxxx' ],
+      rtype: [ 'content', 'node', 'content' ],
+    },
+];
+exports.buildAstPatterns = buildAstPatterns;
 
 })();

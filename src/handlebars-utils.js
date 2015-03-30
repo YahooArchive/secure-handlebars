@@ -72,7 +72,7 @@ HandlebarsUtils.commentShortFormExpressionRegExp = /^\{\{~?!/;
 // @function HandlebarsUtils.lookAheadTest
 HandlebarsUtils.lookAheadTest = function(input, i) {
     var len = input.length,
-        j;
+        j, re;
 
     /* reserved char must be the immediate char right after brace */
     if (input[i] === '{' && i+2<len && input[i+1] === '{') {
@@ -84,8 +84,9 @@ HandlebarsUtils.lookAheadTest = function(input, i) {
             case '#':
                 return HandlebarsUtils.BRANCH_EXPRESSION;
             case '^':
-                // {{~?^}} will pass!, but isValidExpression can guard against
-                return HandlebarsUtils.BRANCH_EXPRESSION;
+                /* using i to test */
+                re = HandlebarsUtils.isValidExpression(input, i, HandlebarsUtils.ELSE_EXPRESSION);
+                return re.result === true ? HandlebarsUtils.ELSE_EXPRESSION : HandlebarsUtils.BRANCH_EXPRESSION;
             case '/':
                 return HandlebarsUtils.BRANCH_END_EXPRESSION;
             case '&':
@@ -96,9 +97,11 @@ HandlebarsUtils.lookAheadTest = function(input, i) {
                 }
                 return HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM;
             default: 
-                return HandlebarsUtils.ESCAPE_EXPRESSION;
+                re = HandlebarsUtils.isValidExpression(input, i, HandlebarsUtils.ELSE_EXPRESSION);
+                return re.result === true ? HandlebarsUtils.ELSE_EXPRESSION : HandlebarsUtils.ESCAPE_EXPRESSION;
         }
     }
+    /* never falls into this and should throw error */
     return HandlebarsUtils.UNHANDLED_EXPRESSION;
 };
 
