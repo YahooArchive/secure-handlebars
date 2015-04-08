@@ -21,18 +21,18 @@ var contextParser = require('context-parser'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = contextParser.StateMachine;
 
-var filter = require('xss-filters')._privFilters;
-
-filter.FILTER_NOT_HANDLE = "y";
-filter.FILTER_DATA = "yd";
-filter.FILTER_COMMENT = "yc";
-filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED = "yavd";
-filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED = "yavs";
-filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED = "yavu";
-filter.FILTER_ENCODE_URI = "yu";
-filter.FILTER_ENCODE_URI_COMPONENT = "yuc";
-filter.FILTER_URI_SCHEME_BLACKLIST = "yubl";
-filter.FILTER_FULL_URI = "yufull";
+var filter = {
+    FILTER_NOT_HANDLE: 'y',
+    FILTER_DATA: 'yd',
+    FILTER_COMMENT: 'yc',
+    FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED: 'yavd',
+    FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED: 'yavs',
+    FILTER_ATTRIBUTE_VALUE_UNQUOTED: 'yavu',
+    FILTER_ENCODE_URI: 'yu',
+    FILTER_ENCODE_URI_COMPONENT: 'yuc',
+    FILTER_URI_SCHEME_BLACKLIST: 'yubl',
+    FILTER_FULL_URI: 'yufull'
+};
 
 // extracted from xss-filters
 /*
@@ -779,16 +779,16 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj) {
     });
 
     if (ast.program.length > 0 && ast.inverse.length === 0) {
-        debugBranch("_analyseBranchAst:["+r.lastStates[0].state+"/"+r.lastStates[0].state+"]");
+        debugBranch("_analyzeBranchAst:["+r.lastStates[0].state+"/"+r.lastStates[0].state+"]");
         r.lastStates[1] = r.lastStates[0];
     } else if (ast.program.length === 0 && ast.inverse.length > 0) {
-        debugBranch("_analyseBranchAst:["+r.lastStates[1].state+"/"+r.lastStates[1].state+"]");
+        debugBranch("_analyzeBranchAst:["+r.lastStates[1].state+"/"+r.lastStates[1].state+"]");
         r.lastStates[0] = r.lastStates[1];
     }
 
     if (!this._deepCompareState(r.lastStates[0], r.lastStates[1])) {
-        lineNo = this._countNewLineChar(input.slice(0, this._charNo));
-        msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsitent HTML5 state OR without close tag after conditional branches. Please fix your template! \n";
+        lineNo = this._countNewLineChar(r.output.slice(0, this._charNo));
+        msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! \n";
         msg += "[ERROR] #if  branch: " + programDebugOutput.slice(0, 50) + "...\n";
         msg += "[ERROR] else branch: " + inverseDebugOutput.slice(0, 50) + "...\n";
         msg += JSON.stringify(r.lastStates[0]) + "\n";
