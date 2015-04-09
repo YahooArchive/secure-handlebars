@@ -122,6 +122,16 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
+        var genTemplateFileWithSpecialChars = function() {
+            /* template file with null char in the template, output expression, raw expression, raw block and special expression */
+            var o = "abcde\x00null\x0012345{\x00}{{express\x00ion}}{{{rawexpress\x00ion}}}{{{{raw\x00block}}}}\x00nullinrawblock\x00{{{{/raw\x00block}}}}{{>part\x00ial}}";
+
+            var f = fs.openSync("./tests/samples/files/handlebarsjs_template_special_char.hbs", "w");
+            fs.writeSync(f, o);
+            fs.closeSync(f);
+        };
+        genTemplateFileWithSpecialChars();
+
         /* reported bug tests */
         [
 /* need to fix it later 
@@ -141,6 +151,13 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 file: './tests/samples/bugs/006.state.attribute-name.hb',
                 result: [ /{{{y styleoutput}}}/, /{{{yavd classoutput}}}/ ],
             },
+            {
+                title: 'template file with special character',
+                file: './tests/samples/files/handlebarsjs_template_special_char.hbs',
+                result: [ /{\ufffd}/, /abcde\ufffdnull\ufffd12345/, /{{{yd express\ufffdion}}}/, 
+                          /{{{rawexpress\ufffdion}}}/, /{{>part\ufffdial}}/,
+                          /{{{{raw\ufffdblock}}}}\ufffdnullinrawblock\ufffd{{{{\/raw\ufffdblock}}}}/ ],
+            },
         ].forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
@@ -148,7 +165,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 .timeout(300)
                 .done(function(e){
                     testObj.result.forEach(function(r) {
-                        expect(e).to.match(r);
+                        expect(e.toString()).to.match(r);
                     });
                     done();
                 });
