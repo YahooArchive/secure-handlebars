@@ -16,12 +16,54 @@ module.exports = function(grunt) {
     },
     browserify: {
       standalone: {
-        src: [ 'src/<%= pkg.name %>.js' ],
+        src: 'src/<%= pkg.name %>.js',
         dest: 'dist/<%= pkg.name %>.js',
         options: {
           browserifyOptions: {
-            standalone: 'ContextParserHandlebars'
+            standalone: 'Handlebars'
           }
+        }
+      },
+    },
+    uglify: {
+      options: {
+        banner: ['/**',
+            ' * <%= pkg.name %> - v<%= pkg.version %>',
+            ' * Bundling context-parser and xss-filters',
+            ' * Yahoo! Inc. Copyrights licensed under the New BSD License. See the accompanying LICENSE file for terms.',
+            ' *',
+            ' * Bundling handlebars v3.0.0',
+            ' * Copyright (C) 2011-2014 by Yehuda Katz',
+            ' * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.',
+            ' */', ''].join('\n'),
+        compress: {
+          join_vars: true
+        }
+      },
+      buildMin: {
+        src: 'dist/<%= pkg.name %>.js',
+        dest: 'dist/<%= pkg.name %>.min.js'
+      }
+    },
+    karma: {
+      integrationtest: {
+        options: {
+          configFile: 'karma.conf.js',
+          files: [
+            'node_modules/chai/chai.js',
+            'dist/<%= pkg.name %>.js',
+            'tests/integration/*.js'
+          ]
+        }
+      },
+      integrationtestUsingMinVersion: {
+        options: {
+          configFile: 'karma.conf.js',
+          files: [
+            'node_modules/chai/chai.js',
+            'dist/<%= pkg.name %>.min.js',
+            'tests/integration/*.js'
+          ]
         }
       }
     },
@@ -43,13 +85,15 @@ module.exports = function(grunt) {
     }
   });
 
+  grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('grunt-mocha-istanbul');
   grunt.loadNpmTasks('grunt-browserify');
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-clean');
+  grunt.loadNpmTasks('grunt-contrib-uglify');
 
-  grunt.registerTask('test', ['clean:buildResidues', 'jshint', 'mocha_istanbul']);
-  grunt.registerTask('dist', ['browserify'])
-  grunt.registerTask('default', ['dist', 'test']);
+  grunt.registerTask('test', ['clean:buildResidues', 'jshint', 'dist', 'karma', 'mocha_istanbul']);
+  grunt.registerTask('dist', ['browserify', 'uglify']);
+  grunt.registerTask('default', ['test']);
 
 };
