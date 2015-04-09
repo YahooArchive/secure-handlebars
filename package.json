@@ -4,7 +4,7 @@
   "licenses": [
     {
       "type": "BSD",
-      "url": "https://github.com/yahoo/context-parser-handlebars/blob/master/LICENSE"
+      "url": "https://github.com/yahoo/secure-handlebars/blob/master/LICENSE"
     }
   ],
   "author": "Nera Liu",
@@ -13,14 +13,14 @@
     "Adonis Fung <adon@yahoo-inc.com>",
     "Albert Yu <albertyu@yahoo-inc.com>"
   ],
-  "description": "Secure Handlebars",
+  "description": "To automatically apply context-sensitive XSS output filtering for Handlebars",
   "preferGlobal": "true",
   "bin": {
     "handlebarspc": "bin/handlebarspc"
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:yahoo/context-parser-handlebars.git"
+    "url": "git@github.com:yahoo/secure-handlebars.git"
   },
   "keywords": [
     "xss",
@@ -47,10 +47,10 @@
   },
   "devDependencies": {
     "bluebird": "^2.9.21",
-    "chai": "^2.*",
+    "chai": "^2.2.0",
     "grunt-bower-task": "^0.4.0",
     "grunt-browserify": "^3.3.0",
-    "grunt-cli": "0.1.*",
+    "grunt-cli": "^0.1.13",
     "grunt-contrib-clean": "^0.6.0",
     "grunt-contrib-jshint": "^0.11.0",
     "grunt-contrib-uglify": "^0.8.0",
@@ -58,14 +58,13 @@
     "grunt-mocha-istanbul": "^2.3.0",
     "handlebars": "^3.0.1",
     "karma-mocha": "~0.1.10",
-    "karma-phantomjs-launcher": "^0.1.4",
-    "uglify": "^0.1.3"
+    "karma-phantomjs-launcher": "^0.1.4"
   },
   "main": "./src/secure-handlebars.js",
   "bugs": {
-    "url": "https://github.com/yahoo/context-parser-handlebars/issues"
+    "url": "https://github.com/yahoo/secure-handlebars/issues"
   },
-  "homepage": "https://github.com/yahoo/context-parser-handlebars",
+  "homepage": "https://github.com/yahoo/secure-handlebars",
   "directories": {
     "test": "tests"
   },

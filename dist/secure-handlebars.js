@@ -9386,10 +9386,10 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj) {
     });
 
     if (ast.program.length > 0 && ast.inverse.length === 0) {
-        debugBranch("_analyseBranchAst:["+r.lastStates[0].state+"/"+r.lastStates[0].state+"]");
+        debugBranch("_analyzeBranchAst:["+r.lastStates[0].state+"/"+r.lastStates[0].state+"]");
         r.lastStates[1] = r.lastStates[0];
     } else if (ast.program.length === 0 && ast.inverse.length > 0) {
-        debugBranch("_analyseBranchAst:["+r.lastStates[1].state+"/"+r.lastStates[1].state+"]");
+        debugBranch("_analyzeBranchAst:["+r.lastStates[1].state+"/"+r.lastStates[1].state+"]");
         r.lastStates[0] = r.lastStates[1];
     }
 
