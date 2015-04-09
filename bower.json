@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "dist/secure-handlebars.min.js",
   "authors": [
-    "adon <adon@yahoo-inc.com>"
+    "Adonis Fung <adon@yahoo-inc.com>",
+    "Nera Liu <neraliu@yahoo-inc.com>",
+    "Albert Yu <albertyu@yahoo-inc.com>"
   ],
   "ignore": [
     "src/",

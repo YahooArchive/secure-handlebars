@@ -1,10 +1,10 @@
 SecureHandlebars
 ===============================
-SecureHandlebars can **automatically** conduct HTML 5 context analysis on Handlebars templates, and insert markup of XSS filtering helpers to output expressions based on their surrounding contexts. 
+SecureHandlebars is to **automatically** conduct HTML 5 context analysis on Handlebars templates, and apply context-dependent XSS filtering to output expressions.
 
 ## Quick Start
 
-### Client-side
+### Client-side Use
 
 Analyze the HTML contexts of Handlebars templates on client-side
 ```html
@@ -25,7 +25,7 @@ alert(template(data));
 </script>
 ```
 
-### Template PreCompilation at Server-side (using a CLI utility)
+### Server-side Use (Template PreCompilation using a CLI utility)
 
 We recommend using the [express-secure-handlebars npm](https://www.npmjs.com/package/express-secure-handlebars) for most use cases.
 
