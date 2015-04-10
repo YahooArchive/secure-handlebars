@@ -62,7 +62,7 @@ npm test
 
 ### Build
 
-[![Build Status](https://travis-ci.org/yahoo/context-parser-handlebars.svg?branch=master)](https://travis-ci.org/yahoo/context-parser-handlebars)
+[![Build Status](https://travis-ci.org/yahoo/secure-handlebars.svg?branch=master)](https://travis-ci.org/yahoo/secure-handlebars)
 
 ### Known Limitations
 
