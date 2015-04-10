@@ -187,16 +187,20 @@ HandlebarsUtils.isReservedChar = function(input, i) {
     return (ch === '#' || ch === '/' || ch === '>' || ch === '^' || ch === '!' || ch === '&');
 };
 
+var consoleWarn = function(){};
+if (typeof console === 'object') {
+    if (console.hasOwnProperty('warn') && typeof console.warn === 'function') {
+        consoleWarn = console.warn;
+    } else if (console.hasOwnProperty('log') && typeof console.log === 'function') {
+        consoleWarn = console.log;
+    }
+}
+
 // @function HandlebarsUtils.handleError
 HandlebarsUtils.handleError = function(exceptionObj, throwErr) {
+    consoleWarn(exceptionObj.msg + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
     if (throwErr) {
         throw exceptionObj;
-    } else if (typeof console === 'object') {
-        if (console.hasOwnProperty('warn') && typeof console.warn === 'function') {
-            console.warn(exceptionObj.msg + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
-        } else if (console.hasOwnProperty('log') && typeof console.log === 'function') {
-            console.log(exceptionObj.msg + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
-        }
     }
 };
 

@@ -16,7 +16,7 @@
   "description": "To automatically apply context-sensitive XSS output filtering for Handlebars",
   "preferGlobal": "true",
   "bin": {
-    "handlebarspc": "bin/handlebarspc"
+    "handlebarspp": "bin/handlebarspp"
   },
   "repository": {
     "type": "git",

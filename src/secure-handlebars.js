@@ -20,10 +20,10 @@ var hbsCreate = Handlebars.create,
         });
     }).reduce(function(a, b) {return a.concat(b);});
 
-function preprocess(template) {
+function preprocess(template, strictMode) {
     try {
         if (template) {
-            var parser = new ContextParserHandlebars({printCharEnable: false});
+            var parser = new ContextParserHandlebars({printCharEnable: false, strictMode: strictMode});
             return parser.analyzeContext(template);
         }
     } catch (err) {
@@ -42,12 +42,14 @@ function overrideHbsCreate() {
 
     // override precompile function to preprocess the template first
     h.precompile = function (template, options) {
-        return pc.call(this, preprocess(template), options);
+        options = options || {};
+        return pc.call(this, preprocess(template, options.strictMode), options);
     };
 
     // override compile function to preprocess the template first
     h.compile = function (template, options) {
-        return c.call(this, preprocess(template), options);
+        options = options || {};
+        return c.call(this, preprocess(template, options.strictMode), options);
     };
 
     // register below the filters that are automatically applied by context parser 
@@ -65,3 +67,6 @@ function overrideHbsCreate() {
 
 module.exports = overrideHbsCreate();
 module.exports.create = overrideHbsCreate;
+
+// the following is in addition to the original Handlbars prototype
+module.exports.ContextParserHandlebars = ContextParserHandlebars;
