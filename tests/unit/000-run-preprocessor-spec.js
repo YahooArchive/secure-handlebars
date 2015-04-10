@@ -22,12 +22,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
     var config = {};
     config.printCharEnable = false;
 
-    describe("Handlebars PreCompiler Test Suite", function() {
+    describe("Handlebars PreProcessor Test Suite", function() {
 
         // basic test
-        it("Running ./bin/handlebarspc test", function(done) {
+        it("Running ./bin/handlebarspp test", function(done) {
             var exec = promise.promisify(require("child_process").exec)
-            exec('./bin/handlebarspc ./tests/samples/files/handlebarsjs_template_000.hbs')
+            exec('./bin/handlebarspp ./tests/samples/files/handlebarsjs_template_000.hbs')
             .timeout(1000)
             .then(function(streams){
                 expect(streams[0]).to.match(/{{yd name}}/);
@@ -78,31 +78,31 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         /* more throwing exception tests */
         [
             {
-                title: './bin/handlebarspc broken conditional {{#if}} without {{/if}} template test',
+                title: './bin/handlebarspp broken conditional {{#if}} without {{/if}} template test',
                 file: './tests/samples/files/handlebarsjs_template_017.hbs',
             },
             {
-                title: './bin/handlebarspc branching logic startName/endName mismatch template test',
+                title: './bin/handlebarspp branching logic startName/endName mismatch template test',
                 file: './tests/samples/files/handlebarsjs_template_018.hbs',
             },
             {
-                title: './bin/handlebarspc broken conditional {{#if}} without {{#if}} template test',
+                title: './bin/handlebarspp broken conditional {{#if}} without {{#if}} template test',
                 file: './tests/samples/files/handlebarsjs_template_019.hbs',
             },
             {
-                title: './bin/handlebarspc invalid {{expression}} template test',
+                title: './bin/handlebarspp invalid {{expression}} template test',
                 file: './tests/samples/files/handlebarsjs_template_021.hbs',
             },
             {
-                title: './bin/handlebarspc invalid {{{expression}}} template test',
+                title: './bin/handlebarspp invalid {{{expression}}} template test',
                 file: './tests/samples/files/handlebarsjs_template_022.hbs',
             },
             {
-                title: './bin/handlebarspc invalid raw block startName/endName mismatch template test',
+                title: './bin/handlebarspp invalid raw block startName/endName mismatch template test',
                 file: './tests/samples/files/handlebarsjs_template_024.hbs',
             },
             {
-                title: '/bin/handlebarspc html5 inconsistent state (42/34) test',
+                title: '/bin/handlebarspp html5 inconsistent state (42/34) test',
                 file: './tests/samples/bugs/003.html5.inconsitent.hb',
             },
             /* remove this test as we don't test for tagNameIdx in deepCompare
@@ -114,7 +114,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         ].forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
-                exec('./bin/handlebarspc '+testObj.file)
+                exec('./bin/handlebarspp '+testObj.file)
                 .timeout(300)
                 .catch(function(e){
                     done();
@@ -136,7 +136,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         [
 /* need to fix it later 
             {
-                title: './bin/handlebarspc line no and char no reporting test',
+                title: './bin/handlebarspp line no and char no reporting test',
                 file: './tests/samples/bugs/005.line.report.hb',
                 result: [ /lineNo:2,charNo:38/, /lineNo:4,charNo:91/, /lineNo:8,charNo:177/, /lineNo:10,charNo:274/, /lineNo:12,charNo:298/ ],
             },
@@ -161,7 +161,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         ].forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
-                exec('./bin/handlebarspc '+testObj.file)
+                exec('./bin/handlebarspp '+testObj.file)
                 .timeout(300)
                 .done(function(e){
                     testObj.result.forEach(function(r) {
