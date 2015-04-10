@@ -122,6 +122,46 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
 
+        [
+            {
+                title: './bin/handlebarspp STATE_SCRIPT_DATA strict mode test',
+                file: './tests/samples/files/handlebarsjs_template_strict_mode_001.hbs',
+            },
+            {
+                title: './bin/handlebarspp STATE_ATTRIBUTE_NAME strict mode test',
+                file: './tests/samples/files/handlebarsjs_template_strict_mode_002.hbs',
+            },
+            {
+                title: './bin/handlebarspp STATE_RAWTEXT strict mode test',
+                file: './tests/samples/files/handlebarsjs_template_strict_mode_003.hbs',
+            },
+            {
+                title: './bin/handlebarspp attribute URI Javascript context strict mode test',
+                file: './tests/samples/files/handlebarsjs_template_strict_mode_005.hbs',
+            },
+            {
+                title: './bin/handlebarspp attribute style CSS context strict mode test',
+                file: './tests/samples/files/handlebarsjs_template_strict_mode_006.hbs',
+            },
+            {
+                title: './bin/handlebarspp attribute on* Javascript context strict mode test',
+                file: './tests/samples/files/handlebarsjs_template_strict_mode_007.hbs',
+            },
+            {
+                title: './bin/handlebarspp NOT HANDLE state strict mode test',
+                file: './tests/samples/files/handlebarsjs_template_strict_mode_008.hbs',
+            },
+        ].forEach(function(testObj) {
+            it(testObj.title, function(done) {
+                var exec = promise.promisify(require("child_process").exec);
+                exec('./bin/handlebarspp '+testObj.file+' true')
+                .timeout(300)
+                .catch(function(e){
+                    done();
+                });
+            });
+        });
+
         var genTemplateFileWithSpecialChars = function() {
             /* template file with null char in the template, output expression, raw expression, raw block and special expression */
             var o = "abcde\x00null\x0012345{\x00}{{express\x00ion}}{{{rawexpress\x00ion}}}{{{{raw\x00block}}}}\x00nullinrawblock\x00{{{{/raw\x00block}}}}{{>part\x00ial}}";

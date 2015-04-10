@@ -8667,17 +8667,19 @@ function ContextParserHandlebars(config) {
     /* save the processed char */
     this._buffer = [];
 
+    /* the configuration of ContextParserHandlebars */
+    this.config = {};
+
     /* the flag is used to print out the char to console */
-    this._printCharEnable = config.printCharEnable === undefined ? true : config.printCharEnable;
+    this.config._printCharEnable = config.printCharEnable === undefined ? true : config.printCharEnable;
 
     /* the flag is used to strict mode of handling un-handled state */
-    this._strictMode = config.strictMode === undefined ? false: config.strictMode;
+    this.config._strictMode = config.strictMode === undefined ? false: config.strictMode;
 
     /* save the line number being processed */
     this._charNo = 1;
 
-    debug("_printCharEnable:"+this._printCharEnable);
-    debug("_strictMode:"+this._strictMode);
+    debug(this.config);
 }
 
 /** 
@@ -8879,7 +8881,7 @@ ContextParserHandlebars.prototype.analyzeContext = function(input) {
     var ast = this.buildAst(input, 0, []);
     var stateObj = this.getInternalState();
     var r = this.analyzeAst(ast, stateObj);
-    this._printCharEnable && process.stdout.write(r.output);
+    this.config._printCharEnable && process.stdout.write(r.output);
     return r.output;
 };
 
@@ -8910,10 +8912,12 @@ ContextParserHandlebars.prototype._analyzeContext = function(stateObj, obj) {
 
     /* factory class */
     var parser,
-        ContextParserHandlebars = require('./context-parser-handlebars'),
-        config = {};
+        config = {},
+        ContextParserHandlebars = require('./context-parser-handlebars');
 
+    /* must kept silent */
     config.printCharEnable = false;
+    config.strictMode = this.config._strictMode;
     parser = new ContextParserHandlebars(config);
 
     /* set the internal state */
@@ -9031,7 +9035,7 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
                     */
-                    throw 'Unsafe output expression @ attrubute on* Javascript context';
+                    throw 'Unsafe output expression @ attribute on* Javascript context';
                 } else {
                     /* add the attribute value filter */
                     switch(state) {
@@ -9058,7 +9062,7 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
             '[WARNING] ContextParserHandlebars: ' + stateRelatedMessage, 
             lineNo,
             this._charNo);
-        handlebarsUtils.handleError(exceptionObj, this._strictMode);
+        handlebarsUtils.handleError(exceptionObj, this.config._strictMode);
         return [filter.FILTER_NOT_HANDLE];
     }
 };
