@@ -69,7 +69,7 @@ function ContextParserHandlebars(config) {
     /* save the line number being processed */
     this._charNo = 1;
 
-    debug("_printChar:"+this._printCharEnable);
+    debug("_printCharEnable:"+this._printCharEnable);
     debug("_strictMode:"+this._strictMode);
 }
 
@@ -133,6 +133,16 @@ contextParser.Parser.prototype._deepCompareState = function(stateObj1, stateObj2
     // return r;
 };
 
+// @function ContextParser.replaceCharForBrowserConsistency
+contextParser.Parser.prototype.replaceCharForBrowserConsistency = function(ch, state) {
+    switch(ch) {
+        case '\x00':
+            return '\ufffd';
+        default:
+            return ch;
+    }
+};
+
 /**********************************
 * INHERITANCE & OVERRIDEN
 **********************************/
@@ -154,6 +164,27 @@ ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
         * querying the new state based on previous state this.state.
         */
         var _s = stateMachine.lookupStateFromSymbol[symbol][this.state];
+
+        /*
+        * as some browsers do not parse the page according to html5 
+        * specification, it will lead to wrong judgement of html state of 
+        * the page and filters being added.
+        * 
+        * in order to solve this issue, our strategy is to replace a char
+        * with a new replacement char to achieve browser implementation consistency based
+        * on our fuzzing results.
+        *
+        * the method below is slow as we can batch replace to improve the efficiency,
+        * but it is more concise for char by char replacement
+        */
+        var replaceChar = this.replaceCharForBrowserConsistency(input[i], _s);
+        if (replaceChar !== input[i]) {
+            /* a new input string */
+            input = input.slice(0,i) + replaceChar + input.slice(i+1);
+            /* a new state transition based on new char */
+            symbol = this.lookupChar(replaceChar);
+            _s = stateMachine.lookupStateFromSymbol[symbol][this.state];
+        }
 
         /* process the char */
         var j = this._handleTemplate(input, i, _s);
@@ -184,8 +215,8 @@ ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
 };
 
 /* overriding the HTML5 Context Parser's afterWalk for printing out */
-ContextParserHandlebars.prototype.afterWalk = function(ch) {
-    this._printChar(ch);
+ContextParserHandlebars.prototype.afterWalk = function(ch, i) {
+    this._saveToBuffer(ch);
 
     /* for reporting ONLY */
     this._charNo += ch.length;
@@ -241,7 +272,7 @@ ContextParserHandlebars.prototype.analyzeContext = function(input) {
     var ast = this.buildAst(input, 0, []);
     var stateObj = this.getInternalState();
     var r = this.analyzeAst(ast, stateObj);
-    this._printChar(r.output);
+    this._printCharEnable? process.stdout.write(r.output) : '';
     return r.output;
 };
 
@@ -249,12 +280,11 @@ ContextParserHandlebars.prototype.analyzeContext = function(input) {
 * UTILITY FUNCTIONS
 **********************************/
 
-// @function module:ContextParserHandlebars._printChar
-ContextParserHandlebars.prototype._printChar = function(ch) {
-    if (this._printCharEnable) {
-        process.stdout.write(ch);
-    }
-    this._buffer.push(ch);
+// @function module:ContextParserHandlebars._saveToBuffer
+ContextParserHandlebars.prototype._saveToBuffer = function(str) {
+    /* it will not affect the state change */
+    str.length === 1? str = this.replaceCharForBrowserConsistency(str, -1) : '';
+    this._buffer.push(str);
 };
 
 // @function module:ContextParserHandlebars._countNewLineChar
@@ -442,18 +472,18 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
         switch (type) {
             case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
                 if (input[j] === '-' && j+3<len && input[j+1] === '-' && input[j+2] === '}' && input[j+3] === '}') {
-                    saveToBuffer === true ? this._printChar('--}}') : obj.str += '--}}';
+                    saveToBuffer === true ? this._saveToBuffer('--}}') : obj.str += '--}}';
                     obj.index = j+3;
                     return obj;
                 } else if (input[j] === '-' && j+4<len && input[j+1] === '-' && input[j+2] === '~' && input[j+3] === '}' && input[j+4] === '}') {
-                    saveToBuffer === true ? this._printChar('--~}}') : obj.str += '--~}}';
+                    saveToBuffer === true ? this._saveToBuffer('--~}}') : obj.str += '--~}}';
                     obj.index = j+4;
                     return obj;
                 }
                 break;
             case handlebarsUtils.RAW_EXPRESSION:
                 if (input[j] === '}' && j+2<len && input[j+1] === '}' && input[j+2] === '}') {
-                    saveToBuffer === true ? this._printChar('}}}') : obj.str += '}}}';
+                    saveToBuffer === true ? this._saveToBuffer('}}}') : obj.str += '}}}';
                     obj.index = j+2;
                     return obj;
                 }
@@ -467,13 +497,13 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
             case handlebarsUtils.REFERENCE_EXPRESSION:
             case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
                 if (input[j] === '}' && j+1<len && input[j+1] === '}') {
-                    saveToBuffer === true ? this._printChar('}}') : obj.str += '}}';
+                    saveToBuffer === true ? this._saveToBuffer('}}') : obj.str += '}}';
                     obj.index = j+1;
                     return obj;
                 }
                 break;
         }
-        saveToBuffer === true ? this._printChar(input[j]) : obj.str += input[j];
+        saveToBuffer === true ? this._saveToBuffer(input[j]) : obj.str += input[j];
     }
     lineNo = this._countNewLineChar(input.slice(0, this._charNo));
     msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter close brace of expression.";
@@ -488,9 +518,9 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
 
     obj.str = '';
 
-    saveToBuffer === true ? this._printChar('{{') : obj.str += '{{';
+    saveToBuffer === true ? this._saveToBuffer('{{') : obj.str += '{{';
     /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}} */
-    saveToBuffer === true ? this._printChar('{') : obj.str += '{';
+    saveToBuffer === true ? this._saveToBuffer('{') : obj.str += '{';
 
     /* parse expression */
     var re = handlebarsUtils.isValidExpression(input, i, handlebarsUtils.ESCAPE_EXPRESSION),
@@ -501,7 +531,7 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
     filters = this._addFilters(nextState, stateObj, input);
     for(var k=filters.length-1;k>=0;--k) {
         if (saveToBuffer) {
-            (re.isSingleID && k === 0) ? this._printChar(filters[k]+" ") : this._printChar(filters[k]+" (");
+            (re.isSingleID && k === 0) ? this._saveToBuffer(filters[k]+" ") : this._saveToBuffer(filters[k]+" (");
         } else {
             (re.isSingleID && k === 0) ? obj.str += filters[k]+" " : obj.str += filters[k]+" (";
         }
@@ -511,21 +541,21 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
         if (input[j] === '}' && j+1<len && input[j+1] === '}') {
             for(var l=filters.length-1;l>=0;--l) {
                 if (saveToBuffer) {
-                    (re.isSingleID && l === 0) ? this._printChar('') : this._printChar(')');
+                    (re.isSingleID && l === 0) ? this._saveToBuffer('') : this._saveToBuffer(')');
                 } else {
                     (re.isSingleID && l === 0) ? obj.str += '' : obj.str += ')';
                 }
             }
 
-            saveToBuffer === true ? this._printChar('}}') : obj.str += '}}';
+            saveToBuffer === true ? this._saveToBuffer('}}') : obj.str += '}}';
             j=j+1;
             /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}}, no need to increase j by 1. */
-            saveToBuffer === true ? this._printChar('}') : obj.str += '}';
+            saveToBuffer === true ? this._saveToBuffer('}') : obj.str += '}';
 
             obj.index = j;
             return obj;
         } else {
-            saveToBuffer === true ? this._printChar(input[j]) : obj.str += input[j];
+            saveToBuffer === true ? this._saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
     lineNo = this._countNewLineChar(input.slice(0, this._charNo));
@@ -546,7 +576,7 @@ ContextParserHandlebars.prototype._handleRawBlock = function(input, i, saveToBuf
     obj.str = '';
     for(var j=i;j<len;++j) {
         if (isStartExpression && input[j] === '}' && j+3<len && input[j+1] === '}' && input[j+2] === '}' && input[j+3] === '}') {
-            saveToBuffer === true ? this._printChar('}}}}') : obj.str += '}}}}';
+            saveToBuffer === true ? this._saveToBuffer('}}}}') : obj.str += '}}}}';
             j=j+3;
     
             isStartExpression = false;
@@ -566,16 +596,16 @@ ContextParserHandlebars.prototype._handleRawBlock = function(input, i, saveToBuf
             }
             for(var k=j;k<len;++k) {
                 if (input[k] === '}' && k+3<len && input[k+1] === '}' && input[k+2] === '}' && input[k+3] === '}') {
-                    saveToBuffer === true ? this._printChar('}}}}') : obj.str += '}}}}';
+                    saveToBuffer === true ? this._saveToBuffer('}}}}') : obj.str += '}}}}';
                     k=k+3;
 
                     obj.index = k;
                     return obj;
                 }
-                saveToBuffer === true ? this._printChar(input[k]) : obj.str += input[k];
+                saveToBuffer === true ? this._saveToBuffer(input[k]) : obj.str += input[k];
             }
         } else {
-            saveToBuffer === true ? this._printChar(input[j]) : obj.str += input[j];
+            saveToBuffer === true ? this._saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
     lineNo = this._countNewLineChar(input.slice(0, this._charNo));
