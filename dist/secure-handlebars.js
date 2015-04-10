@@ -9250,7 +9250,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState
             handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
             re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
             if (re.result === false) {
-                throw "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw block expression.";
+                throw "Parsing error! Invalid raw block expression.";
             }
 
             /* _handleRawBlock */
@@ -9263,7 +9263,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState
             handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
             re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
             if (re.result === false) {
-                throw "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw expression.";
+                throw "Parsing error! Invalid raw expression.";
             }
 
             /* _handleRawExpression */
@@ -9281,7 +9281,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState
                 case handlebarsUtils.ESCAPE_EXPRESSION:
                     re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
                     if (re.result === false) {
-                        throw "[ERROR] ContextParserHandlebars: Parsing error! Invalid escape expression.";
+                        throw "Parsing error! Invalid escape expression.";
                     }
 
                     /* _handleEscapeExpression */
@@ -9296,7 +9296,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState
                 case handlebarsUtils.REFERENCE_EXPRESSION:
                     re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
                     if (re.result === false) {
-                        throw "[ERROR] ContextParserHandlebars: Parsing error! Invalid partial/reference expression.";
+                        throw "Parsing error! Invalid partial/reference expression.";
                     }
 
                     /* _consumeExpression */
@@ -9306,13 +9306,13 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState
                     return obj.index+1;
 
                 case handlebarsUtils.BRANCH_EXPRESSION:
-                    throw "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{[#|^].*}} expression.";
+                    throw "Parsing error! Unexpected {{[#|^].*}} expression.";
                 case handlebarsUtils.BRANCH_END_EXPRESSION:
-                    throw "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{/.*}} expression.";
+                    throw "Parsing error! Unexpected {{/.*}} expression.";
                 case handlebarsUtils.ELSE_EXPRESSION:
-                    throw "[ERROR] ContextParserHandlebars: Parsing error! Unexpected {{else}} or {{^}} expression.";
+                    throw "Parsing error! Unexpected {{else}} or {{^}} expression.";
                 case handlebarsUtils.UNHANDLED_EXPRESSION:
-                    throw "[ERROR] ContextParserHandlebars: Parsing error! Unexpected expression.";
+                    throw "Parsing error! Unexpected expression.";
                 case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
                 case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
                     // no need to validate the comment expression as the content inside are skipped.
@@ -9323,7 +9323,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState
                     return obj.index+1;
 
                 default:
-                    throw "[ERROR] ContextParserHandlebars: Parsing error! Unknown expression.";
+                    throw "Parsing error! Unknown expression.";
             }
         } else {
             /* return immediately for non template start char '{' */
@@ -9332,7 +9332,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState
     } catch (stateRelatedMessage) {
         lineNo = this._countNewLineChar(input.slice(0, this._charNo));
         exceptionObj = new ContextParserHandlebarsException(
-            '[WARNING] ContextParserHandlebars: ' + stateRelatedMessage, 
+            '[ERROR] ContextParserHandlebars: ' + stateRelatedMessage, 
             lineNo, 
             this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
@@ -9485,7 +9485,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                 /* validation */
                 re = handlebarsUtils.isValidExpression(input, j, handlebarsExpressionType);
                 if (re.result === false) {
-                    throw "[ERROR] ContextParserHandlebars: Parsing error! Invalid expression. ("+handlebarsExpressionType+")";
+                    throw "Parsing error! Invalid expression. ("+handlebarsExpressionType+")";
                 }
 
                 /* save content */
@@ -9550,7 +9550,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                             var startTag = sp.pop();
                             if (startTag !== re.tag) {
                                 // broken template as the end expression does not match, throw exception before function returns 
-                                throw "[ERROR] ContextParserHandlebars: Template expression mismatch (startExpression:"+startTag+"/endExpression:"+re.tag+")";
+                                throw "Template expression mismatch (startExpression:"+startTag+"/endExpression:"+re.tag+")";
                             }
                         }
 
@@ -9563,7 +9563,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
 
                         break;
                     default:
-                        throw "[ERROR] ContextParserHandlebars: Parsing error! Unexcepted error.";
+                        throw "Parsing error! Unexcepted error.";
                 }
 
                 /* return for handlebarsUtils.BRANCH_END_EXPRESSION */
@@ -9579,12 +9579,12 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
         }
 
         if (sp.length > 0) {
-            throw "[ERROR] ContextParserHandlebars: Template does not have branching close expression";
+            throw "Template does not have branching close expression";
         }
     } catch (stateRelatedMessage) {
         lineNo = this._countNewLineChar(input.slice(0, this._charNo));
         exceptionObj = new ContextParserHandlebarsException(
-            '[WARNING] ContextParserHandlebars: ' + stateRelatedMessage, 
+            '[ERROR] ContextParserHandlebars: ' + stateRelatedMessage, 
             lineNo, 
             this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
@@ -9808,16 +9808,20 @@ HandlebarsUtils.isReservedChar = function(input, i) {
     return (ch === '#' || ch === '/' || ch === '>' || ch === '^' || ch === '!' || ch === '&');
 };
 
+var consoleWarn = function(){};
+if (typeof console === 'object') {
+    if (console.hasOwnProperty('warn') && typeof console.warn === 'function') {
+        consoleWarn = console.warn;
+    } else if (console.hasOwnProperty('log') && typeof console.log === 'function') {
+        consoleWarn = console.log;
+    }
+}
+
 // @function HandlebarsUtils.handleError
 HandlebarsUtils.handleError = function(exceptionObj, throwErr) {
+    consoleWarn(exceptionObj.msg + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
     if (throwErr) {
         throw exceptionObj;
-    } else if (typeof console === 'object') {
-        if (console.hasOwnProperty('warn') && typeof console.warn === 'function') {
-            console.warn(exceptionObj.msg + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
-        } else if (console.hasOwnProperty('log') && typeof console.log === 'function') {
-            console.log(exceptionObj.msg + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
-        }
     }
 };
 
@@ -9858,10 +9862,10 @@ var hbsCreate = Handlebars.create,
         });
     }).reduce(function(a, b) {return a.concat(b);});
 
-function preprocess(template) {
+function preprocess(template, strictMode) {
     try {
         if (template) {
-            var parser = new ContextParserHandlebars({printCharEnable: false});
+            var parser = new ContextParserHandlebars({printCharEnable: false, strictMode: strictMode});
             return parser.analyzeContext(template);
         }
     } catch (err) {
@@ -9880,12 +9884,14 @@ function overrideHbsCreate() {
 
     // override precompile function to preprocess the template first
     h.precompile = function (template, options) {
-        return pc.call(this, preprocess(template), options);
+        options = options || {};
+        return pc.call(this, preprocess(template, options.strictMode), options);
     };
 
     // override compile function to preprocess the template first
     h.compile = function (template, options) {
-        return c.call(this, preprocess(template), options);
+        options = options || {};
+        return c.call(this, preprocess(template, options.strictMode), options);
     };
 
     // register below the filters that are automatically applied by context parser 
@@ -9903,5 +9909,8 @@ function overrideHbsCreate() {
 
 module.exports = overrideHbsCreate();
 module.exports.create = overrideHbsCreate;
+
+// the following is in addition to the original Handlbars prototype
+module.exports.ContextParserHandlebars = ContextParserHandlebars;
 },{"./context-parser-handlebars":39,"handlebars":26,"xss-filters":38}]},{},[41])(41)
 });
