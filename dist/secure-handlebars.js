@@ -8879,7 +8879,7 @@ ContextParserHandlebars.prototype.analyzeContext = function(input) {
     var ast = this.buildAst(input, 0, []);
     var stateObj = this.getInternalState();
     var r = this.analyzeAst(ast, stateObj);
-    this._printCharEnable? process.stdout.write(r.output) : '';
+    this._printCharEnable && process.stdout.write(r.output);
     return r.output;
 };
 
@@ -8890,7 +8890,7 @@ ContextParserHandlebars.prototype.analyzeContext = function(input) {
 // @function module:ContextParserHandlebars._saveToBuffer
 ContextParserHandlebars.prototype._saveToBuffer = function(str) {
     /* it will not affect the state change */
-    str.length === 1? str = this.replaceCharForBrowserConsistency(str, -1) : '';
+    str.length === 1 && (str = this.replaceCharForBrowserConsistency(str, -1));
     this._buffer.push(str);
 };
 
@@ -9079,18 +9079,18 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
         switch (type) {
             case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
                 if (input[j] === '-' && j+3<len && input[j+1] === '-' && input[j+2] === '}' && input[j+3] === '}') {
-                    saveToBuffer === true ? this._saveToBuffer('--}}') : obj.str += '--}}';
+                    saveToBuffer ? this._saveToBuffer('--}}') : obj.str += '--}}';
                     obj.index = j+3;
                     return obj;
                 } else if (input[j] === '-' && j+4<len && input[j+1] === '-' && input[j+2] === '~' && input[j+3] === '}' && input[j+4] === '}') {
-                    saveToBuffer === true ? this._saveToBuffer('--~}}') : obj.str += '--~}}';
+                    saveToBuffer ? this._saveToBuffer('--~}}') : obj.str += '--~}}';
                     obj.index = j+4;
                     return obj;
                 }
                 break;
             case handlebarsUtils.RAW_EXPRESSION:
                 if (input[j] === '}' && j+2<len && input[j+1] === '}' && input[j+2] === '}') {
-                    saveToBuffer === true ? this._saveToBuffer('}}}') : obj.str += '}}}';
+                    saveToBuffer ? this._saveToBuffer('}}}') : obj.str += '}}}';
                     obj.index = j+2;
                     return obj;
                 }
@@ -9104,13 +9104,13 @@ ContextParserHandlebars.prototype._consumeExpression = function(input, i, type, 
             case handlebarsUtils.REFERENCE_EXPRESSION:
             case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
                 if (input[j] === '}' && j+1<len && input[j+1] === '}') {
-                    saveToBuffer === true ? this._saveToBuffer('}}') : obj.str += '}}';
+                    saveToBuffer ? this._saveToBuffer('}}') : obj.str += '}}';
                     obj.index = j+1;
                     return obj;
                 }
                 break;
         }
-        saveToBuffer === true ? this._saveToBuffer(input[j]) : obj.str += input[j];
+        saveToBuffer ? this._saveToBuffer(input[j]) : obj.str += input[j];
     }
     lineNo = this._countNewLineChar(input.slice(0, this._charNo));
     msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter close brace of expression.";
@@ -9125,9 +9125,9 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
 
     obj.str = '';
 
-    saveToBuffer === true ? this._saveToBuffer('{{') : obj.str += '{{';
+    saveToBuffer ? this._saveToBuffer('{{') : obj.str += '{{';
     /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}} */
-    saveToBuffer === true ? this._saveToBuffer('{') : obj.str += '{';
+    saveToBuffer ? this._saveToBuffer('{') : obj.str += '{';
 
     /* parse expression */
     var re = handlebarsUtils.isValidExpression(input, i, handlebarsUtils.ESCAPE_EXPRESSION),
@@ -9154,15 +9154,15 @@ ContextParserHandlebars.prototype._handleEscapeExpression = function(input, i, l
                 }
             }
 
-            saveToBuffer === true ? this._saveToBuffer('}}') : obj.str += '}}';
+            saveToBuffer ? this._saveToBuffer('}}') : obj.str += '}}';
             j=j+1;
             /* we suppress the escapeExpression of handlebars by changing the {{expression}} into {{{expression}}}, no need to increase j by 1. */
-            saveToBuffer === true ? this._saveToBuffer('}') : obj.str += '}';
+            saveToBuffer ? this._saveToBuffer('}') : obj.str += '}';
 
             obj.index = j;
             return obj;
         } else {
-            saveToBuffer === true ? this._saveToBuffer(input[j]) : obj.str += input[j];
+            saveToBuffer ? this._saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
     lineNo = this._countNewLineChar(input.slice(0, this._charNo));
@@ -9183,7 +9183,7 @@ ContextParserHandlebars.prototype._handleRawBlock = function(input, i, saveToBuf
     obj.str = '';
     for(var j=i;j<len;++j) {
         if (isStartExpression && input[j] === '}' && j+3<len && input[j+1] === '}' && input[j+2] === '}' && input[j+3] === '}') {
-            saveToBuffer === true ? this._saveToBuffer('}}}}') : obj.str += '}}}}';
+            saveToBuffer ? this._saveToBuffer('}}}}') : obj.str += '}}}}';
             j=j+3;
     
             isStartExpression = false;
@@ -9203,16 +9203,16 @@ ContextParserHandlebars.prototype._handleRawBlock = function(input, i, saveToBuf
             }
             for(var k=j;k<len;++k) {
                 if (input[k] === '}' && k+3<len && input[k+1] === '}' && input[k+2] === '}' && input[k+3] === '}') {
-                    saveToBuffer === true ? this._saveToBuffer('}}}}') : obj.str += '}}}}';
+                    saveToBuffer ? this._saveToBuffer('}}}}') : obj.str += '}}}}';
                     k=k+3;
 
                     obj.index = k;
                     return obj;
                 }
-                saveToBuffer === true ? this._saveToBuffer(input[k]) : obj.str += input[k];
+                saveToBuffer ? this._saveToBuffer(input[k]) : obj.str += input[k];
             }
         } else {
-            saveToBuffer === true ? this._saveToBuffer(input[j]) : obj.str += input[j];
+            saveToBuffer ? this._saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
     lineNo = this._countNewLineChar(input.slice(0, this._charNo));
