@@ -623,6 +623,7 @@ StateMachine.lookupContext = [
 ];
 
 module.exports = StateMachine;
+
 },{}],3:[function(require,module,exports){
 
 /**
@@ -8628,6 +8629,7 @@ var contextParser = require('context-parser'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = contextParser.StateMachine;
 
+// TODO: need to move this code
 var filter = {
     FILTER_NOT_HANDLE: 'y',
     FILTER_DATA: 'yd',
@@ -8689,7 +8691,11 @@ function ContextParserHandlebarsException(msg, lineNo, charNo) {
     this.charNo = charNo;
 }
 
-// @function ContextParser.getInternalState
+/**
+* @function ContextParser.getInternalState
+*
+* Get the internal state of the Context Parser.
+*/
 contextParser.Parser.prototype.getInternalState = function() {
     var stateObj = {};
     stateObj.state = this.state;
@@ -8700,7 +8706,11 @@ contextParser.Parser.prototype.getInternalState = function() {
     return stateObj;
 };
 
-// @function ContextParser.setInternalState
+/**
+* @function ContextParser.setInternalState
+*
+* Set the internal state of the Context Parser.
+*/
 contextParser.Parser.prototype.setInternalState = function(stateObj) {
     // TODO: these 2 apis need to combine.
     this.setInitState(stateObj.state);
@@ -8712,8 +8722,12 @@ contextParser.Parser.prototype.setInternalState = function(stateObj) {
     this.attributeValue = stateObj.attributeValue;
 };
 
-// @function ContextParser._deepCompareState
-contextParser.Parser.prototype._deepCompareState = function(stateObj1, stateObj2) {
+/**
+* @function ContextParser.deepCompareState
+*
+* Compare the internal state of the Context Parser.
+*/
+contextParser.Parser.prototype.deepCompareState = function(stateObj1, stateObj2) {
     // var r = true;
     return ![
         'state', // test for the HTML5 state.
@@ -8739,6 +8753,30 @@ contextParser.Parser.prototype._deepCompareState = function(stateObj1, stateObj2
     */
     // return r;
 };
+
+/**
+* @constant ContextParser.lookupStateForHandlebarsOpenBraceChar
+*
+* The Lookup table for Handlebars open brace chars state transition.
+* https://github.com/yahoo/context-parser/blob/master/src/html5-state-machine.js#L36
+*/
+contextParser.Parser.prototype.lookupStateForHandlebarsOpenBraceChar = [
+    0 ,1 ,0 ,3 ,0 ,5 ,6 ,7 ,10,10,
+    10,3 ,13,13,5 ,16,16,6 ,19,19,
+    6 ,6 ,22,22,22,28,27,27,28,29,
+    29,29,29,33,35,35,35,40,38,39,
+    40,0 ,34,34,44,44,48,48,48,48,
+    48,48,0 ,44,
+    /* 
+    State transition generated from existing Context Parser
+    0 ,1 ,0 ,3 ,0 ,5 ,6 ,7 ,1 ,44,
+    10,3 ,3, 3 ,5 ,5 ,5 ,6 ,6, 6 ,
+    6 ,6 ,22,22,22,22,22,22,22,29,
+    29,29,29,29,35,35,35,40,38,39,
+    40,0 ,34,34,44,44,48,48,48,48,
+    48,48,0 ,44,
+    */
+];
 
 // @function ContextParser.replaceCharForBrowserConsistency
 contextParser.Parser.prototype.replaceCharForBrowserConsistency = function(ch, state) {
@@ -9050,7 +9088,7 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
             case stateMachine.State.STATE_COMMENT: // 48
                 return [filter.FILTER_COMMENT];
             default:
-                throw 'Unsafe output expression @ NOT HANDLE state';
+                throw 'Unsafe output expression @ NOT HANDLE state:'+state;
         }
     } catch (stateRelatedMessage) {
         lineNo = this._countNewLineChar(input.slice(0, this._charNo));
@@ -9267,6 +9305,8 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState
             }
 
             /* _handleRawExpression */
+            /* lookupStateForHandlebarsOpenBraceChar from current state before handle it */
+            nextState = this.lookupStateForHandlebarsOpenBraceChar[this.state];
             debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
             obj = this._consumeExpression(input, i, handlebarsExpressionType, true);
             /* update the Context Parser's state if it is raw expression. */
@@ -9285,6 +9325,8 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState
                     }
 
                     /* _handleEscapeExpression */
+                    /* lookupStateForHandlebarsOpenBraceChar from current state before handle it */
+                    nextState = this.lookupStateForHandlebarsOpenBraceChar[this.state];
                     debug("_handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+nextState);
                     obj = this._handleEscapeExpression(input, i, len, nextState, true);
                     /* update the Context Parser's state if it is raw expression. */
@@ -9423,7 +9465,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj) {
         r.lastStates[0] = r.lastStates[1];
     }
 
-    if (!this._deepCompareState(r.lastStates[0], r.lastStates[1])) {
+    if (!this.deepCompareState(r.lastStates[0], r.lastStates[1])) {
         lineNo = this._countNewLineChar(r.output.slice(0, this._charNo));
         msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! \n";
         msg += "[ERROR] #if  branch: " + programDebugOutput.slice(0, 50) + "...\n";

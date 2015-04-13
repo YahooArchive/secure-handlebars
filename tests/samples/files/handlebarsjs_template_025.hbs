@@ -1,0 +1,62 @@
+{{! This template file tests the lookUpStateForHandlebarsBraceChar function }}
+
+{{! change it from 8->1 to 8->10 }}
+<{{TAG_OPEN}}>
+
+{{! change it from 9->44 to 9->10 }}
+</{{END_TAG_OPEN}}>
+
+{{! change it from 12->3 to 12->13 }}
+<textarea>
+</{{RCDATA_END_TAG_OPEN}}>
+</textarea> {{! close the RCDATA state }}
+
+{{! change it from 13->3 to 13->13 }}
+<textarea>
+</text{{RCDATA_END_TAG_NAME}}>
+</textarea> {{! close the RCDATA state }}
+
+{{! change it from 15->5 to 15->16 }}
+<style>
+</{{RAWTEXT_END_TAG_OPEN}}>
+</style> {{! close the RAWTEXT state }}
+
+{{! change it from 16->5 to 16->16 }}
+<style>
+</st{{RAWTEXT_END_TAG_NAME}}>
+</style> {{! close the RAWTEXT state }}
+
+{{! change it from 18->6 to 18->19 }}
+<script>
+</{{SCRIPT_DATA_END_TAG_OPEN}}>
+</script> {{! close the SCRIPT_DATA state }}
+
+{{! change it from 19->6 to 19->19 }}
+<script>
+</sc{{SCRIPT_DATA_END_TAG_NAME}}>
+</script> {{! close the SCRIPT_DATA state }}
+
+{{! change it from 25->22 to 25->28 }}
+<script>
+<!-- comment <{{SCRIPT_DATA_ESCAPED_LESS_THAN_SIGN}}
+</script> {{! close the SCRIPT_DATA state }}
+
+{{! change it from 26->22 to 26->27 }}
+<script>
+<!-- comment </{{SCRIPT_DATA_ESCAPED_END_TAG_OPEN}}
+</script> {{! close the SCRIPT_DATA state }}
+
+{{! change it from 27->22 to 27->27 }}
+<script>
+<!-- comment </sc{{SCRIPT_DATA_ESCAPED_END_TAG_NAME}}
+</script> {{! close the SCRIPT_DATA state }}
+
+{{! change it from 28->22 to 28->28 }}
+<script>
+<!-- comment <sc{{SCRIPT_DATA_DOUBLE_ESCAPE_START}}
+</script> {{! close the SCRIPT_DATA state }}
+
+{{! change it from 33->29 to 33->33 }}
+<script>
+<!-- comment <script> </{{SCRIPT_DATA_DOUBLE_ESCAPE_END}}
+</script> {{! close the SCRIPT_DATA state }}

@@ -250,5 +250,26 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             utils.testArrMatch(data, arr);
         });
 */
+
+        it("Template 025 - lookUpStateForHandlebarsBraceChar test", function() {
+            var file = "./tests/samples/files/handlebarsjs_template_025.hbs.precompiled";
+            var data = fs.readFileSync(file, 'utf-8');
+            var arr = [
+                /{{{y TAG_OPEN}}}/,
+                /{{{y END_TAG_OPEN}}}/,
+                /{{{y RCDATA_END_TAG_OPEN}}}/,
+                /{{{y RCDATA_END_TAG_NAME}}}/,
+                /{{{y RAWTEXT_END_TAG_OPEN}}}/,
+                /{{{y RAWTEXT_END_TAG_NAME}}}/,
+                /{{{y SCRIPT_DATA_END_TAG_OPEN}}}/,
+                /{{{y SCRIPT_DATA_END_TAG_NAME}}}/,
+                /{{{y SCRIPT_DATA_ESCAPED_LESS_THAN_SIGN}}}/,
+                /{{{y SCRIPT_DATA_ESCAPED_END_TAG_OPEN}}}/,
+                /{{{y SCRIPT_DATA_ESCAPED_END_TAG_NAME}}}/,
+                /{{{y SCRIPT_DATA_DOUBLE_ESCAPE_START}}}/,
+                /{{{y SCRIPT_DATA_DOUBLE_ESCAPE_END}}}/,
+            ];
+            utils.testArrMatch(data, arr);
+        });
     });
 }());

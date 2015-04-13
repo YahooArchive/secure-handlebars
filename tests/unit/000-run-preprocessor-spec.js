@@ -16,7 +16,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         expect = require('chai').expect,
         ContextParserHandlebars = require("../../src/context-parser-handlebars");
 
-    var NO_OF_TEMPLATE = 24,
+    var NO_OF_TEMPLATE = 25,
         NO_OF_FILTER_TEMPLATE = 20;
 
     var config = {};
