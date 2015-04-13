@@ -623,7 +623,6 @@ StateMachine.lookupContext = [
 ];
 
 module.exports = StateMachine;
-
 },{}],3:[function(require,module,exports){
 
 /**
@@ -8766,7 +8765,7 @@ contextParser.Parser.prototype.lookupStateForHandlebarsOpenBraceChar = [
     6 ,6 ,22,22,22,28,27,27,28,29,
     29,29,29,33,35,35,35,40,38,39,
     40,0 ,34,34,44,44,48,48,48,48,
-    48,48,0 ,44,
+    48,48,0 ,44
     /* 
     State transition generated from existing Context Parser
     0 ,1 ,0 ,3 ,0 ,5 ,6 ,7 ,1 ,44,
@@ -8774,7 +8773,7 @@ contextParser.Parser.prototype.lookupStateForHandlebarsOpenBraceChar = [
     6 ,6 ,22,22,22,22,22,22,22,29,
     29,29,29,29,35,35,35,40,38,39,
     40,0 ,34,34,44,44,48,48,48,48,
-    48,48,0 ,44,
+    48,48,0 ,44
     */
 ];
 
