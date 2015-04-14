@@ -18,6 +18,7 @@ var debug = require('debug')('cph-debug'),
 
 /* import the html context parser */
 var contextParser = require('context-parser'),
+    ContextParserLinter = require('./context-parser-linter.js'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = contextParser.StateMachine;
 
@@ -59,21 +60,24 @@ function ContextParserHandlebars(config) {
     contextParser.Parser.call(this);
 
     /* save the processed char */
+    this._linter = new ContextParserLinter({});
+
+    /* save the processed char */
     this._buffer = [];
 
     /* the configuration of ContextParserHandlebars */
-    this.config = {};
+    this._config = {};
 
     /* the flag is used to print out the char to console */
-    this.config._printCharEnable = config.printCharEnable === undefined ? true : config.printCharEnable;
+    this._config._printCharEnable = config.printCharEnable === undefined ? true : config.printCharEnable;
 
     /* the flag is used to strict mode of handling un-handled state */
-    this.config._strictMode = config.strictMode === undefined ? false: config.strictMode;
+    this._config._strictMode = config.strictMode === undefined ? false: config.strictMode;
 
     /* save the line number being processed */
     this._charNo = 1;
 
-    debug(this.config);
+    debug(this._config);
 }
 
 /** 
@@ -88,6 +92,7 @@ function ContextParserHandlebarsException(msg, lineNo, charNo) {
 /**
 * @function ContextParser.getInternalState
 *
+* @description
 * Get the internal state of the Context Parser.
 */
 contextParser.Parser.prototype.getInternalState = function() {
@@ -103,6 +108,7 @@ contextParser.Parser.prototype.getInternalState = function() {
 /**
 * @function ContextParser.setInternalState
 *
+* @description
 * Set the internal state of the Context Parser.
 */
 contextParser.Parser.prototype.setInternalState = function(stateObj) {
@@ -119,6 +125,7 @@ contextParser.Parser.prototype.setInternalState = function(stateObj) {
 /**
 * @function ContextParser.deepCompareState
 *
+* @description
 * Compare the internal state of the Context Parser.
 */
 contextParser.Parser.prototype.deepCompareState = function(stateObj1, stateObj2) {
@@ -172,16 +179,6 @@ contextParser.Parser.prototype.lookupStateForHandlebarsOpenBraceChar = [
     */
 ];
 
-// @function ContextParser.replaceCharForBrowserConsistency
-contextParser.Parser.prototype.replaceCharForBrowserConsistency = function(ch, state) {
-    switch(ch) {
-        case '\x00':
-            return '\ufffd';
-        default:
-            return ch;
-    }
-};
-
 /**********************************
 * INHERITANCE & OVERRIDEN
 **********************************/
@@ -189,13 +186,16 @@ contextParser.Parser.prototype.replaceCharForBrowserConsistency = function(ch, s
 /* inherit the prototype of contextParser.Parser */
 ContextParserHandlebars.prototype = Object.create(contextParser.Parser.prototype);
 
-/* overriding the HTML5 Context Parser's beforeWalk for printing out */
+/* overriding the HTML5 Context Parser's beforeWalk */
 ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
 
     var len = input.length,
-        symbol = this.lookupChar(input[i]);
+        symbol;
 
     while(true) {
+
+        /* lookup the symbol */
+        symbol = this.lookupChar(input[i]);
 
         /* 
         * before passing to the _handleTemplate function, 
@@ -203,27 +203,6 @@ ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
         * querying the new state based on previous state this.state.
         */
         var _s = stateMachine.lookupStateFromSymbol[symbol][this.state];
-
-        /*
-        * as some browsers do not parse the page according to html5 
-        * specification, it will lead to wrong judgement of html state of 
-        * the page and filters being added.
-        * 
-        * in order to solve this issue, our strategy is to replace a char
-        * with a new replacement char to achieve browser implementation consistency based
-        * on our fuzzing results.
-        *
-        * the method below is slow as we can batch replace to improve the efficiency,
-        * but it is more concise for char by char replacement
-        */
-        var replaceChar = this.replaceCharForBrowserConsistency(input[i], _s);
-        if (replaceChar !== input[i]) {
-            /* a new input string */
-            input = input.slice(0,i) + replaceChar + input.slice(i+1);
-            /* a new state transition based on new char */
-            symbol = this.lookupChar(replaceChar);
-            _s = stateMachine.lookupStateFromSymbol[symbol][this.state];
-        }
 
         /* process the char */
         var j = this._handleTemplate(input, i, _s);
@@ -245,15 +224,12 @@ ContextParserHandlebars.prototype.beforeWalk = function(i, input) {
         if (j >= len) {
             break;
         }
-
-        /* read the new char to handle, may be template char again! */
-        symbol = this.lookupChar(input[i]);
     }
 
     return i;
 };
 
-/* overriding the HTML5 Context Parser's afterWalk for printing out */
+/* overriding the HTML5 Context Parser's afterWalk */
 ContextParserHandlebars.prototype.afterWalk = function(ch, i) {
     this._saveToBuffer(ch);
 
@@ -307,11 +283,15 @@ ContextParserHandlebars.prototype.printCharWithState = function() {
 * @function module:ContextParserHandlebars.analyzeContext
 */
 ContextParserHandlebars.prototype.analyzeContext = function(input) {
-    // the last parameter is the hack till we move to LR parser
-    var ast = this.buildAst(input, 0, []);
+    /* run the linter before analyzing it */
+    this._linter.contextualize(input);
+    var processedInput = this._linter.getOutput();
+
+    // TODO: the last parameter is the hack till we move to LR parser
+    var ast = this.buildAst(processedInput, 0, []);
     var stateObj = this.getInternalState();
     var r = this.analyzeAst(ast, stateObj);
-    this.config._printCharEnable && process.stdout.write(r.output);
+    this._config._printCharEnable && process.stdout.write(r.output);
     return r.output;
 };
 
@@ -321,8 +301,6 @@ ContextParserHandlebars.prototype.analyzeContext = function(input) {
 
 // @function module:ContextParserHandlebars._saveToBuffer
 ContextParserHandlebars.prototype._saveToBuffer = function(str) {
-    /* it will not affect the state change */
-    str.length === 1 && (str = this.replaceCharForBrowserConsistency(str, -1));
     this._buffer.push(str);
 };
 
@@ -347,7 +325,7 @@ ContextParserHandlebars.prototype._analyzeContext = function(stateObj, obj) {
 
     /* must kept silent */
     config.printCharEnable = false;
-    config.strictMode = this.config._strictMode;
+    config.strictMode = this._config._strictMode;
     parser = new ContextParserHandlebars(config);
 
     /* set the internal state */
@@ -492,7 +470,7 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
             '[WARNING] ContextParserHandlebars: ' + stateRelatedMessage, 
             lineNo,
             this._charNo);
-        handlebarsUtils.handleError(exceptionObj, this.config._strictMode);
+        handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
         return [filter.FILTER_NOT_HANDLE];
     }
 };
