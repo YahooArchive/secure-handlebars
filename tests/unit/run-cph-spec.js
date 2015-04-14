@@ -358,7 +358,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* deepCompareState test */
-        it("context-parser-handlebars#_deepCompareState test", function() {
+        it("context-parser-handlebars#deepCompareState test", function() {
             [
                 // true test
                 {s1:"<html></html>", s2:"<html></html>", result:true},
@@ -383,7 +383,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 parser2.contextualize(testObj.s2);
                 stateObj1 = parser1.getInternalState();
                 stateObj2 = parser2.getInternalState();
-                expect(parser1._deepCompareState(stateObj1, stateObj2)).to.equal(testObj.result);
+                expect(parser1.deepCompareState(stateObj1, stateObj2)).to.equal(testObj.result);
             });
         });
 

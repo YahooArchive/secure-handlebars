@@ -16,7 +16,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         expect = require('chai').expect,
         ContextParserHandlebars = require("../../src/context-parser-handlebars");
 
-    var NO_OF_TEMPLATE = 24,
+    var NO_OF_TEMPLATE = 25,
         NO_OF_FILTER_TEMPLATE = 20;
 
     var config = {};
@@ -135,12 +135,10 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 title: './bin/handlebarspp STATE_RAWTEXT strict mode test',
                 file: './tests/samples/files/handlebarsjs_template_strict_mode_003.hbs',
             },
-/*
             {
                 title: './bin/handlebarspp strict mode test',
                 file: './tests/samples/files/handlebarsjs_template_strict_mode_004.hbs',
             },
-*/
             {
                 title: './bin/handlebarspp attribute URI Javascript context strict mode test',
                 file: './tests/samples/files/handlebarsjs_template_strict_mode_005.hbs',
