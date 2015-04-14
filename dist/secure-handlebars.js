@@ -8983,7 +8983,7 @@ ContextParserHandlebars.prototype._analyzeContext = function(stateObj, obj) {
 ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input) {
 
     /* transitent var */
-    var lineNo, isFullUri, f, filters, exceptionObj,
+    var lineNo, isFullUri, f, filters, exceptionObj, msgPrefix,
         attributeName = stateObj.attributeName,
         attributeValue = stateObj.attributeValue;
 
@@ -9093,13 +9093,18 @@ ContextParserHandlebars.prototype._addFilters = function(state, stateObj, input)
             default:
                 throw 'Unsafe output expression @ NOT HANDLE state:'+state;
         }
-    } catch (stateRelatedMessage) {
-        lineNo = this._countNewLineChar(input.slice(0, this._charNo));
-        exceptionObj = new ContextParserHandlebarsException(
-            '[WARNING] ContextParserHandlebars: ' + stateRelatedMessage, 
-            lineNo,
-            this._charNo);
-        handlebarsUtils.handleError(exceptionObj, this.config._strictMode);
+    } catch (exception) {
+        if (typeof exception === 'string') {
+            lineNo = this._countNewLineChar(input.slice(0, this._charNo));
+            this.config._strictMode? msgPrefix = '[ERROR] ContextParserHandlebars:' : msgPrefix = '[WARNING] ContextParserHandlebars';
+            exceptionObj = new ContextParserHandlebarsException(
+                msgPrefix + exception,
+                lineNo,
+                this._charNo);
+            handlebarsUtils.handleError(exceptionObj, this.config._strictMode);
+        } else {
+            handlebarsUtils.handleError(exception, this.config._strictMode);
+        }
         return [filter.FILTER_NOT_HANDLE];
     }
 };
@@ -9278,7 +9283,7 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState
     /* regular expression validation result */
     var re;
     /* error msg */
-    var lineNo, msg, exceptionObj;
+    var lineNo, exceptionObj;
     /* _handleXXXX return object */
     var obj;
     /* Handlebars expression type */
@@ -9374,13 +9379,17 @@ ContextParserHandlebars.prototype._handleTemplate = function(input, i, nextState
             /* return immediately for non template start char '{' */
             return i;
         }
-    } catch (stateRelatedMessage) {
-        lineNo = this._countNewLineChar(input.slice(0, this._charNo));
-        exceptionObj = new ContextParserHandlebarsException(
-            '[ERROR] ContextParserHandlebars: ' + stateRelatedMessage, 
-            lineNo, 
-            this._charNo);
-        handlebarsUtils.handleError(exceptionObj, true);
+    } catch (exception) {
+        if (typeof exception === 'string') {
+            lineNo = this._countNewLineChar(input.slice(0, this._charNo));
+            exceptionObj = new ContextParserHandlebarsException(
+                '[ERROR] ContextParserHandlebars: ' + exception,
+                lineNo, 
+                this._charNo);
+            handlebarsUtils.handleError(exceptionObj, true);
+        } else {
+            handlebarsUtils.handleError(exception, true);
+        }
     }
 };
 
@@ -9626,13 +9635,17 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
         if (sp.length > 0) {
             throw "Template does not have branching close expression";
         }
-    } catch (stateRelatedMessage) {
-        lineNo = this._countNewLineChar(input.slice(0, this._charNo));
-        exceptionObj = new ContextParserHandlebarsException(
-            '[ERROR] ContextParserHandlebars: ' + stateRelatedMessage, 
-            lineNo, 
-            this._charNo);
-        handlebarsUtils.handleError(exceptionObj, true);
+    } catch (exception) {
+        if (typeof exception === 'string') {
+            lineNo = this._countNewLineChar(input.slice(0, this._charNo));
+            exceptionObj = new ContextParserHandlebarsException(
+                '[ERROR] ContextParserHandlebars: ' + exception,
+                lineNo, 
+                this._charNo);
+            handlebarsUtils.handleError(exceptionObj, true);
+        } else {
+            handlebarsUtils.handleError(exception, true);
+        }
     }
    
     /* save the last content */
