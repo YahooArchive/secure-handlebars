@@ -23,7 +23,7 @@ This utility parses the handlebars template file and adds the context-sensitive 
         if (fs.existsSync(file)) {
             var parser = new ContextParserHandlebars({
                 printCharEnable: true,
-                strictMode: process.argv[3] == 'true'
+                strictMode: process.argv[3] === 'true'
             });
             var template = fs.readFileSync(file, 'utf-8');
             parser.analyzeContext(template);
