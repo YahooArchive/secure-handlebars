@@ -20,15 +20,15 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     describe("context-parser-handlebars test suite", function() {
 
-        it("context-parser-handlebars#_countNewLineChar test", function() {
+        it("context-parser-handlebars#countNewLineChar test", function() {
             // no need to test it directly
         });
 
-        it("context-parser-handlebars#_addFilters invalid format test", function() {
+        it("context-parser-handlebars#addFilters invalid format test", function() {
             // no need to test it directly
         });
 
-        it("context-parser-handlebars#_handleEscapeExpression test", function() {
+        it("context-parser-handlebars#handleEscapeExpression test", function() {
             // no need to test it directly
         });
 
@@ -49,7 +49,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.inverse).to.deep.equal([]);
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
@@ -76,7 +76,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.inverse).to.deep.equal([]);
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.not.equal(s);
@@ -103,7 +103,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.inverse).to.deep.equal([]);
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
@@ -130,7 +130,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.inverse).to.deep.equal([]);
             expect(ast.index).to.equal(s.length);
 
-            stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
@@ -156,7 +156,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[1].content).to.equal('xxxxxxxx');
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
@@ -209,7 +209,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[1].content).to.equal('xxxxxx');
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
@@ -257,7 +257,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.program[1].content).to.equal('xxxxxxx');
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
@@ -267,18 +267,18 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var parser = new ContextParserHandlebars(config);
             var s = "{{#if}} <script> {{#if xxx}} path2 {{else}} path3 {{/if}} </script> {{else}} path4 {{/if}}";
             var ast = parser.buildAst(s, 0, []);
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
         });
 
         /* consumeExpression test */
-        it("context-parser-handlebars#_consumeExpression test", function() {
+        it("context-parser-handlebars#consumeExpression test", function() {
             utils.partialExpressionTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
-                    var r = parser._consumeExpression(testObj.syntax, 0, testObj.type, 1);
+                    var r = parser.consumeExpression(testObj.syntax, 0, testObj.type, 1);
                     expect(testObj.result[2]).to.equal(r.index);
                 } catch (e) {
                     // guard against AssertionError, any good method to do it?
@@ -289,7 +289,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             utils.referenceExpressionTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
-                    var r = parser._consumeExpression(testObj.syntax, 0, testObj.type, 1);
+                    var r = parser.consumeExpression(testObj.syntax, 0, testObj.type, 1);
                     expect(testObj.result[2]).to.equal(r.index);
                 } catch (e) {
                     // guard against AssertionError, any good method to do it?
@@ -300,11 +300,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* handleRawExpression test */
-        it("context-parser-handlebars#_handleRawExpression test", function() {
+        it("context-parser-handlebars#handleRawExpression test", function() {
             utils.rawExpressionTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
-                    var r = parser._consumeExpression(testObj.syntax, 0, testObj.type, false);
+                    var r = parser.consumeExpression(testObj.syntax, 0, testObj.type, false);
                     expect(testObj.result[2]).to.equal(r.index);
                 } catch (e) {
                     // guard against AssertionError, any good method to do it?
@@ -315,11 +315,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* handleRawBlock test */
-        it("context-parser-handlebars#_handleRawBlock test", function() {
+        it("context-parser-handlebars#handleRawBlock test", function() {
             utils.rawBlockTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
-                    var r = parser._handleRawBlock(testObj.syntax, 0);
+                    var r = parser.handleRawBlock(testObj.syntax, 0);
                     expect(testObj.result[2]).to.equal(r.index);
                 } catch (e) {
                     // guard against AssertionError, any good method to do it?
@@ -330,11 +330,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* handleCommentExpression test */
-        it("context-parser-handlebars#_handleCommentExpression test", function() {
+        it("context-parser-handlebars#handleCommentExpression test", function() {
             utils.commentExpressionTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
-                    var r = parser._consumeExpression(testObj.syntax, 0, testObj.type, false);
+                    var r = parser.consumeExpression(testObj.syntax, 0, testObj.type, false);
                     expect(testObj.result[2]).to.equal(r.index);
                 } catch (e) {
                     // guard against AssertionError, any good method to do it?
@@ -345,7 +345,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* handleTemplate test */
-        it("context-parser-handlebars#_handleTemplate test", function() {
+        it("context-parser-handlebars#handleTemplate test", function() {
             // no need to test it directly
         });
 
@@ -358,7 +358,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* deepCompareState test */
-        it("context-parser-handlebars#deepCompareState test", function() {
+        it("Customized Context Parser deepCompareState test", function() {
             [
                 // true test
                 {s1:"<html></html>", s2:"<html></html>", result:true},
@@ -379,11 +379,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 var parser1 = new ContextParserHandlebars(config);
                 var parser2 = new ContextParserHandlebars(config);
                 var stateObj1, stateObj2;
-                parser1.contextualize(testObj.s1);
-                parser2.contextualize(testObj.s2);
-                stateObj1 = parser1.getInternalState();
-                stateObj2 = parser2.getInternalState();
-                expect(parser1.deepCompareState(stateObj1, stateObj2)).to.equal(testObj.result);
+                parser1._html5Parser.contextualize(testObj.s1);
+                parser2._html5Parser.contextualize(testObj.s2);
+                stateObj1 = parser1._html5Parser.getInternalState();
+                stateObj2 = parser2._html5Parser.getInternalState();
+                expect(parser1._html5Parser.deepCompareState(stateObj1, stateObj2)).to.equal(testObj.result);
             });
         });
 
@@ -400,7 +400,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                     }
                 });
 
-                var stateObj = parser.getInternalState();
+                var stateObj = parser._html5Parser.getInternalState();
                 stateObj.state = 1;
                 var r = parser.analyzeAst(ast, stateObj);
                 expect(r.output).to.equal(testObj.output);

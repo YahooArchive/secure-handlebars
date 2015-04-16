@@ -29,6 +29,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 { html: '<option value="123"/',      states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,38,38,42,43'},
             ].forEach(function(testObj) {
                 var p1 = new Parser();
+console.log(Parser);
                 p1.contextualize(testObj.html);
                 var states = p1.getStates();
                 expect(states.toString()).to.equal(testObj.states);
