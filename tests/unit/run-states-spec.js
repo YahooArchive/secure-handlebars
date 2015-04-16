@@ -11,9 +11,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     require("mocha");
     var expect = require("chai").expect,
-        Parser = require("context-parser").Parser;
+        html5Parser = require("../../src/customized-context-parser");
 
-    describe('HTML5 Context Parser html5 state test suite', function(){
+    describe('HTML5 Customized Context Parser html5 state test suite', function(){
 
         /* 
          * this test is to simulate the case of transitting to the before-attribute-name-state (12.2.4.34) from 
@@ -28,8 +28,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 { html: '<option value="123"/ {',    states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,38,38,42,34,34,35'},
                 { html: '<option value="123"/',      states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,38,38,42,43'},
             ].forEach(function(testObj) {
-                var p1 = new Parser();
-console.log(Parser);
+                var p1 = new html5Parser();
                 p1.contextualize(testObj.html);
                 var states = p1.getStates();
                 expect(states.toString()).to.equal(testObj.states);
@@ -46,7 +45,7 @@ console.log(Parser);
                 { html: '<div id="1" {',                states: '1,8,10,10,10,34,35,35,37,38,38,42,34,35'},
                 { html: '<option value="1" selected {', states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,42,34,35,35,35,35,35,35,35,35,36,35'},
             ].forEach(function(testObj) {
-                var p1 = new Parser();
+                var p1 = new html5Parser();
                 p1.contextualize(testObj.html);
                 var states = p1.getStates();
                 expect(states.toString()).to.equal(testObj.states);
@@ -62,7 +61,7 @@ console.log(Parser);
             [
                 { html: '<option value="1" selected ', states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,42,34,35,35,35,35,35,35,35,35,36'},
             ].forEach(function(testObj) {
-                var p1 = new Parser();
+                var p1 = new html5Parser();
                 p1.contextualize(testObj.html);
                 var states = p1.getStates();
                 expect(states.toString()).to.equal(testObj.states);
@@ -79,7 +78,7 @@ console.log(Parser);
                 { html: '<option value=',  states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37'},
                 { html: '<option value =', states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,36,37'},
             ].forEach(function(testObj) {
-                var p1 = new Parser();
+                var p1 = new html5Parser();
                 p1.contextualize(testObj.html);
                 var states = p1.getStates();
                 expect(states.toString()).to.equal(testObj.states);
@@ -97,7 +96,7 @@ console.log(Parser);
                 { html: "<option value='{", states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,39,39'},
                 { html: '<option value={',  states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,40'}
             ].forEach(function(testObj) {
-                var p1 = new Parser();
+                var p1 = new html5Parser();
                 p1.contextualize(testObj.html);
                 var states = p1.getStates();
                 expect(states.toString()).to.equal(testObj.states);
@@ -114,7 +113,7 @@ console.log(Parser);
                 { html: '<option value="{}"', states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,38,42'},
                 { html: "<option value='{}'", states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,39,39,39,42'},
             ].forEach(function(testObj) {
-                var p1 = new Parser();
+                var p1 = new html5Parser();
                 p1.contextualize(testObj.html);
                 var states = p1.getStates();
                 expect(states.toString()).to.equal(testObj.states);

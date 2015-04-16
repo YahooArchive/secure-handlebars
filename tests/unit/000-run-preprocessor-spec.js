@@ -178,13 +178,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* reported bug tests */
         [
-/* need to fix it later 
             {
                 title: './bin/handlebarspp line no and char no reporting test',
                 file: './tests/samples/bugs/005.line.report.hb',
-                result: [ /lineNo:2,charNo:38/, /lineNo:4,charNo:91/, /lineNo:8,charNo:177/, /lineNo:10,charNo:274/, /lineNo:12,charNo:298/ ],
+                result: [ /lineNo:2,charNo:38/, /lineNo:4,charNo:91/, /lineNo:8,charNo:177/, /lineNo:11,charNo:275/, /lineNo:13,charNo:299/ ],
             },
-*/
             {
                 title: 'state (tag name) propagation in branching template test',
                 file: './tests/samples/bugs/004.script.hb',

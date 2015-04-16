@@ -15,10 +15,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 var debug = require('debug')('cph');
 
 /* import the html context parser */
-// TODO: require a new cp later
 var contextParser = require('context-parser'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = contextParser.StateMachine;
+
+/* import the customized html context parser */
+var CustomizedContextParser = require('./customized-context-parser.js');
 
 /////////////////////////////////////////////////////
 //
@@ -51,138 +53,6 @@ var filter = {
 */
 var reURIContextStartWhitespaces = /^(?:[\u0000-\u0020]|&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*/;
 var uriAttributeNames = ['href', 'src', 'action', 'formaction', 'background', 'cite', 'longdesc', 'usemap', 'poster', 'xlink:href'];
-
-/////////////////////////////////////////////////////
-//
-// @module CustomizedContextParser
-// 
-/////////////////////////////////////////////////////
-
-/**
-* @module CustomizedContextParser
-*/
-function CustomizedContextParser() {
-
-    /* super() */
-    contextParser.Parser.call(this);
-
-    /* save the processed char */
-    this._buffer = [];
-
-    /* save the line number being processed */
-    this._charNo = 1;
-}
-
-/* inherit the Context Parser */
-CustomizedContextParser.prototype = Object.create(contextParser.Parser.prototype);
-
-/**
-* @function CustomizedContextParser.getInternalState
-*
-* @description
-* Get the internal state of the Context Parser.
-*/
-contextParser.Parser.prototype.getInternalState = function() {
-    var stateObj = {};
-    stateObj.state = this.state;
-    stateObj.tagNames = this.tagNames;
-    stateObj.tagNameIdx = this.tagNameIdx;
-    stateObj.attributeName = this.attributeName;
-    stateObj.attributeValue = this.attributeValue;
-    return stateObj;
-};
-
-/**
-* @function CustomizedContextParser.setInternalState
-*
-* @description
-* Set the internal state of the Context Parser.
-*/
-contextParser.Parser.prototype.setInternalState = function(stateObj) {
-    // TODO: these 2 apis need to combine.
-    this.setInitState(stateObj.state);
-    this.setCurrentState(stateObj.state);
-
-    this.tagNames = stateObj.tagNames.slice(0); // need deep copy
-    this.tagNameIdx = stateObj.tagNameIdx;
-    this.attributeName = stateObj.attributeName;
-    this.attributeValue = stateObj.attributeValue;
-};
-
-/**
-* @function CustomizedContextParser.deepCompareState
-*
-* @description
-* Compare the internal state of the Context Parser.
-*/
-contextParser.Parser.prototype.deepCompareState = function(stateObj1, stateObj2) {
-    return ![
-        'state', // test for the HTML5 state.
-        // 'tagNameIdx', // test for the close tag in the branching logic, but it is not balanced.
-        // 'attributeName', 'attributeValue' // not necessary the same in branching logic.
-    ].some(function(key) {
-        return (stateObj1[key] !== '' && stateObj2[key] !== '' && stateObj1[key] !== stateObj2[key]);
-    });
-    /*
-    [
-      // 'tagNames' // not necessary the same in branching logic.
-    ].forEach(function(key) {
-        if (!(stateObj1[key] instanceof Array) || !(stateObj2[key] instanceof Array)) {
-            r = false;
-            return;
-        }
-        for(var i=0;i<stateObj1[key].length;++i) {
-            if (stateObj1[key][i] !== stateObj2[key][i]) {
-                r = false;
-            }
-        }
-    });
-    */
-    // return r;
-};
-
-/**
-* @function CustomizedContextParser.clearBuffer
-*
-* @description
-* Clear the buffer.
-*/
-contextParser.Parser.prototype.clearBuffer = function() {
-    // http://jsperf.com/array-destroy
-    this._buffer = [];
-};
-
-/**
-* @function CustomizedContextParser.getOutput
-*
-* @description
-* Get the output of processed chars.
-*/
-contextParser.Parser.prototype.getOutput = function() {
-    return this._buffer.join('');
-};
-
-/**
-* @function CustomizedContextParser.saveToBuffer
-*
-* @description
-* Save the processed char to the buffer array and return
-* it through getOutput()
-*/
-contextParser.Parser.prototype.saveToBuffer = function(str) {
-    this._buffer.push(str);
-};
-
-/**
-* @function CustomizedContextParser.afterWalk
-*
-* @descciption 
-* Override the HTML5 Context Parser's afterWalk
-*/
-contextParser.Parser.prototype.afterWalk = function(ch, i) {
-    this.saveToBuffer(ch);
-    this._charNo += ch.length;
-};
 
 /////////////////////////////////////////////////////
 //
@@ -223,8 +93,9 @@ function ContextParserHandlebars(config) {
     /* the flag is used to strict mode of handling un-handled state */
     this._config._strictMode = config.strictMode === undefined ? false: config.strictMode;
 
-    /* save the line number being processed */
-    this._charNo = 1;
+    /* save the char/line no being processed */
+    this._charNo = 0;
+    this._lineNo = 1;
 
     /* context parser for HTML5 parsing */
     this._html5Parser = new CustomizedContextParser();
@@ -296,9 +167,8 @@ ContextParserHandlebars.prototype.saveToBuffer = function(str) {
 ContextParserHandlebars.prototype.analyzeContext = function(input) {
     // the last parameter is the hack till we move to LR parser
     var ast = this.buildAst(input, 0, []);
-    // TODO: modify the way to get init state later.
     var stateObj = this._html5Parser.getInternalState();
-    var r = this.analyzeAst(ast, stateObj);
+    var r = this.analyzeAst(ast, stateObj, 0);
     this._config._printCharEnable && process.stdout.write(r.output);
     return r.output;
 };
@@ -319,7 +189,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
     var j = 0,
         len = input.length,
         re,
-        lineNo, msg, exceptionObj; // msg and exception
+        msg, exceptionObj; // msg and exception
 
     var content = '',
         inverse = false,
@@ -365,7 +235,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                     startPos = endPos+1;
                     endPos = startPos+content.length-1;
                     saveObj = this.generateNodeObject('content', content, startPos);
-                    inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                    inverse? ast.inverse.push(saveObj) : ast.program.push(saveObj);
                     content = '';
                 }
 
@@ -376,7 +246,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         obj = this.handleRawBlock(input, j, false);
                         endPos = j = obj.index;
                         saveObj = this.generateNodeObject('rawblock', obj.str, startPos);
-                        inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                        inverse? ast.inverse.push(saveObj) : ast.program.push(saveObj);
                  
                         break;
                     case handlebarsUtils.ELSE_EXPRESSION:
@@ -388,7 +258,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         obj = this.consumeExpression(input, j, handlebarsExpressionType, false);
                         endPos = j = obj.index;
                         saveObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
-                        inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                        inverse? ast.inverse.push(saveObj) : ast.program.push(saveObj);
 
                         break;
                     case handlebarsUtils.BRANCH_EXPRESSION:
@@ -399,14 +269,14 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                             obj = this.buildAst(input, j, [re.tag]);
                             endPos = j = obj.index;
                             saveObj = this.generateNodeObject('node', obj, startPos);
-                            inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                            inverse? ast.inverse.push(saveObj) : ast.program.push(saveObj);
                         } else {
                             /* consumeExpression */
                             startPos = j;
                             obj = this.consumeExpression(input, j, handlebarsExpressionType, false);
                             endPos = j = obj.index;
                             saveObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
-                            inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                            inverse? ast.inverse.push(saveObj) : ast.program.push(saveObj);
                             buildNode = true;
                         }
 
@@ -431,7 +301,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         obj = this.consumeExpression(input, j, handlebarsExpressionType, false);
                         endPos = j = obj.index;
                         saveObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
-                        inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                        inverse? ast.inverse.push(saveObj) : ast.program.push(saveObj);
 
                         break;
                     default:
@@ -455,10 +325,9 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
         }
     } catch (exception) {
         if (typeof exception === 'string') {
-            lineNo = this._countNewLineChar(input.slice(0, this._charNo));
             exceptionObj = new ContextParserHandlebarsException(
                 '[ERROR] ContextParserHandlebars: ' + exception,
-                lineNo, 
+                this._lineNo, 
                 this._charNo);
             handlebarsUtils.handleError(exceptionObj, true);
         } else {
@@ -499,11 +368,11 @@ ContextParserHandlebars.prototype.generateNodeObject = function(type, content, s
 * @description
 * Analyze the execution context of the AST node.
 */
-ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj) {
+ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
     var obj = {};
 
     var r = {},
-        t, lineNo, msg, exceptionObj, debugString = [];
+        t, msg, exceptionObj, debugString = [];
 
     r.lastStates = [];
     r.lastStates[0] = stateObj;
@@ -511,40 +380,45 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj) {
     r.output = '';
 
     var contextParserHandlebars = this;
+    this._charNo = charNo;
     [0, 1].forEach(function(i) {
         var tree = i === 0? ast.program : ast.inverse;
         tree.forEach(function(node) {
             if (node.type === 'content') {
-                debug("analyzeAst:node.type:"+node.type);
                 t = contextParserHandlebars.analyzeHTMLContext(r.lastStates[i], node);
                 r.output += t.output;
                 r.lastStates[i] = t.stateObj;
             } else if (node.type === 'rawblock' ||
                 node.type === 'expression') {
-                debug("analyzeAst:node.type:"+node.type);
                 r.output += node.content;
             } else if (node.type === 'escapeexpression' ||
                 node.type === 'rawexpression') {
-                debug("analyzeAst:node.type:"+node.type);
                 /* lookupStateForHandlebarsOpenBraceChar from current state before handle it */
                 r.lastStates[i].state = contextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[r.lastStates[i].state];
                 contextParserHandlebars.clearBuffer();
                 contextParserHandlebars.handleTemplate(node.content, 0, r.lastStates[i]);
                 r.output += contextParserHandlebars.getOutput();
             } else if (node.type === 'node') {
-                debug("analyzeAst:node.type:"+node.type);
-                t = contextParserHandlebars.analyzeAst(node.content, r.lastStates[i]);
+                t = contextParserHandlebars.analyzeAst(node.content, r.lastStates[i], node.startPos);
                 r.lastStates[i] = t.lastStates[i]; // index 0 and 1 MUST be equal
                 r.output += t.output;
             } else if (node.type === 'branchstart' ||
                 node.type === 'branchelse' ||
                 node.type === 'branchend') {
-                debug("analyzeAst:node.type:"+node.type);
                 r.output += node.content;
+            }
+
+            /* calculate the char/line have been processed */
+            if (typeof node.content === "string") {
+                contextParserHandlebars._charNo += node.content.length;
+                contextParserHandlebars._lineNo += contextParserHandlebars.countNewLineChar(node.content);
+            } else {
+                contextParserHandlebars._charNo = node.content.index+1;
             }
         });
     });
 
+    /* make lastStates[0] and lastStates[1] the same as the tree has one branch */
     if (ast.program.length > 0 && ast.inverse.length === 0) {
         debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[0].state+"]");
         r.lastStates[1] = r.lastStates[0];
@@ -554,25 +428,21 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj) {
     }
 
     if (!this._html5Parser.deepCompareState(r.lastStates[0], r.lastStates[1])) {
-        lineNo = this._countNewLineChar(r.output.slice(0, this._charNo));
+        debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
         msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! \n";
-        // msg += "[ERROR] #if  branch: " + debugString[0].slice(0, 50) + "...\n";
-        // msg += "[ERROR] else branch: " + debugString[1].slice(0, 50) + "...\n";
-        msg += JSON.stringify(r.lastStates[0]) + "\n";
-        msg += JSON.stringify(r.lastStates[1]) + "\n";
-        exceptionObj = new ContextParserHandlebarsException(msg, lineNo, this._charNo);
+        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
     return r;
 };
 
 /**
-* @function ContextParserHandlebars._countNewLineChar
+* @function ContextParserHandlebars.countNewLineChar
 *
 * @description
 * Count the new line in the string.
 */
-ContextParserHandlebars.prototype._countNewLineChar = function(str) {
+ContextParserHandlebars.prototype.countNewLineChar = function(str) {
     var noOfNewLineChar = (str.match(/\n/g) || []).length;
     return noOfNewLineChar;
 };
@@ -594,9 +464,6 @@ ContextParserHandlebars.prototype.analyzeHTMLContext = function(stateObj, node) 
 
     /* set the internal state */
     this._html5Parser.setInternalState(stateObj);
-
-    /* just for reporting. */
-    this._html5Parser._charNo = node.startPos;
 
     /* analyze */
     this._html5Parser.contextualize(node.content);
@@ -623,7 +490,7 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
     /* regular expression validation result */
     var re;
     /* error msg */
-    var lineNo, exceptionObj;
+    var exceptionObj;
     /* _handleXXXX return object */
     var obj;
     /* Handlebars expression type */
@@ -712,10 +579,9 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
         }
     } catch (exception) {
         if (typeof exception === 'string') {
-            lineNo = this._countNewLineChar(input.slice(0, this._charNo));
             exceptionObj = new ContextParserHandlebarsException(
                 '[ERROR] ContextParserHandlebars: ' + exception,
-                lineNo, 
+                this._lineNo, 
                 this._charNo);
             handlebarsUtils.handleError(exceptionObj, true);
         } else {
@@ -733,7 +599,7 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
 ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
 
     /* transitent var */
-    var lineNo, isFullUri, f, filters, exceptionObj, msgPrefix,
+    var isFullUri, f, filters, exceptionObj, msgPrefix,
         attributeName = stateObj.attributeName,
         attributeValue = stateObj.attributeValue;
 
@@ -842,11 +708,10 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
         }
     } catch (exception) {
         if (typeof exception === 'string') {
-            lineNo = this._countNewLineChar(input.slice(0, this._charNo));
-            this._config._strictMode? msgPrefix = '[ERROR] ContextParserHandlebars:' : msgPrefix = '[WARNING] ContextParserHandlebars';
+            msgPrefix = this._config._strictMode? '[ERROR] ContextParserHandlebars:' : '[WARNING] ContextParserHandlebars:';
             exceptionObj = new ContextParserHandlebarsException(
                 msgPrefix + exception,
-                lineNo,
+                this._lineNo,
                 this._charNo);
             handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
         } else {
@@ -863,7 +728,7 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
 * Consume the expression till encounter the close brace.
 */
 ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, saveToBuffer) {
-    var lineNo, msg, exceptionObj, 
+    var msg, exceptionObj, 
         len = input.length,
         str = '',
         obj = {};
@@ -906,9 +771,8 @@ ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, s
         }
         saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
     }
-    lineNo = this._countNewLineChar(input.slice(0, this._charNo));
     msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter close brace of expression.";
-    exceptionObj = new ContextParserHandlebarsException(msg, lineNo, this._charNo);
+    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
     handlebarsUtils.handleError(exceptionObj, true);
 };
 
@@ -919,7 +783,7 @@ ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, s
 * Handle the escape expression.
 */
 ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, len, stateObj, saveToBuffer) {
-    var lineNo, msg, exceptionObj,
+    var msg, exceptionObj,
         obj = {};
 
     obj.str = '';
@@ -963,9 +827,8 @@ ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, le
             saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
-    lineNo = this._countNewLineChar(input.slice(0, this._charNo));
     msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of escape expression.";
-    exceptionObj = new ContextParserHandlebarsException(msg, lineNo, this._charNo);
+    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
     handlebarsUtils.handleError(exceptionObj, true);
 };
 
@@ -976,7 +839,7 @@ ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, le
 * Handle the raw block expression.
 */
 ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuffer) {
-    var lineNo, msg, exceptionObj, 
+    var msg, exceptionObj, 
         obj = {};
     var isStartExpression = true,
         len = input.length,
@@ -993,15 +856,13 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
         } else if (!isStartExpression && input[j] === '{' && j+4<len && input[j+1] === '{' && input[j+2] === '{' && input[j+3] === '{' && input[j+4] === '/') {
             re = handlebarsUtils.isValidExpression(input, j, handlebarsUtils.RAW_END_BLOCK);
             if (re.result === false) {
-                lineNo = this._countNewLineChar(input.slice(0, this._charNo));
                 msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw end block expression.";
-                exceptionObj = new ContextParserHandlebarsException(msg, lineNo, this._charNo);
+                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
                 handlebarsUtils.handleError(exceptionObj, true);
             }
             if (re.tag !== tag) {
-                lineNo = this._countNewLineChar(input.slice(0, this._charNo));
                 msg = "[ERROR] ContextParserHandlebars: Parsing error! start/end raw block name mismatch.";
-                exceptionObj = new ContextParserHandlebarsException(msg, lineNo, this._charNo);
+                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
                 handlebarsUtils.handleError(exceptionObj, true);
             }
             for(var k=j;k<len;++k) {
@@ -1018,9 +879,8 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
             saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
-    lineNo = this._countNewLineChar(input.slice(0, this._charNo));
     msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}}}' close brace of raw block.";
-    exceptionObj = new ContextParserHandlebarsException(msg, lineNo, this._charNo);
+    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
     handlebarsUtils.handleError(exceptionObj, true);
 };
 
