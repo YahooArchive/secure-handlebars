@@ -9089,8 +9089,6 @@ ContextParserHandlebars.prototype.analyzeHTMLContext = function(stateObj, node) 
 *
 * @description
 * Handle the Handlebars template. (Handlebars Template Context)
-*
-* TODO: only RAW_EXPRESSION and ESCAPE_EXPRESSION need to be kept
 */
 ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) {
 
@@ -9109,19 +9107,9 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
         // we don't care about the expression with more than 4 braces, handlebars will handle it.
         /* handling different type of expression */
         if (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{') {
-            handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
-            re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
-            if (re.result === false) {
-                throw "Parsing error! Invalid raw block expression.";
-            }
-
-            /* handleRawBlock */
-            debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
-            obj = this.handleRawBlock(input, i, true);
-            /* advance the index pointer by 1 to the char after the last brace of expression. */
-            return obj.index+1;
-
+            throw "Parsing error! Unexpected raw block expression.";
         } else if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
+
             handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
             re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
             if (re.result === false) {
@@ -9151,18 +9139,9 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
                     return obj.index+1;
 
                 case handlebarsUtils.PARTIAL_EXPRESSION:
+                    throw "Parsing error! Unexpected partial expression.";
                 case handlebarsUtils.REFERENCE_EXPRESSION:
-                    re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
-                    if (re.result === false) {
-                        throw "Parsing error! Invalid partial/reference expression.";
-                    }
-
-                    /* consumeExpression */
-                    debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
-                    obj = this.consumeExpression(input, i, handlebarsExpressionType, true);
-                    /* advance the index pointer by 1 to the char after the last brace of expression. */
-                    return obj.index+1;
-
+                    throw "Parsing error! Unexpected reference expression.";
                 case handlebarsUtils.BRANCH_EXPRESSION:
                     throw "Parsing error! Unexpected {{[#|^].*}} expression.";
                 case handlebarsUtils.BRANCH_END_EXPRESSION:
@@ -9173,13 +9152,7 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
                     throw "Parsing error! Unexpected expression.";
                 case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
                 case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
-                    // no need to validate the comment expression as the content inside are skipped.
-                    /* consumeExpression */
-                    debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
-                    obj = this.consumeExpression(input, i, handlebarsExpressionType, true);
-                    /* advance the index pointer by 1 to the char after the last brace of expression. */
-                    return obj.index+1;
-
+                    throw "Parsing error! Unexpected comment expression.";
                 default:
                     throw "Parsing error! Unknown expression.";
             }
