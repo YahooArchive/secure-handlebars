@@ -207,6 +207,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
     try {
         for(j=i;j<len;++j) {
 
+            /* distinguish the type */
             handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
             if (input[j] === '{' && j+3<len && input[j+1] === '{' && input[j+2] === '{' && input[j+3] === '{') {
                 handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
@@ -327,8 +328,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
         if (typeof exception === 'string') {
             exceptionObj = new ContextParserHandlebarsException(
                 '[ERROR] ContextParserHandlebars: ' + exception,
-                this._lineNo, 
-                this._charNo);
+                this.countNewLineChar(input.slice(0, j)), j);
             handlebarsUtils.handleError(exceptionObj, true);
         } else {
             handlebarsUtils.handleError(exception, true);
@@ -429,7 +429,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
 
     if (!this._html5Parser.deepCompareState(r.lastStates[0], r.lastStates[1])) {
         debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
-        msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! \n";
+        msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template!";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
@@ -482,6 +482,8 @@ ContextParserHandlebars.prototype.analyzeHTMLContext = function(stateObj, node) 
 *
 * @description
 * Handle the Handlebars template. (Handlebars Template Context)
+*
+* TODO: only RAW_EXPRESSION and ESCAPE_EXPRESSION need to be kept
 */
 ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) {
 
@@ -728,8 +730,7 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
 * Consume the expression till encounter the close brace.
 */
 ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, saveToBuffer) {
-    var msg, exceptionObj, 
-        len = input.length,
+    var len = input.length,
         str = '',
         obj = {};
 
@@ -771,9 +772,7 @@ ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, s
         }
         saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
     }
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter close brace of expression.";
-    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-    handlebarsUtils.handleError(exceptionObj, true);
+    throw "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter close brace of expression.";
 };
 
 /**
@@ -839,8 +838,7 @@ ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, le
 * Handle the raw block expression.
 */
 ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuffer) {
-    var msg, exceptionObj, 
-        obj = {};
+    var obj = {};
     var isStartExpression = true,
         len = input.length,
         re = handlebarsUtils.isValidExpression(input, i, handlebarsUtils.RAW_BLOCK),
@@ -856,14 +854,10 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
         } else if (!isStartExpression && input[j] === '{' && j+4<len && input[j+1] === '{' && input[j+2] === '{' && input[j+3] === '{' && input[j+4] === '/') {
             re = handlebarsUtils.isValidExpression(input, j, handlebarsUtils.RAW_END_BLOCK);
             if (re.result === false) {
-                msg = "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw end block expression.";
-                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                handlebarsUtils.handleError(exceptionObj, true);
+                throw "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw end block expression.";
             }
             if (re.tag !== tag) {
-                msg = "[ERROR] ContextParserHandlebars: Parsing error! start/end raw block name mismatch.";
-                exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-                handlebarsUtils.handleError(exceptionObj, true);
+                throw "[ERROR] ContextParserHandlebars: Parsing error! start/end raw block name mismatch.";
             }
             for(var k=j;k<len;++k) {
                 if (input[k] === '}' && k+3<len && input[k+1] === '}' && input[k+2] === '}' && input[k+3] === '}') {
@@ -879,9 +873,7 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
             saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}}}' close brace of raw block.";
-    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-    handlebarsUtils.handleError(exceptionObj, true);
+    throw "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}}}' close brace of raw block.";
 };
 
 /* exposing it */
