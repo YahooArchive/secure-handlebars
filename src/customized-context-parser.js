@@ -22,38 +22,6 @@ var contextParser = require('context-parser'),
 
 /////////////////////////////////////////////////////
 //
-// TODO: need to move this code back to filter module
-// 
-/////////////////////////////////////////////////////
-var filter = {
-    FILTER_NOT_HANDLE: 'y',
-    FILTER_DATA: 'yd',
-    FILTER_COMMENT: 'yc',
-    FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED: 'yavd',
-    FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED: 'yavs',
-    FILTER_ATTRIBUTE_VALUE_UNQUOTED: 'yavu',
-    FILTER_ENCODE_URI: 'yu',
-    FILTER_ENCODE_URI_COMPONENT: 'yuc',
-    FILTER_URI_SCHEME_BLACKLIST: 'yubl',
-    FILTER_FULL_URI: 'yufull'
-};
-
-// extracted from xss-filters
-/*
-['^(?:',
-    [
-        '[\\u0000-\\u0020]',
-        '&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?',     // &#x1-20 in hex
-        '&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?',   // &#1-32  in dec
-        '&Tab;', '&NewLine;'                    // space, newline in char entities
-    ].join('|'),
-')*'].join('');
-*/
-var reURIContextStartWhitespaces = /^(?:[\u0000-\u0020]|&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*/;
-var uriAttributeNames = ['href', 'src', 'action', 'formaction', 'background', 'cite', 'longdesc', 'usemap', 'poster', 'xlink:href'];
-
-/////////////////////////////////////////////////////
-//
 // @module CustomizedContextParser
 // 
 /////////////////////////////////////////////////////

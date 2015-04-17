@@ -623,6 +623,7 @@ StateMachine.lookupContext = [
 ];
 
 module.exports = StateMachine;
+
 },{}],3:[function(require,module,exports){
 
 /**
@@ -8714,7 +8715,24 @@ function ContextParserHandlebars(config) {
 * @description
 * The Lookup table for Handlebars open brace chars state transition.
 * https://github.com/yahoo/context-parser/blob/master/src/html5-state-machine.js#L36
+* 
+* 12 is the symbol returns by Parser.lookupChar('{');
 */
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar = stateMachine.lookupStateFromSymbol[12];
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[8]  = 10; // transition from state 8 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[9]  = 10; // transition from state 9 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[12] = 13; // transition from state 12 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[13] = 13; // transition from state 13 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[15] = 16; // transition from state 15 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[16] = 16; // transition from state 16 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[18] = 19; // transition from state 18 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[19] = 19; // transition from state 19 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[25] = 28; // transition from state 25 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[26] = 27; // transition from state 26 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[27] = 27; // transition from state 27 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[28] = 28; // transition from state 28 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[33] = 33; // transition from state 33 to 10 when '{'
+/*
 ContextParserHandlebars.prototype.lookupStateForHandlebarsOpenBraceChar = [
     0 ,1 ,0 ,3 ,0 ,5 ,6 ,7 ,10,10,
     10,3 ,13,13,5 ,16,16,6 ,19,19,
@@ -8722,7 +8740,6 @@ ContextParserHandlebars.prototype.lookupStateForHandlebarsOpenBraceChar = [
     29,29,29,33,35,35,35,40,38,39,
     40,0 ,34,34,44,44,48,48,48,48,
     48,48,0 ,44
-    /* 
     State transition generated from existing Context Parser
     0 ,1 ,0 ,3 ,0 ,5 ,6 ,7 ,1 ,44,
     10,3 ,3, 3 ,5 ,5 ,5 ,6 ,6, 6 ,
@@ -8730,8 +8747,8 @@ ContextParserHandlebars.prototype.lookupStateForHandlebarsOpenBraceChar = [
     29,29,29,29,35,35,35,40,38,39,
     40,0 ,34,34,44,44,48,48,48,48,
     48,48,0 ,44
-    */
 ];
+*/
 
 /**
 * @function ContextParserHandlebars.clearBuffer
@@ -9001,7 +9018,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
             } else if (node.type === 'escapeexpression' ||
                 node.type === 'rawexpression') {
                 /* lookupStateForHandlebarsOpenBraceChar from current state before handle it */
-                r.lastStates[i].state = contextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[r.lastStates[i].state];
+                r.lastStates[i].state = ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[r.lastStates[i].state];
                 contextParserHandlebars.clearBuffer();
                 contextParserHandlebars.handleTemplate(node.content, 0, r.lastStates[i]);
                 r.output += contextParserHandlebars.getOutput();
@@ -9484,38 +9501,6 @@ var debug = require('debug')('cph');
 var contextParser = require('context-parser'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = contextParser.StateMachine;
-
-/////////////////////////////////////////////////////
-//
-// TODO: need to move this code back to filter module
-// 
-/////////////////////////////////////////////////////
-var filter = {
-    FILTER_NOT_HANDLE: 'y',
-    FILTER_DATA: 'yd',
-    FILTER_COMMENT: 'yc',
-    FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED: 'yavd',
-    FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED: 'yavs',
-    FILTER_ATTRIBUTE_VALUE_UNQUOTED: 'yavu',
-    FILTER_ENCODE_URI: 'yu',
-    FILTER_ENCODE_URI_COMPONENT: 'yuc',
-    FILTER_URI_SCHEME_BLACKLIST: 'yubl',
-    FILTER_FULL_URI: 'yufull'
-};
-
-// extracted from xss-filters
-/*
-['^(?:',
-    [
-        '[\\u0000-\\u0020]',
-        '&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?',     // &#x1-20 in hex
-        '&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?',   // &#1-32  in dec
-        '&Tab;', '&NewLine;'                    // space, newline in char entities
-    ].join('|'),
-')*'].join('');
-*/
-var reURIContextStartWhitespaces = /^(?:[\u0000-\u0020]|&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*/;
-var uriAttributeNames = ['href', 'src', 'action', 'formaction', 'background', 'cite', 'longdesc', 'usemap', 'poster', 'xlink:href'];
 
 /////////////////////////////////////////////////////
 //

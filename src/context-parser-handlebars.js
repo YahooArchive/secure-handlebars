@@ -107,24 +107,34 @@ function ContextParserHandlebars(config) {
 * @description
 * The Lookup table for Handlebars open brace chars state transition.
 * https://github.com/yahoo/context-parser/blob/master/src/html5-state-machine.js#L36
+* 
+* 12 is the symbol returns by Parser.lookupChar('{');
 */
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar = stateMachine.lookupStateFromSymbol[12];
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[8]  = 10; // transition from state  8 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[9]  = 10; // transition from state  9 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[12] = 13; // transition from state 12 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[13] = 13; // transition from state 13 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[15] = 16; // transition from state 15 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[16] = 16; // transition from state 16 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[18] = 19; // transition from state 18 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[19] = 19; // transition from state 19 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[25] = 28; // transition from state 25 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[26] = 27; // transition from state 26 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[27] = 27; // transition from state 27 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[28] = 28; // transition from state 28 to 10 when '{'
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[33] = 33; // transition from state 33 to 10 when '{'
+/*
+State transition generated from existing Context Parser
 ContextParserHandlebars.prototype.lookupStateForHandlebarsOpenBraceChar = [
-    0 ,1 ,0 ,3 ,0 ,5 ,6 ,7 ,10,10,
-    10,3 ,13,13,5 ,16,16,6 ,19,19,
-    6 ,6 ,22,22,22,28,27,27,28,29,
-    29,29,29,33,35,35,35,40,38,39,
-    40,0 ,34,34,44,44,48,48,48,48,
-    48,48,0 ,44
-    /* 
-    State transition generated from existing Context Parser
     0 ,1 ,0 ,3 ,0 ,5 ,6 ,7 ,1 ,44,
     10,3 ,3, 3 ,5 ,5 ,5 ,6 ,6, 6 ,
     6 ,6 ,22,22,22,22,22,22,22,29,
     29,29,29,29,35,35,35,40,38,39,
     40,0 ,34,34,44,44,48,48,48,48,
     48,48,0 ,44
-    */
 ];
+*/
 
 /**
 * @function ContextParserHandlebars.clearBuffer
@@ -394,7 +404,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
             } else if (node.type === 'escapeexpression' ||
                 node.type === 'rawexpression') {
                 /* lookupStateForHandlebarsOpenBraceChar from current state before handle it */
-                r.lastStates[i].state = contextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[r.lastStates[i].state];
+                r.lastStates[i].state = ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[r.lastStates[i].state];
                 contextParserHandlebars.clearBuffer();
                 contextParserHandlebars.handleTemplate(node.content, 0, r.lastStates[i]);
                 r.output += contextParserHandlebars.getOutput();
