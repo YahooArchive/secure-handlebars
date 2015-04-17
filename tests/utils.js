@@ -556,22 +556,22 @@ var buildAstPatterns = [
     { syntax: 'xxxx{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}xxxx', 
       output: 'xxxx{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}xxxx', 
       rstr: [ 'xxxx', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', 'xxxx' ], 
-      rtype: [ 'content', 'rawblock', 'content' ],
+      rtype: [ 'html', 'rawblock', 'html' ],
     },
     { syntax: 'xxxx{{{rawexpression}}} {{{rawexpression}}} xxxx', 
       output: 'xxxx{{{rawexpression}}} {{{rawexpression}}} xxxx', 
       rstr: [ 'xxxx', '{{{rawexpression}}}', ' ', '{{{rawexpression}}}', ' xxxx' ],
-      rtype: [ 'content', 'rawexpression', 'content', 'rawexpression', 'content' ],
+      rtype: [ 'html', 'rawexpression', 'html', 'rawexpression', 'html' ],
     },
     { syntax: 'xxxx{{escapeexpression}} {{>partial}} {{&reference}} xxxx', 
       output: 'xxxx{{{yd escapeexpression}}} {{>partial}} {{&reference}} xxxx', 
       rstr: [ 'xxxx', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' xxxx' ],
-      rtype: [ 'content', 'escapeexpression', 'content', 'expression', 'content', 'expression', 'content' ],
+      rtype: [ 'html', 'escapeexpression', 'html', 'expression', 'html', 'expression', 'html' ],
     },
     { syntax: 'xxxx{{! comment }} {{!-- }} --}} xxxx',
       output: 'xxxx{{! comment }} {{!-- }} --}} xxxx',
       rstr: [ 'xxxx', '{{! comment }}', ' ', '{{!-- }} --}}', ' xxxx' ],
-      rtype: [ 'content', 'expression', 'content', 'expression', 'content' ],
+      rtype: [ 'html', 'expression', 'html', 'expression', 'html' ],
     },
 
     // branching
@@ -579,14 +579,14 @@ var buildAstPatterns = [
       output: 'xxxx{{#if abc}} yyyy {{else}} zzzz {{/if}} xxxx',
       rstr: [ 'xxxx', { program: { 
                                  rstr: [ '{{#if abc}}', ' yyyy ' ],
-                                 rtype: [ 'branchstart', 'content' ],
+                                 rtype: [ 'branchstart', 'html' ],
                                  }, 
                         inverse: {
                                  rstr: [ '{{else}}', ' zzzz ', '{{/if}}' ],
-                                 rtype: [ 'branchelse', 'content', 'branchend' ],
+                                 rtype: [ 'branchelse', 'html', 'branchend' ],
                                  } 
                       }, ' xxxx' ],
-      rtype: [ 'content', 'node', 'content' ],
+      rtype: [ 'html', 'node', 'html' ],
     },
 
     // branching with different types
@@ -595,12 +595,12 @@ var buildAstPatterns = [
       rstr: [ 'xxxx', 
                       { program: { 
                                  rstr: [ '{{#if abc}}', ' ', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', ' ', '{{{rawexpression}}}', ' ', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' yyyy ' ],
-                                 rtype: [ 'branchstart', 'content', 'rawblock', 'content', 'rawexpression', 'content', 'escapeexpression', 'content', 'expression', 'content', 'expression', 'content' ], }, 
+                                 rtype: [ 'branchstart', 'html', 'rawblock', 'html', 'rawexpression', 'html', 'escapeexpression', 'html', 'expression', 'html', 'expression', 'html' ], }, 
                         inverse: {
                                  rstr: [ '{{else}}', ' ', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', ' ', '{{{rawexpression}}}', ' ', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' zzzz ', '{{/if}}' ],
-                                 rtype: [ 'branchelse', 'content', 'rawblock', 'content', 'rawexpression', 'content', 'escapeexpression', 'content', 'expression', 'content', 'expression', 'content', 'branchend' ], }, 
+                                 rtype: [ 'branchelse', 'html', 'rawblock', 'html', 'rawexpression', 'html', 'escapeexpression', 'html', 'expression', 'html', 'expression', 'html', 'branchend' ], }, 
                       }, ' xxxx' ],
-      rtype: [ 'content', 'node', 'content' ],
+      rtype: [ 'html', 'node', 'html' ],
     },
     // branching (nested)
     { syntax: 'xxxx{{#if abc}} yyyy {{#msg def}} 123 {{else}} 456 {{/msg}} {{else}} zzzz {{/if}} xxxx',
@@ -609,21 +609,21 @@ var buildAstPatterns = [
                       { program: { 
                                  rstr: [ '{{#if abc}}', ' yyyy ', { program: {
                                                                              rstr: [ '{{#msg def}}', ' 123 ' ],
-                                                                             rtype: [ 'branchstart', 'content' ],
+                                                                             rtype: [ 'branchstart', 'html' ],
                                                                              },
                                                                     inverse: {
                                                                              rstr: [ '{{else}}', ' 456 ', '{{/msg}}' ],
-                                                                             rtype: [ 'branchelse', 'content', 'branchend' ],
+                                                                             rtype: [ 'branchelse', 'html', 'branchend' ],
                                                                              },
                                                                     }, ' ' ],
-                                 rtype: [ 'branchstart', 'content', 'node', 'content' ],
+                                 rtype: [ 'branchstart', 'html', 'node', 'html' ],
                                  }, 
                         inverse: {
                                  rstr: [ '{{else}}', ' zzzz ', '{{/if}}' ],
-                                 rtype: [ 'branchelse', 'content', 'branchend' ],
+                                 rtype: [ 'branchelse', 'html', 'branchend' ],
                                  } 
                       }, ' xxxx' ],
-      rtype: [ 'content', 'node', 'content' ],
+      rtype: [ 'html', 'node', 'html' ],
     },
 ];
 exports.buildAstPatterns = buildAstPatterns;

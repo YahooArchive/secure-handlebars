@@ -204,7 +204,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
     var content = '',
         inverse = false,
         buildNode = false,
-        saveObj = {},
+        nodeObj = {},
         obj = {};
 
     var startPos = 0,
@@ -238,15 +238,15 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                 /* validation */
                 re = handlebarsUtils.isValidExpression(input, j, handlebarsExpressionType);
                 if (re.result === false) {
-                    throw "Parsing error! Invalid expression. ("+handlebarsExpressionType+")";
+                    throw "Parsing error! Invalid expression. (type:"+handlebarsExpressionType+")";
                 }
 
                 /* save content */
                 if (content !== '') {
                     startPos = endPos+1;
                     endPos = startPos+content.length-1;
-                    saveObj = this.generateNodeObject('content', content, startPos);
-                    inverse? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                    nodeObj = this.generateNodeObject('html', content, startPos);
+                    inverse? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
                     content = '';
                 }
 
@@ -256,8 +256,8 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         startPos = j;
                         obj = this.handleRawBlock(input, j, false);
                         endPos = j = obj.index;
-                        saveObj = this.generateNodeObject('rawblock', obj.str, startPos);
-                        inverse? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                        nodeObj = this.generateNodeObject('rawblock', obj.str, startPos);
+                        inverse? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
                  
                         break;
                     case handlebarsUtils.ELSE_EXPRESSION:
@@ -268,8 +268,8 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         startPos = j;
                         obj = this.consumeExpression(input, j, handlebarsExpressionType, false);
                         endPos = j = obj.index;
-                        saveObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
-                        inverse? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                        nodeObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
+                        inverse? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
 
                         break;
                     case handlebarsUtils.BRANCH_EXPRESSION:
@@ -279,15 +279,15 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                             startPos = j;
                             obj = this.buildAst(input, j, [re.tag]);
                             endPos = j = obj.index;
-                            saveObj = this.generateNodeObject('node', obj, startPos);
-                            inverse? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                            nodeObj = this.generateNodeObject('node', obj, startPos);
+                            inverse? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
                         } else {
                             /* consumeExpression */
                             startPos = j;
                             obj = this.consumeExpression(input, j, handlebarsExpressionType, false);
                             endPos = j = obj.index;
-                            saveObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
-                            inverse? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                            nodeObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
+                            inverse? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
                             buildNode = true;
                         }
 
@@ -311,8 +311,8 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         startPos = j;
                         obj = this.consumeExpression(input, j, handlebarsExpressionType, false);
                         endPos = j = obj.index;
-                        saveObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
-                        inverse? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+                        nodeObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
+                        inverse? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
 
                         break;
                     default:
@@ -349,8 +349,8 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
     if (content !== '') {
         startPos = endPos+1;
         endPos = startPos+content.length-1;
-        saveObj = this.generateNodeObject('content', content, startPos);
-        inverse === true ? ast.inverse.push(saveObj) : ast.program.push(saveObj);
+        nodeObj = this.generateNodeObject('html', content, startPos);
+        inverse === true ? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
     }
 
     ast.index = j;
@@ -394,7 +394,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
     [0, 1].forEach(function(i) {
         var tree = i === 0? ast.program : ast.inverse;
         tree.forEach(function(node) {
-            if (node.type === 'content') {
+            if (node.type === 'html') {
                 t = contextParserHandlebars.analyzeHTMLContext(r.lastStates[i], node);
                 r.output += t.output;
                 r.lastStates[i] = t.stateObj;
