@@ -11,14 +11,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 (function () {
 "use strict";
 
-/* debug facility */
-var debug = require('debug')('cph');
-
 /* import the html context parser */
-// TODO: require a new cp later
-var contextParser = require('context-parser'),
-    handlebarsUtils = require('./handlebars-utils.js'),
-    stateMachine = contextParser.StateMachine;
+var contextParser = require('context-parser');
 
 /////////////////////////////////////////////////////
 //

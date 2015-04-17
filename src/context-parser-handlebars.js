@@ -14,17 +14,16 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 /* debug facility */
 var debug = require('debug')('cph');
 
-/* import the html context parser */
-var contextParser = require('context-parser'),
+/* import the required package */
+var CustomizedContextParser = require('./customized-context-parser.js'),
     handlebarsUtils = require('./handlebars-utils.js'),
-    stateMachine = contextParser.StateMachine;
-
-/* import the customized html context parser */
-var CustomizedContextParser = require('./customized-context-parser.js');
+    stateMachine = require('context-parser').StateMachine;
 
 /////////////////////////////////////////////////////
 //
 // TODO: need to move this code back to filter module
+// the main concern is the update of the xss-filters 
+// does not reflect the change below.
 // 
 /////////////////////////////////////////////////////
 var filter = {
@@ -107,34 +106,23 @@ function ContextParserHandlebars(config) {
 * @description
 * The Lookup table for Handlebars open brace chars state transition.
 * https://github.com/yahoo/context-parser/blob/master/src/html5-state-machine.js#L36
-* 
-* 12 is the symbol returns by Parser.lookupChar('{');
+*
+* stateMachine.Symbol.ELSE is the symbol returns by Parser.lookupChar('{');
 */
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar = stateMachine.lookupStateFromSymbol[12];
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[8]  = 10; // transition from state  8 to 10 when '{'
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[9]  = 10; // transition from state  9 to 10 when '{'
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[12] = 13; // transition from state 12 to 10 when '{'
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[13] = 13; // transition from state 13 to 10 when '{'
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[15] = 16; // transition from state 15 to 10 when '{'
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[16] = 16; // transition from state 16 to 10 when '{'
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[18] = 19; // transition from state 18 to 10 when '{'
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[19] = 19; // transition from state 19 to 10 when '{'
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[25] = 28; // transition from state 25 to 10 when '{'
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[26] = 27; // transition from state 26 to 10 when '{'
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[27] = 27; // transition from state 27 to 10 when '{'
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[28] = 28; // transition from state 28 to 10 when '{'
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[33] = 33; // transition from state 33 to 10 when '{'
-/*
-State transition generated from existing Context Parser
-ContextParserHandlebars.prototype.lookupStateForHandlebarsOpenBraceChar = [
-    0 ,1 ,0 ,3 ,0 ,5 ,6 ,7 ,1 ,44,
-    10,3 ,3, 3 ,5 ,5 ,5 ,6 ,6, 6 ,
-    6 ,6 ,22,22,22,22,22,22,22,29,
-    29,29,29,29,35,35,35,40,38,39,
-    40,0 ,34,34,44,44,48,48,48,48,
-    48,48,0 ,44
-];
-*/
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar = stateMachine.lookupStateFromSymbol[stateMachine.Symbol.ELSE].slice(0); // deep copy the array
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_TAG_OPEN]  = stateMachine.State.STATE_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_END_TAG_OPEN]  = stateMachine.State.STATE_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_RCDATA_END_TAG_OPEN] = stateMachine.State.STATE_RCDATA_END_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_RCDATA_END_TAG_NAME] = stateMachine.State.STATE_RCDATA_END_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_RAWTEXT_END_TAG_OPEN] = stateMachine.State.STATE_RAWTEXT_END_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_RAWTEXT_END_TAG_NAME] = stateMachine.State.STATE_RAWTEXT_END_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_END_TAG_OPEN] = stateMachine.State.STATE_SCRIPT_DATA_END_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_END_TAG_NAME] = stateMachine.State.STATE_SCRIPT_DATA_END_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_ESCAPED_LESS_THAN_SIGN] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_ESCAPED_END_TAG_OPEN] = stateMachine.State.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME] = stateMachine.State.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END;
 
 /**
 * @function ContextParserHandlebars.clearBuffer
@@ -179,7 +167,7 @@ ContextParserHandlebars.prototype.analyzeContext = function(input) {
     var ast = this.buildAst(input, 0, []);
     var stateObj = this._html5Parser.getInternalState();
     var r = this.analyzeAst(ast, stateObj, 0);
-    this._config._printCharEnable && process.stdout.write(r.output);
+    (this._config._printCharEnable && typeof process === 'object')? process.stdout.write(r.output) : '';
     return r.output;
 };
 
@@ -193,8 +181,8 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
 
     /* init the data structure */
     var ast = {};
-    ast.program = [];
-    ast.inverse = [];
+    ast.left = [];
+    ast.right = [];
 
     var j = 0,
         len = input.length,
@@ -246,7 +234,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                     startPos = endPos+1;
                     endPos = startPos+content.length-1;
                     nodeObj = this.generateNodeObject('html', content, startPos);
-                    inverse? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
+                    inverse? ast.right.push(nodeObj) : ast.left.push(nodeObj);
                     content = '';
                 }
 
@@ -257,7 +245,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         obj = this.handleRawBlock(input, j, false);
                         endPos = j = obj.index;
                         nodeObj = this.generateNodeObject('rawblock', obj.str, startPos);
-                        inverse? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
+                        inverse? ast.right.push(nodeObj) : ast.left.push(nodeObj);
                  
                         break;
                     case handlebarsUtils.ELSE_EXPRESSION:
@@ -269,7 +257,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         obj = this.consumeExpression(input, j, handlebarsExpressionType, false);
                         endPos = j = obj.index;
                         nodeObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
-                        inverse? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
+                        inverse? ast.right.push(nodeObj) : ast.left.push(nodeObj);
 
                         break;
                     case handlebarsUtils.BRANCH_EXPRESSION:
@@ -280,14 +268,14 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                             obj = this.buildAst(input, j, [re.tag]);
                             endPos = j = obj.index;
                             nodeObj = this.generateNodeObject('node', obj, startPos);
-                            inverse? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
+                            inverse? ast.right.push(nodeObj) : ast.left.push(nodeObj);
                         } else {
                             /* consumeExpression */
                             startPos = j;
                             obj = this.consumeExpression(input, j, handlebarsExpressionType, false);
                             endPos = j = obj.index;
                             nodeObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
-                            inverse? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
+                            inverse? ast.right.push(nodeObj) : ast.left.push(nodeObj);
                             buildNode = true;
                         }
 
@@ -312,7 +300,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         obj = this.consumeExpression(input, j, handlebarsExpressionType, false);
                         endPos = j = obj.index;
                         nodeObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
-                        inverse? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
+                        inverse? ast.right.push(nodeObj) : ast.left.push(nodeObj);
 
                         break;
                     default:
@@ -350,7 +338,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
         startPos = endPos+1;
         endPos = startPos+content.length-1;
         nodeObj = this.generateNodeObject('html', content, startPos);
-        inverse === true ? ast.inverse.push(nodeObj) : ast.program.push(nodeObj);
+        inverse === true? ast.right.push(nodeObj) : ast.left.push(nodeObj);
     }
 
     ast.index = j;
@@ -392,12 +380,14 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
     var contextParserHandlebars = this;
     this._charNo = charNo;
     [0, 1].forEach(function(i) {
-        var tree = i === 0? ast.program : ast.inverse;
+        var tree = i === 0? ast.left: ast.right;
         tree.forEach(function(node) {
             if (node.type === 'html') {
-                t = contextParserHandlebars.analyzeHTMLContext(r.lastStates[i], node);
-                r.output += t.output;
-                r.lastStates[i] = t.stateObj;
+                var html5Parser = new CustomizedContextParser();
+                html5Parser.setInternalState(r.lastStates[i]);
+                html5Parser.contextualize(node.content);
+                r.output += html5Parser.getOutput();
+                r.lastStates[i] = html5Parser.getInternalState();
             } else if (node.type === 'rawblock' ||
                 node.type === 'expression') {
                 r.output += node.content;
@@ -429,10 +419,10 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
     });
 
     /* make lastStates[0] and lastStates[1] the same as the tree has one branch */
-    if (ast.program.length > 0 && ast.inverse.length === 0) {
+    if (ast.left.length > 0 && ast.right.length === 0) {
         debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[0].state+"]");
         r.lastStates[1] = r.lastStates[0];
-    } else if (ast.program.length === 0 && ast.inverse.length > 0) {
+    } else if (ast.left.length === 0 && ast.right.length > 0) {
         debug("analyzeAst:["+r.lastStates[1].state+"/"+r.lastStates[1].state+"]");
         r.lastStates[0] = r.lastStates[1];
     }
@@ -453,38 +443,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
 * Count the new line in the string.
 */
 ContextParserHandlebars.prototype.countNewLineChar = function(str) {
-    var noOfNewLineChar = (str.match(/\n/g) || []).length;
-    return noOfNewLineChar;
-};
-
-/**
-* @function ContextParserHandlebars.analyzeHTMLContext
-*
-* @description
-* Analyze the execution context of the non-Handlebars HTML string. (HTML5 Context)
-*/
-ContextParserHandlebars.prototype.analyzeHTMLContext = function(stateObj, node) {
-    var r = {
-        output: '',
-        stateObj: {}
-    };
-
-    /* clear the previous buffer */
-    this._html5Parser.clearBuffer();
-
-    /* set the internal state */
-    this._html5Parser.setInternalState(stateObj);
-
-    /* analyze */
-    this._html5Parser.contextualize(node.content);
-
-    /* get the output string */
-    r.output = this._html5Parser.getOutput();
-
-    /* get the internal state */
-    r.stateObj = this._html5Parser.getInternalState();
-
-    return r;
+    return (str.match(/\n/g) || []).length;
 };
 
 /**
@@ -492,6 +451,10 @@ ContextParserHandlebars.prototype.analyzeHTMLContext = function(stateObj, node) 
 *
 * @description
 * Handle the Handlebars template. (Handlebars Template Context)
+*
+* TODO: the function handleTemplate does not need to handle other expressions
+* except RAW_EXPRESSION and ESCAPE_EXPRESSION anymore, we can safely remove it
+* when the code is stable.
 */
 ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) {
 

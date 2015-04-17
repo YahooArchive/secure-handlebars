@@ -15,20 +15,20 @@ exports.testArrMatch = function(data, arr) {
 };
 
 var testBranch = function(ast, testObj) {
-   ast.program.forEach(function(obj, i) {
-       expect(obj.type).to.equal(testObj.program.rtype[i]);
+   ast.left.forEach(function(obj, i) {
+       expect(obj.type).to.equal(testObj.left.rtype[i]);
        if (obj.type !== 'node') {
-           expect(obj.content).to.equal(testObj.program.rstr[i]);
+           expect(obj.content).to.equal(testObj.left.rstr[i]);
        } else {
-           testBranch(obj.content, testObj.program.rstr[i]);
+           testBranch(obj.content, testObj.left.rstr[i]);
        }
    });
-   ast.inverse.forEach(function(obj, i) {
-       expect(obj.type).to.equal(testObj.inverse.rtype[i]);
+   ast.right.forEach(function(obj, i) {
+       expect(obj.type).to.equal(testObj.right.rtype[i]);
        if (obj.type !== 'node') {
-           expect(obj.content).to.equal(testObj.inverse.rstr[i]);
+           expect(obj.content).to.equal(testObj.right.rstr[i]);
        } else {
-           testBranch(obj.content, testObj.inverse.rstr[i]);
+           testBranch(obj.content, testObj.right.rstr[i]);
        }
    });
 };
@@ -577,11 +577,11 @@ var buildAstPatterns = [
     // branching
     { syntax: 'xxxx{{#if abc}} yyyy {{else}} zzzz {{/if}} xxxx',
       output: 'xxxx{{#if abc}} yyyy {{else}} zzzz {{/if}} xxxx',
-      rstr: [ 'xxxx', { program: { 
+      rstr: [ 'xxxx', { left: { 
                                  rstr: [ '{{#if abc}}', ' yyyy ' ],
                                  rtype: [ 'branchstart', 'html' ],
                                  }, 
-                        inverse: {
+                        right: {
                                  rstr: [ '{{else}}', ' zzzz ', '{{/if}}' ],
                                  rtype: [ 'branchelse', 'html', 'branchend' ],
                                  } 
@@ -593,10 +593,10 @@ var buildAstPatterns = [
     { syntax: 'xxxx{{#if abc}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{escapeexpression}} {{>partial}} {{&reference}} yyyy {{else}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{escapeexpression}} {{>partial}} {{&reference}} zzzz {{/if}} xxxx',
       output: 'xxxx{{#if abc}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{{yd escapeexpression}}} {{>partial}} {{&reference}} yyyy {{else}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{{yd escapeexpression}}} {{>partial}} {{&reference}} zzzz {{/if}} xxxx',
       rstr: [ 'xxxx', 
-                      { program: { 
+                      { left: { 
                                  rstr: [ '{{#if abc}}', ' ', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', ' ', '{{{rawexpression}}}', ' ', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' yyyy ' ],
                                  rtype: [ 'branchstart', 'html', 'rawblock', 'html', 'rawexpression', 'html', 'escapeexpression', 'html', 'expression', 'html', 'expression', 'html' ], }, 
-                        inverse: {
+                        right: {
                                  rstr: [ '{{else}}', ' ', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', ' ', '{{{rawexpression}}}', ' ', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' zzzz ', '{{/if}}' ],
                                  rtype: [ 'branchelse', 'html', 'rawblock', 'html', 'rawexpression', 'html', 'escapeexpression', 'html', 'expression', 'html', 'expression', 'html', 'branchend' ], }, 
                       }, ' xxxx' ],
@@ -606,19 +606,19 @@ var buildAstPatterns = [
     { syntax: 'xxxx{{#if abc}} yyyy {{#msg def}} 123 {{else}} 456 {{/msg}} {{else}} zzzz {{/if}} xxxx',
       output: 'xxxx{{#if abc}} yyyy {{#msg def}} 123 {{else}} 456 {{/msg}} {{else}} zzzz {{/if}} xxxx',
       rstr: [ 'xxxx', 
-                      { program: { 
-                                 rstr: [ '{{#if abc}}', ' yyyy ', { program: {
+                      { left: { 
+                                 rstr: [ '{{#if abc}}', ' yyyy ', { left: {
                                                                              rstr: [ '{{#msg def}}', ' 123 ' ],
                                                                              rtype: [ 'branchstart', 'html' ],
                                                                              },
-                                                                    inverse: {
+                                                                    right: {
                                                                              rstr: [ '{{else}}', ' 456 ', '{{/msg}}' ],
                                                                              rtype: [ 'branchelse', 'html', 'branchend' ],
                                                                              },
                                                                     }, ' ' ],
                                  rtype: [ 'branchstart', 'html', 'node', 'html' ],
                                  }, 
-                        inverse: {
+                        right: {
                                  rstr: [ '{{else}}', ' zzzz ', '{{/if}}' ],
                                  rtype: [ 'branchelse', 'html', 'branchend' ],
                                  } 
