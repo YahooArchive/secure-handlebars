@@ -412,18 +412,18 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         it("Filter - subexpression format test", function() {
-            var t1 = new ContextParserHandlebars(config);
+            var t1 = new ContextParserHandlebars();
             var data = "<html><title>{{title}}</title></html>";
-            t1.contextualize(data);
+            t1.analyzeContext(data);
             var output = t1.getOutput();
             var arr = [
                 /{{{yd title}}}/
             ];
             utils.testArrMatch(output, arr);
 
-            var t2 = new ContextParserHandlebars(false);
+            var t2 = new ContextParserHandlebars();
             var data = "<a href='{{url}}'>link</a>";
-            t2.contextualize(data);
+            t2.analyzeContext(data);
             var output = t2.getOutput();
             var arr = [
                 /{{{yubl \(yavs \(yufull url\)\)}}}/

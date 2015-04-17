@@ -20,15 +20,15 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     describe("context-parser-handlebars test suite", function() {
 
-        it("context-parser-handlebars#_countNewLineChar test", function() {
+        it("context-parser-handlebars#countNewLineChar test", function() {
             // no need to test it directly
         });
 
-        it("context-parser-handlebars#_addFilters invalid format test", function() {
+        it("context-parser-handlebars#addFilters invalid format test", function() {
             // no need to test it directly
         });
 
-        it("context-parser-handlebars#_handleEscapeExpression test", function() {
+        it("context-parser-handlebars#handleEscapeExpression test", function() {
             // no need to test it directly
         });
 
@@ -36,20 +36,20 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var parser = new ContextParserHandlebars(config);
             var s = "{{#if xxx}} a b {{/if}}xxxxxxx";
             var ast = parser.buildAst(s, 0, []);
-            expect(ast.program[0].type).to.equal('node');
-            expect(ast.program[0].content.program[0].type).to.equal('branchstart');
-            expect(ast.program[0].content.program[0].content).to.equal('{{#if xxx}}');
-            expect(ast.program[0].content.program[1].type).to.equal('content');
-            expect(ast.program[0].content.program[1].content).to.equal(' a b ');
-            expect(ast.program[0].content.program[2].type).to.equal('branchend');
-            expect(ast.program[0].content.program[2].content).to.equal('{{/if}}');
-            expect(ast.program[0].content.inverse).to.deep.equal([]);
-            expect(ast.program[1].type).to.equal('content');
-            expect(ast.program[1].content).to.equal('xxxxxxx');
-            expect(ast.inverse).to.deep.equal([]);
+            expect(ast.left[0].type).to.equal('node');
+            expect(ast.left[0].content.left[0].type).to.equal('branchstart');
+            expect(ast.left[0].content.left[0].content).to.equal('{{#if xxx}}');
+            expect(ast.left[0].content.left[1].type).to.equal('html');
+            expect(ast.left[0].content.left[1].content).to.equal(' a b ');
+            expect(ast.left[0].content.left[2].type).to.equal('branchend');
+            expect(ast.left[0].content.left[2].content).to.equal('{{/if}}');
+            expect(ast.left[0].content.right).to.deep.equal([]);
+            expect(ast.left[1].type).to.equal('html');
+            expect(ast.left[1].content).to.equal('xxxxxxx');
+            expect(ast.right).to.deep.equal([]);
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
@@ -59,24 +59,24 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var parser = new ContextParserHandlebars(config);
             var s = "{{#if xxx}} a b {{expression}} {{/if}}xxxxxxx";
             var ast = parser.buildAst(s, 0, []);
-            expect(ast.program[0].type).to.equal('node');
-            expect(ast.program[0].content.program[0].type).to.equal('branchstart');
-            expect(ast.program[0].content.program[0].content).to.equal('{{#if xxx}}');
-            expect(ast.program[0].content.program[1].type).to.equal('content');
-            expect(ast.program[0].content.program[1].content).to.equal(' a b ');
-            expect(ast.program[0].content.program[2].type).to.equal('escapeexpression');
-            expect(ast.program[0].content.program[2].content).to.equal('{{expression}}');
-            expect(ast.program[0].content.program[3].type).to.equal('content');
-            expect(ast.program[0].content.program[3].content).to.equal(' ');
-            expect(ast.program[0].content.program[4].type).to.equal('branchend');
-            expect(ast.program[0].content.program[4].content).to.equal('{{/if}}');
-            expect(ast.program[0].content.inverse).to.deep.equal([]);
-            expect(ast.program[1].type).to.equal('content');
-            expect(ast.program[1].content).to.equal('xxxxxxx');
-            expect(ast.inverse).to.deep.equal([]);
+            expect(ast.left[0].type).to.equal('node');
+            expect(ast.left[0].content.left[0].type).to.equal('branchstart');
+            expect(ast.left[0].content.left[0].content).to.equal('{{#if xxx}}');
+            expect(ast.left[0].content.left[1].type).to.equal('html');
+            expect(ast.left[0].content.left[1].content).to.equal(' a b ');
+            expect(ast.left[0].content.left[2].type).to.equal('escapeexpression');
+            expect(ast.left[0].content.left[2].content).to.equal('{{expression}}');
+            expect(ast.left[0].content.left[3].type).to.equal('html');
+            expect(ast.left[0].content.left[3].content).to.equal(' ');
+            expect(ast.left[0].content.left[4].type).to.equal('branchend');
+            expect(ast.left[0].content.left[4].content).to.equal('{{/if}}');
+            expect(ast.left[0].content.right).to.deep.equal([]);
+            expect(ast.left[1].type).to.equal('html');
+            expect(ast.left[1].content).to.equal('xxxxxxx');
+            expect(ast.right).to.deep.equal([]);
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.not.equal(s);
@@ -86,24 +86,24 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var parser = new ContextParserHandlebars(config);
             var s = "{{#if xxx}} a b {{!--comment  {{#if xxx}} abc {{/if}} --}} {{/if}}xxxxxxx";
             var ast = parser.buildAst(s, 0, []);
-            expect(ast.program[0].type).to.equal('node');
-            expect(ast.program[0].content.program[0].type).to.equal('branchstart');
-            expect(ast.program[0].content.program[0].content).to.equal('{{#if xxx}}');
-            expect(ast.program[0].content.program[1].type).to.equal('content');
-            expect(ast.program[0].content.program[1].content).to.equal(' a b ');
-            expect(ast.program[0].content.program[2].type).to.equal('expression');
-            expect(ast.program[0].content.program[2].content).to.equal('{{!--comment  {{#if xxx}} abc {{/if}} --}}');
-            expect(ast.program[0].content.program[3].type).to.equal('content');
-            expect(ast.program[0].content.program[3].content).to.equal(' ');
-            expect(ast.program[0].content.program[4].type).to.equal('branchend');
-            expect(ast.program[0].content.program[4].content).to.equal('{{/if}}');
-            expect(ast.program[0].content.inverse).to.deep.equal([]);
-            expect(ast.program[1].type).to.equal('content');
-            expect(ast.program[1].content).to.equal('xxxxxxx');
-            expect(ast.inverse).to.deep.equal([]);
+            expect(ast.left[0].type).to.equal('node');
+            expect(ast.left[0].content.left[0].type).to.equal('branchstart');
+            expect(ast.left[0].content.left[0].content).to.equal('{{#if xxx}}');
+            expect(ast.left[0].content.left[1].type).to.equal('html');
+            expect(ast.left[0].content.left[1].content).to.equal(' a b ');
+            expect(ast.left[0].content.left[2].type).to.equal('expression');
+            expect(ast.left[0].content.left[2].content).to.equal('{{!--comment  {{#if xxx}} abc {{/if}} --}}');
+            expect(ast.left[0].content.left[3].type).to.equal('html');
+            expect(ast.left[0].content.left[3].content).to.equal(' ');
+            expect(ast.left[0].content.left[4].type).to.equal('branchend');
+            expect(ast.left[0].content.left[4].content).to.equal('{{/if}}');
+            expect(ast.left[0].content.right).to.deep.equal([]);
+            expect(ast.left[1].type).to.equal('html');
+            expect(ast.left[1].content).to.equal('xxxxxxx');
+            expect(ast.right).to.deep.equal([]);
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
@@ -111,52 +111,52 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             /* this is not a valid template
             s = "{{#if xxx}} a b {{!comment  {{#if xxx}} abc {{/if}} --}} {{/if}}xxxxxxx";
             ast = parser.buildAst(s, 0, []);
-            expect(ast.program[0].type).to.equal('node');
-            expect(ast.program[0].content.program[0].type).to.equal('branchstart');
-            expect(ast.program[0].content.program[0].content).to.equal('{{#if xxx}}');
-            expect(ast.program[0].content.program[1].type).to.equal('content');
-            expect(ast.program[0].content.program[1].content).to.equal(' a b ');
-            expect(ast.program[0].content.program[2].type).to.equal('expression');
-            expect(ast.program[0].content.program[2].content).to.equal('{{!comment  {{#if xxx}}');
-            expect(ast.program[0].content.program[3].type).to.equal('content');
-            expect(ast.program[0].content.program[3].content).to.equal(' abc ');
-            expect(ast.program[0].content.program[4].type).to.equal('branchend');
-            expect(ast.program[0].content.program[4].content).to.equal('{{/if}}');
-            expect(ast.program[0].content.inverse).to.deep.equal([]);
-            expect(ast.program[1].type).to.equal('content');
-            expect(ast.program[1].content).to.equal(' --}} ');
-            expect(ast.program[2].type).to.equal('branchend');
-            expect(ast.program[2].content).to.equal('{{/if}}');
-            expect(ast.inverse).to.deep.equal([]);
+            expect(ast.left[0].type).to.equal('node');
+            expect(ast.left[0].content.left[0].type).to.equal('branchstart');
+            expect(ast.left[0].content.left[0].content).to.equal('{{#if xxx}}');
+            expect(ast.left[0].content.left[1].type).to.equal('html');
+            expect(ast.left[0].content.left[1].content).to.equal(' a b ');
+            expect(ast.left[0].content.left[2].type).to.equal('expression');
+            expect(ast.left[0].content.left[2].content).to.equal('{{!comment  {{#if xxx}}');
+            expect(ast.left[0].content.left[3].type).to.equal('html');
+            expect(ast.left[0].content.left[3].content).to.equal(' abc ');
+            expect(ast.left[0].content.left[4].type).to.equal('branchend');
+            expect(ast.left[0].content.left[4].content).to.equal('{{/if}}');
+            expect(ast.left[0].content.right).to.deep.equal([]);
+            expect(ast.left[1].type).to.equal('html');
+            expect(ast.left[1].content).to.equal(' --}} ');
+            expect(ast.left[2].type).to.equal('branchend');
+            expect(ast.left[2].content).to.equal('{{/if}}');
+            expect(ast.right).to.deep.equal([]);
             expect(ast.index).to.equal(s.length);
 
-            stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
             */
         });
 
-        it("context-parser-handlebars#basic branch with inverse AST test", function() {
+        it("context-parser-handlebars#basic branch with right AST test", function() {
             var parser = new ContextParserHandlebars(config);
             var s = "{{#if xxx}} a {{else}} b {{/if}}xxxxxxxx";
             var ast = parser.buildAst(s, 0, []);
-            expect(ast.program[0].type).to.equal('node');
-            expect(ast.program[0].content.program[0].type).to.equal('branchstart');
-            expect(ast.program[0].content.program[0].content).to.equal('{{#if xxx}}');
-            expect(ast.program[0].content.program[1].type).to.equal('content');
-            expect(ast.program[0].content.program[1].content).to.equal(' a ');
-            expect(ast.program[0].content.inverse[0].type).to.equal('branchelse');
-            expect(ast.program[0].content.inverse[0].content).to.equal('{{else}}');
-            expect(ast.program[0].content.inverse[1].type).to.equal('content');
-            expect(ast.program[0].content.inverse[1].content).to.equal(' b ');
-            expect(ast.program[0].content.inverse[2].type).to.equal('branchend');
-            expect(ast.program[0].content.inverse[2].content).to.equal('{{/if}}');
-            expect(ast.program[1].type).to.equal('content');
-            expect(ast.program[1].content).to.equal('xxxxxxxx');
+            expect(ast.left[0].type).to.equal('node');
+            expect(ast.left[0].content.left[0].type).to.equal('branchstart');
+            expect(ast.left[0].content.left[0].content).to.equal('{{#if xxx}}');
+            expect(ast.left[0].content.left[1].type).to.equal('html');
+            expect(ast.left[0].content.left[1].content).to.equal(' a ');
+            expect(ast.left[0].content.right[0].type).to.equal('branchelse');
+            expect(ast.left[0].content.right[0].content).to.equal('{{else}}');
+            expect(ast.left[0].content.right[1].type).to.equal('html');
+            expect(ast.left[0].content.right[1].content).to.equal(' b ');
+            expect(ast.left[0].content.right[2].type).to.equal('branchend');
+            expect(ast.left[0].content.right[2].content).to.equal('{{/if}}');
+            expect(ast.left[1].type).to.equal('html');
+            expect(ast.left[1].content).to.equal('xxxxxxxx');
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
@@ -166,50 +166,50 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var parser = new ContextParserHandlebars(config);
             var s = "{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{else}} e {{#if}} f {{else}} g {{/if}} h {{/if}}xxxxxx";
             var ast = parser.buildAst(s, 0, []);
-            expect(ast.program[0].type).to.equal('node');
-            expect(ast.program[0].content.program[0].type).to.equal('branchstart');
-            expect(ast.program[0].content.program[0].content).to.equal('{{#if xxx}}');
-            expect(ast.program[0].content.program[1].type).to.equal('content');
-            expect(ast.program[0].content.program[1].content).to.equal(' a ');
-            expect(ast.program[0].content.program[2].type).to.equal('node');
-            expect(ast.program[0].content.program[2].content.program[0].type).to.equal('branchstart');
-            expect(ast.program[0].content.program[2].content.program[0].content).to.equal('{{#if yyy}}');
-            expect(ast.program[0].content.program[2].content.program[1].type).to.equal('content');
-            expect(ast.program[0].content.program[2].content.program[1].content).to.equal(' b ');
-            expect(ast.program[0].content.program[2].content.inverse[0].type).to.equal('branchelse');
-            expect(ast.program[0].content.program[2].content.inverse[0].content).to.equal('{{else}}');
-            expect(ast.program[0].content.program[2].content.inverse[1].type).to.equal('content');
-            expect(ast.program[0].content.program[2].content.inverse[1].content).to.equal(' c ');
-            expect(ast.program[0].content.program[2].content.inverse[2].type).to.equal('branchend');
-            expect(ast.program[0].content.program[2].content.inverse[2].content).to.equal('{{/if}}');
-            expect(ast.program[0].content.program[3].type).to.equal('content');
-            expect(ast.program[0].content.program[3].content).to.equal(' d ');
+            expect(ast.left[0].type).to.equal('node');
+            expect(ast.left[0].content.left[0].type).to.equal('branchstart');
+            expect(ast.left[0].content.left[0].content).to.equal('{{#if xxx}}');
+            expect(ast.left[0].content.left[1].type).to.equal('html');
+            expect(ast.left[0].content.left[1].content).to.equal(' a ');
+            expect(ast.left[0].content.left[2].type).to.equal('node');
+            expect(ast.left[0].content.left[2].content.left[0].type).to.equal('branchstart');
+            expect(ast.left[0].content.left[2].content.left[0].content).to.equal('{{#if yyy}}');
+            expect(ast.left[0].content.left[2].content.left[1].type).to.equal('html');
+            expect(ast.left[0].content.left[2].content.left[1].content).to.equal(' b ');
+            expect(ast.left[0].content.left[2].content.right[0].type).to.equal('branchelse');
+            expect(ast.left[0].content.left[2].content.right[0].content).to.equal('{{else}}');
+            expect(ast.left[0].content.left[2].content.right[1].type).to.equal('html');
+            expect(ast.left[0].content.left[2].content.right[1].content).to.equal(' c ');
+            expect(ast.left[0].content.left[2].content.right[2].type).to.equal('branchend');
+            expect(ast.left[0].content.left[2].content.right[2].content).to.equal('{{/if}}');
+            expect(ast.left[0].content.left[3].type).to.equal('html');
+            expect(ast.left[0].content.left[3].content).to.equal(' d ');
 
-            expect(ast.program[0].content.inverse[0].type).to.equal('branchelse');
-            expect(ast.program[0].content.inverse[0].content).to.equal('{{else}}');
-            expect(ast.program[0].content.inverse[1].type).to.equal('content');
-            expect(ast.program[0].content.inverse[1].content).to.equal(' e ');
-            expect(ast.program[0].content.inverse[2].type).to.equal('node');
-            expect(ast.program[0].content.inverse[2].content.program[0].type).to.equal('branchstart');
-            expect(ast.program[0].content.inverse[2].content.program[0].content).to.equal('{{#if}}');
-            expect(ast.program[0].content.inverse[2].content.program[1].type).to.equal('content');
-            expect(ast.program[0].content.inverse[2].content.program[1].content).to.equal(' f ');
-            expect(ast.program[0].content.inverse[2].content.inverse[0].type).to.equal('branchelse');
-            expect(ast.program[0].content.inverse[2].content.inverse[0].content).to.equal('{{else}}');
-            expect(ast.program[0].content.inverse[2].content.inverse[1].type).to.equal('content');
-            expect(ast.program[0].content.inverse[2].content.inverse[1].content).to.equal(' g ');
-            expect(ast.program[0].content.inverse[2].content.inverse[2].type).to.equal('branchend');
-            expect(ast.program[0].content.inverse[2].content.inverse[2].content).to.equal('{{/if}}');
-            expect(ast.program[0].content.inverse[3].type).to.equal('content');
-            expect(ast.program[0].content.inverse[3].content).to.equal(' h ');
-            expect(ast.program[0].content.inverse[4].type).to.equal('branchend');
-            expect(ast.program[0].content.inverse[4].content).to.equal('{{/if}}');
+            expect(ast.left[0].content.right[0].type).to.equal('branchelse');
+            expect(ast.left[0].content.right[0].content).to.equal('{{else}}');
+            expect(ast.left[0].content.right[1].type).to.equal('html');
+            expect(ast.left[0].content.right[1].content).to.equal(' e ');
+            expect(ast.left[0].content.right[2].type).to.equal('node');
+            expect(ast.left[0].content.right[2].content.left[0].type).to.equal('branchstart');
+            expect(ast.left[0].content.right[2].content.left[0].content).to.equal('{{#if}}');
+            expect(ast.left[0].content.right[2].content.left[1].type).to.equal('html');
+            expect(ast.left[0].content.right[2].content.left[1].content).to.equal(' f ');
+            expect(ast.left[0].content.right[2].content.right[0].type).to.equal('branchelse');
+            expect(ast.left[0].content.right[2].content.right[0].content).to.equal('{{else}}');
+            expect(ast.left[0].content.right[2].content.right[1].type).to.equal('html');
+            expect(ast.left[0].content.right[2].content.right[1].content).to.equal(' g ');
+            expect(ast.left[0].content.right[2].content.right[2].type).to.equal('branchend');
+            expect(ast.left[0].content.right[2].content.right[2].content).to.equal('{{/if}}');
+            expect(ast.left[0].content.right[3].type).to.equal('html');
+            expect(ast.left[0].content.right[3].content).to.equal(' h ');
+            expect(ast.left[0].content.right[4].type).to.equal('branchend');
+            expect(ast.left[0].content.right[4].content).to.equal('{{/if}}');
 
-            expect(ast.program[1].type).to.equal('content');
-            expect(ast.program[1].content).to.equal('xxxxxx');
+            expect(ast.left[1].type).to.equal('html');
+            expect(ast.left[1].content).to.equal('xxxxxx');
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
@@ -219,45 +219,45 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var parser = new ContextParserHandlebars(config);
             var s = "{{#if xxx}} a {{#if yyy}} b {{else}} c {{/if}} d {{#if}} e {{else}} f {{/if}} g {{/if}}xxxxxxx";
             var ast = parser.buildAst(s, 0, []);
-            expect(ast.program[0].type).to.equal('node');
-            expect(ast.program[0].content.program[0].type).to.equal('branchstart');
-            expect(ast.program[0].content.program[0].content).to.equal('{{#if xxx}}');
-            expect(ast.program[0].content.program[1].type).to.equal('content');
-            expect(ast.program[0].content.program[1].content).to.equal(' a ');
-            expect(ast.program[0].content.program[2].type).to.equal('node');
-            expect(ast.program[0].content.program[2].content.program[0].type).to.equal('branchstart');
-            expect(ast.program[0].content.program[2].content.program[0].content).to.equal('{{#if yyy}}');
-            expect(ast.program[0].content.program[2].content.program[1].type).to.equal('content');
-            expect(ast.program[0].content.program[2].content.program[1].content).to.equal(' b ');
-            expect(ast.program[0].content.program[2].content.inverse[0].type).to.equal('branchelse');
-            expect(ast.program[0].content.program[2].content.inverse[0].content).to.equal('{{else}}');
-            expect(ast.program[0].content.program[2].content.inverse[1].type).to.equal('content');
-            expect(ast.program[0].content.program[2].content.inverse[1].content).to.equal(' c ');
-            expect(ast.program[0].content.program[2].content.inverse[2].type).to.equal('branchend');
-            expect(ast.program[0].content.program[2].content.inverse[2].content).to.equal('{{/if}}');
-            expect(ast.program[0].content.program[3].type).to.equal('content');
-            expect(ast.program[0].content.program[3].content).to.equal(' d ');
-            expect(ast.program[0].content.program[4].type).to.equal('node');
-            expect(ast.program[0].content.program[4].content.program[0].type).to.equal('branchstart');
-            expect(ast.program[0].content.program[4].content.program[0].content).to.equal('{{#if}}');
-            expect(ast.program[0].content.program[4].content.program[1].type).to.equal('content');
-            expect(ast.program[0].content.program[4].content.program[1].content).to.equal(' e ');
-            expect(ast.program[0].content.program[4].content.inverse[0].type).to.equal('branchelse');
-            expect(ast.program[0].content.program[4].content.inverse[0].content).to.equal('{{else}}');
-            expect(ast.program[0].content.program[4].content.inverse[1].type).to.equal('content');
-            expect(ast.program[0].content.program[4].content.inverse[1].content).to.equal(' f ');
-            expect(ast.program[0].content.program[4].content.inverse[2].type).to.equal('branchend');
-            expect(ast.program[0].content.program[4].content.inverse[2].content).to.equal('{{/if}}');
-            expect(ast.program[0].content.program[5].type).to.equal('content');
-            expect(ast.program[0].content.program[5].content).to.equal(' g ');
-            expect(ast.program[0].content.program[6].type).to.equal('branchend');
-            expect(ast.program[0].content.program[6].content).to.equal('{{/if}}');
+            expect(ast.left[0].type).to.equal('node');
+            expect(ast.left[0].content.left[0].type).to.equal('branchstart');
+            expect(ast.left[0].content.left[0].content).to.equal('{{#if xxx}}');
+            expect(ast.left[0].content.left[1].type).to.equal('html');
+            expect(ast.left[0].content.left[1].content).to.equal(' a ');
+            expect(ast.left[0].content.left[2].type).to.equal('node');
+            expect(ast.left[0].content.left[2].content.left[0].type).to.equal('branchstart');
+            expect(ast.left[0].content.left[2].content.left[0].content).to.equal('{{#if yyy}}');
+            expect(ast.left[0].content.left[2].content.left[1].type).to.equal('html');
+            expect(ast.left[0].content.left[2].content.left[1].content).to.equal(' b ');
+            expect(ast.left[0].content.left[2].content.right[0].type).to.equal('branchelse');
+            expect(ast.left[0].content.left[2].content.right[0].content).to.equal('{{else}}');
+            expect(ast.left[0].content.left[2].content.right[1].type).to.equal('html');
+            expect(ast.left[0].content.left[2].content.right[1].content).to.equal(' c ');
+            expect(ast.left[0].content.left[2].content.right[2].type).to.equal('branchend');
+            expect(ast.left[0].content.left[2].content.right[2].content).to.equal('{{/if}}');
+            expect(ast.left[0].content.left[3].type).to.equal('html');
+            expect(ast.left[0].content.left[3].content).to.equal(' d ');
+            expect(ast.left[0].content.left[4].type).to.equal('node');
+            expect(ast.left[0].content.left[4].content.left[0].type).to.equal('branchstart');
+            expect(ast.left[0].content.left[4].content.left[0].content).to.equal('{{#if}}');
+            expect(ast.left[0].content.left[4].content.left[1].type).to.equal('html');
+            expect(ast.left[0].content.left[4].content.left[1].content).to.equal(' e ');
+            expect(ast.left[0].content.left[4].content.right[0].type).to.equal('branchelse');
+            expect(ast.left[0].content.left[4].content.right[0].content).to.equal('{{else}}');
+            expect(ast.left[0].content.left[4].content.right[1].type).to.equal('html');
+            expect(ast.left[0].content.left[4].content.right[1].content).to.equal(' f ');
+            expect(ast.left[0].content.left[4].content.right[2].type).to.equal('branchend');
+            expect(ast.left[0].content.left[4].content.right[2].content).to.equal('{{/if}}');
+            expect(ast.left[0].content.left[5].type).to.equal('html');
+            expect(ast.left[0].content.left[5].content).to.equal(' g ');
+            expect(ast.left[0].content.left[6].type).to.equal('branchend');
+            expect(ast.left[0].content.left[6].content).to.equal('{{/if}}');
 
-            expect(ast.program[1].type).to.equal('content');
-            expect(ast.program[1].content).to.equal('xxxxxxx');
+            expect(ast.left[1].type).to.equal('html');
+            expect(ast.left[1].content).to.equal('xxxxxxx');
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
@@ -267,18 +267,18 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var parser = new ContextParserHandlebars(config);
             var s = "{{#if}} <script> {{#if xxx}} path2 {{else}} path3 {{/if}} </script> {{else}} path4 {{/if}}";
             var ast = parser.buildAst(s, 0, []);
-            var stateObj = parser.getInternalState();
+            var stateObj = parser._html5Parser.getInternalState();
             stateObj.state = 1;
             var r = parser.analyzeAst(ast, stateObj);
             expect(r.output).to.equal(s);
         });
 
         /* consumeExpression test */
-        it("context-parser-handlebars#_consumeExpression test", function() {
+        it("context-parser-handlebars#consumeExpression test", function() {
             utils.partialExpressionTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
-                    var r = parser._consumeExpression(testObj.syntax, 0, testObj.type, 1);
+                    var r = parser.consumeExpression(testObj.syntax, 0, testObj.type, 1);
                     expect(testObj.result[2]).to.equal(r.index);
                 } catch (e) {
                     // guard against AssertionError, any good method to do it?
@@ -289,7 +289,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             utils.referenceExpressionTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
-                    var r = parser._consumeExpression(testObj.syntax, 0, testObj.type, 1);
+                    var r = parser.consumeExpression(testObj.syntax, 0, testObj.type, 1);
                     expect(testObj.result[2]).to.equal(r.index);
                 } catch (e) {
                     // guard against AssertionError, any good method to do it?
@@ -300,11 +300,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* handleRawExpression test */
-        it("context-parser-handlebars#_handleRawExpression test", function() {
+        it("context-parser-handlebars#handleRawExpression test", function() {
             utils.rawExpressionTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
-                    var r = parser._consumeExpression(testObj.syntax, 0, testObj.type, false);
+                    var r = parser.consumeExpression(testObj.syntax, 0, testObj.type, false);
                     expect(testObj.result[2]).to.equal(r.index);
                 } catch (e) {
                     // guard against AssertionError, any good method to do it?
@@ -315,11 +315,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* handleRawBlock test */
-        it("context-parser-handlebars#_handleRawBlock test", function() {
+        it("context-parser-handlebars#handleRawBlock test", function() {
             utils.rawBlockTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
-                    var r = parser._handleRawBlock(testObj.syntax, 0);
+                    var r = parser.handleRawBlock(testObj.syntax, 0);
                     expect(testObj.result[2]).to.equal(r.index);
                 } catch (e) {
                     // guard against AssertionError, any good method to do it?
@@ -330,11 +330,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* handleCommentExpression test */
-        it("context-parser-handlebars#_handleCommentExpression test", function() {
+        it("context-parser-handlebars#handleCommentExpression test", function() {
             utils.commentExpressionTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
-                    var r = parser._consumeExpression(testObj.syntax, 0, testObj.type, false);
+                    var r = parser.consumeExpression(testObj.syntax, 0, testObj.type, false);
                     expect(testObj.result[2]).to.equal(r.index);
                 } catch (e) {
                     // guard against AssertionError, any good method to do it?
@@ -345,7 +345,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* handleTemplate test */
-        it("context-parser-handlebars#_handleTemplate test", function() {
+        it("context-parser-handlebars#handleTemplate test", function() {
             // no need to test it directly
         });
 
@@ -358,7 +358,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* deepCompareState test */
-        it("context-parser-handlebars#deepCompareState test", function() {
+        it("Customized Context Parser deepCompareState test", function() {
             [
                 // true test
                 {s1:"<html></html>", s2:"<html></html>", result:true},
@@ -379,11 +379,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 var parser1 = new ContextParserHandlebars(config);
                 var parser2 = new ContextParserHandlebars(config);
                 var stateObj1, stateObj2;
-                parser1.contextualize(testObj.s1);
-                parser2.contextualize(testObj.s2);
-                stateObj1 = parser1.getInternalState();
-                stateObj2 = parser2.getInternalState();
-                expect(parser1.deepCompareState(stateObj1, stateObj2)).to.equal(testObj.result);
+                parser1._html5Parser.contextualize(testObj.s1);
+                parser2._html5Parser.contextualize(testObj.s2);
+                stateObj1 = parser1._html5Parser.getInternalState();
+                stateObj2 = parser2._html5Parser.getInternalState();
+                expect(parser1._html5Parser.deepCompareState(stateObj1, stateObj2)).to.equal(testObj.result);
             });
         });
 
@@ -391,7 +391,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             utils.buildAstPatterns.forEach(function(testObj) {
                 var parser = new ContextParserHandlebars(config);
                 var ast = parser.buildAst(testObj.syntax, 0, []);
-                ast.program.forEach(function(r, i) {
+                ast.left.forEach(function(r, i) {
                     expect(r.type).to.equal(testObj.rtype[i]);
                     if (r.type !== 'node') {
                         expect(r.content).to.equal(testObj.rstr[i]);
@@ -400,7 +400,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                     }
                 });
 
-                var stateObj = parser.getInternalState();
+                var stateObj = parser._html5Parser.getInternalState();
                 stateObj.state = 1;
                 var r = parser.analyzeAst(ast, stateObj);
                 expect(r.output).to.equal(testObj.output);
