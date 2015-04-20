@@ -628,4 +628,271 @@ var buildAstPatterns = [
 ];
 exports.buildAstPatterns = buildAstPatterns;
 
+var templatePatterns = [
+    {
+        title: './bin/handlebarspp escape expression template test',
+        file: './tests/samples/files/handlebarsjs_template_escape_expression.hbs',
+        result: [ /{{{yd name}}}/ ],
+    },
+    {
+        title: './bin/handlebarspp raw expression template test',
+        file: './tests/samples/files/handlebarsjs_template_raw_expression.hbs',
+        result: [ /{{{name}}}/ ],
+    },
+    {
+        title: './bin/handlebarspp branching template test',
+        file: './tests/samples/files/handlebarsjs_template_branching_001.hbs',
+        result: [ /{{#list people}}{{{yd firstName}}} {{{yd lastName}}}{{\/list}}/,
+                  /{{#with story}}/, /<div class="intro">{{{yd intro}}}<\/div>/, /<div class="body">{{{yd body}}}<\/div>/, /{{\/with}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp branching template test',
+        file: './tests/samples/files/handlebarsjs_template_branching_002.hbs',
+        result: [ /{{{yavd SELECTED1}}}/, /{{{yavd SELECTED2}}}/, /{{{yavd SELECTED3}}}/,
+                  /{{{yavd SELECTED4}}}/, /{{{yubl \(yavd \(yufull URL1\)\)}}}/, /{{{yubl \(yavd \(yufull URL2\)\)}}}/,
+                  /{{{yd NAME1}}}/, /{{{yd NAME2}}}/, /{{{y SELECTED}}}/,
+                  /{{#NAVIGATION}}/, /{{\/NAVIGATION}}/, /{{#if SELECTED}}/,
+                  /{{\/if}}/,
+                  /{{else}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp branching template test',
+        file: './tests/samples/files/handlebarsjs_template_branching_003.hbs',
+        result: [ // {{{#list}}
+                  /{{{yavd valueA}}}/, /{{{yd firstName11}}}/, /{{{yd lastName12}}}/, /{{{yd placeholderA}}}/,
+                  // {{{#each}}
+                  /{{{yavd valueB}}}/, /{{{yd firstName21}}}/, /{{{yd lastName22}}}/, /{{{yd placeholderB}}}/,
+                  // {{{#with}}
+                  /{{{yavd valueC}}}/, /{{{yd firstName31}}}/, /{{{yd lastName32}}}/, /{{{yd placeholderC}}}/,
+                  // {{{#tag}}
+                  /{{{yavd valueD}}}/, /{{{yd firstName41}}}/, /{{{yd lastName42}}}/, /{{{yd placeholderD}}}/,
+                  // {{{#unless}}
+                  /{{{yavd valueE}}}/, /{{{yd firstName51}}}/, /{{{yd lastName52}}}/, /{{{yd placeholderE}}}/,
+        ],
+    },
+    {
+        title: './bin/handlebarspp comment expression template test',
+        file: './tests/samples/files/handlebarsjs_template_comment.hbs',
+        result: [ /{{!--    comment1  --}}/, /{{!--    comment2  }}   --}}/, /{{! comment3 }}/ ],
+    },
+    {
+        title: './bin/handlebarspp partial expression template test',
+        file: './tests/samples/files/handlebarsjs_template_partial.hbs',
+        result: [ /{{>html_header}}/,
+                  /{{>header}}/,
+                  /{{>footer}}/,
+                  /{{>html_footer}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp subexpression template test',
+        file: './tests/samples/files/handlebarsjs_template_subexpression.hbs',
+        result: [ /{{{yd \(outer-helper1 \(inner-helper1 'abc'\) 'def'\)}}}/,
+                  /{{{yubl \(yavd \(yufull \(outer-helper2 \(inner-helper2 'abc'\) 'def'\)\)\)}}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp comment expression template test',
+        file: './tests/samples/files/handlebarsjs_template_comment.hbs',
+        result: [ /{{!--    comment1  --}}/, /{{!--    comment2  }}   --}}/, /{{! comment3 }}/ ],
+    },
+    {
+        title: './bin/handlebarspp attribute value template test',
+        file: './tests/samples/files/handlebarsjs_template_attribute_value.hbs',
+        result: [ /{{{yavd classname}}}/,
+                  /{{{yavd index_active}}}/,
+                  /{{{yavd safejstemplating_active1}}}/,
+                  /{{{y safejstemplating_active2}}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp after unquote attribute value test',
+        file: './tests/samples/files/handlebarsjs_template_after_unquote_attribute_value.hbs',
+        result: [ /{{{yd html}}}/,
+                  /{{{yavu SELECTED1}}}/, /{{{yavu SELECTED21}}}/, /{{{yavu SELECTED22}}}/, /{{{yavd SELECTED3}}}/, /{{{yavd SELECTED4}}}/,
+                  /{{{yd NAME1}}}/, /{{{yd NAME2}}}/, /{{{yd NAME3}}}/, /{{{yd NAME4}}}/,
+                  /{{{yubl \(yavd \(yufull URL1\)\)}}}/, /{{{yubl \(yavd \(yufull URL2\)\)}}}/, /{{{yubl \(yavu \(yufull URL3\)\)}}}/, /{{{yubl \(yavu \(yufull URL4\)\)}}}/,
+                  /{{{yc COMMENT1}}}/, /{{{yc COMMENT2}}}/,
+                  /{{{y ATTR1}}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp inverse branching template test',
+        file: './tests/samples/files/handlebarsjs_template_inverse.hbs',
+        result: [ /{{{yavd nomsg}}}/, /{{{yd name}}}/,
+                  /{{\^msg}}/, /{{\/msg}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp raw block template test',
+        file: './tests/samples/files/handlebarsjs_template_raw_block.hbs',
+        result: [ /{{{{rawblock}}}}/, /{{{{\/rawblock}}}}/, /{{foo}}/ ],
+    },
+    {
+        title: './bin/handlebarspp expression state change (lookUpStateForHandlebarsBraceChar) test',
+        file: './tests/samples/files/handlebarsjs_template_hardcode_state.hbs',
+        result: [ /{{{y TAG_OPEN}}}/,
+                  /{{{y END_TAG_OPEN}}}/,
+                  /{{{y RCDATA_END_TAG_OPEN}}}/,
+                  /{{{y RCDATA_END_TAG_NAME}}}/,
+                  /{{{y RAWTEXT_END_TAG_OPEN}}}/,
+                  /{{{y RAWTEXT_END_TAG_NAME}}}/,
+                  /{{{y SCRIPT_DATA_END_TAG_OPEN}}}/,
+                  /{{{y SCRIPT_DATA_END_TAG_NAME}}}/,
+                  /{{{y SCRIPT_DATA_ESCAPED_LESS_THAN_SIGN}}}/,
+                  /{{{y SCRIPT_DATA_ESCAPED_END_TAG_OPEN}}}/,
+                  /{{{y SCRIPT_DATA_ESCAPED_END_TAG_NAME}}}/,
+                  /{{{y SCRIPT_DATA_DOUBLE_ESCAPE_START}}}/,
+                  /{{{y SCRIPT_DATA_DOUBLE_ESCAPE_END}}}/,
+        ],
+    },
+    {
+        title: './bin/handlebarspp branching state consistency test',
+        file: './tests/samples/files/handlebarsjs_template_state_consistency.hbs',
+        result: [ /{{{yd placeholder3A}}}/, /{{{yavd valueA}}}/,
+                  /{{{yd placeholder1B}}}/, /{{{yd placeholder2B}}}/, /{{{yd placeholder3B}}}/, /{{{yavd valueB}}}/,
+                  /{{{placeholder1C}}}/, /{{{placeholder2C}}}/, /{{{yd placeholder3C}}}/, /{{{yavd valueC}}}/,
+        ],
+    },
+];
+exports.templatePatterns = templatePatterns;
+
+var exceptionPatterns = [
+    {
+        title: './bin/handlebarspp broken conditional {{#if}} without {{/if}} template test',
+        file: './tests/samples/files/handlebarsjs_template_invalid_branching_001.hbs',
+        strictMode: false,
+        result: [ /Template does not have branching close expression/, /lineNo:3,charNo:101/ ],
+    },
+    {
+        title: './bin/handlebarspp branching logic startName/endName mismatch template test',
+        file: './tests/samples/files/handlebarsjs_template_invalid_branching_002.hbs',
+        strictMode: false,
+        result: [ /Template expression mismatch/, /lineNo:2,charNo:104/ ],
+    },
+    {
+        title: './bin/handlebarspp broken conditional {{#if}} without {{#if}} template test',
+        file: './tests/samples/files/handlebarsjs_template_invalid_branching_003.hbs',
+        strictMode: false,
+        result: [ /Template expression mismatch/, /lineNo:2,charNo:87/ ],
+    },
+    {
+        title: './bin/handlebarspp invalid {{expression}} template test',
+        file: './tests/samples/files/handlebarsjs_template_invalid_escape_expression.hbs',
+        strictMode: false,
+        result: [ /Invalid expression/, /lineNo:4,charNo:80/ ],
+    },
+    {
+        title: './bin/handlebarspp invalid {{{expression}}} template test',
+        file: './tests/samples/files/handlebarsjs_template_invalid_raw_expression.hbs',
+        strictMode: false,
+        result: [ /Invalid expression/, /lineNo:4,charNo:88/ ],
+    },
+    {
+        title: './bin/handlebarspp invalid raw block startName/endName mismatch template test',
+        file: './tests/samples/files/handlebarsjs_template_invalid_raw_block.hbs',
+        strictMode: false,
+        result: [ /raw block name mismatch/, /lineNo:2,charNo:52/ ],
+    },
+    {
+        title: '/bin/handlebarspp html5 inconsistent state (42/34) test',
+        file: './tests/samples/bugs/003.html5.inconsitent.hb',
+        strictMode: false,
+        result: [ /Inconsistent HTML5 state/, /lineNo:5,charNo:387/ ],
+    },
+    {
+        title: './bin/handlebarspp line no and char no reporting buildAst test',
+        file: './tests/samples/bugs/005-2.line.report.hb',
+        strictMode: false,
+        result: [ /lineNo:8,charNo:223/ ],
+    },
+    /* remove this test as we don't test for tagNameIdx in deepCompare
+    {
+        title: 'state (missing close tag) in branching template test',
+        file: './tests/samples/bugs/006.state.missing-close-tag.hb',
+        strictMode: false,
+        result: [],
+    },
+    */
+    {
+        title: './bin/handlebarspp STATE_SCRIPT_DATA strict mode test',
+        file: './tests/samples/files/handlebarsjs_template_strict_mode_001.hbs',
+        strictMode: true,
+        result: [ /ERROR/, /STATE_SCRIPT_DATA/, ],
+    },
+    {
+        title: './bin/handlebarspp STATE_ATTRIBUTE_NAME strict mode test',
+        file: './tests/samples/files/handlebarsjs_template_strict_mode_002.hbs',
+        strictMode: true,
+        result: [ /ERROR/, /STATE_ATTRIBUTE_NAME/ ],
+    },
+    {
+        title: './bin/handlebarspp STATE_RAWTEXT strict mode test',
+        file: './tests/samples/files/handlebarsjs_template_strict_mode_003.hbs',
+        strictMode: true,
+        result: [ /ERROR/, /STATE_RAWTEXT/ ],
+    },
+    {
+        title: './bin/handlebarspp NOT HANDLE strict mode test',
+        file: './tests/samples/files/handlebarsjs_template_strict_mode_004.hbs',
+        strictMode: true,
+        result: [ /ERROR/, /NOT HANDLE/ ],
+    },
+    {
+        title: './bin/handlebarspp attribute URI Javascript context strict mode test',
+        file: './tests/samples/files/handlebarsjs_template_strict_mode_005.hbs',
+        strictMode: true,
+        result: [ /ERROR/, /attribute URI Javascript context/ ],
+    },
+    {
+        title: './bin/handlebarspp attribute style CSS context strict mode test',
+        file: './tests/samples/files/handlebarsjs_template_strict_mode_006.hbs',
+        strictMode: true,
+        result: [ /ERROR/, /attribute style CSS context/ ],
+    },
+    {
+        title: './bin/handlebarspp attribute on* Javascript context strict mode test',
+        file: './tests/samples/files/handlebarsjs_template_strict_mode_007.hbs',
+        strictMode: true,
+        result: [ /ERROR/, /attribute on\* Javascript context/ ],
+    },
+    {
+        title: './bin/handlebarspp NOT HANDLE state strict mode test',
+        file: './tests/samples/files/handlebarsjs_template_strict_mode_008.hbs',
+        strictMode: true,
+        result: [ /ERROR/, /NOT HANDLE/ ],
+    },
+];
+exports.exceptionPatterns = exceptionPatterns;
+
+var reportedBugPatterns = [
+    {
+        title: './bin/handlebarspp line no and char no reporting addFilters test',
+        file: './tests/samples/bugs/005-1.line.report.hb',
+        result: [ /lineNo:4,charNo:122/, /lineNo:6,charNo:175/, /lineNo:10,charNo:261/, /lineNo:13,charNo:359/, /lineNo:15,charNo:383/ ],
+    },
+    {
+        title: 'state (tag name) propagation in branching template test',
+        file: './tests/samples/bugs/004.script.hb',
+        result: [],
+    },
+    {
+        title: 'state (attribute name) propagation in branching template test',
+        file: './tests/samples/bugs/006.state.attribute-name.hb',
+        result: [ /{{{y styleoutput}}}/, /{{{yavd classoutput}}}/ ],
+    },
+/* disable this test during the code refactoring
+    {
+        title: 'template file with special character',
+        file: './tests/samples/files/handlebarsjs_template_special_char.hbs',
+        result: [ /{\ufffd}/, /abcde\ufffdnull\ufffd12345/, /{{{yd express\ufffdion}}}/,
+                  /{{{rawexpress\ufffdion}}}/, /{{>part\ufffdial}}/,
+                  /{{{{raw\ufffdblock}}}}\ufffdnullinrawblock\ufffd{{{{\/raw\ufffdblock}}}}/ ],
+    },
+*/
+];
+exports.reportedBugPatterns = reportedBugPatterns;
+
 })();

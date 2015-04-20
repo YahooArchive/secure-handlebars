@@ -1,0 +1,5 @@
+{{! This file tests for Handlebars branching logic state consistency }}
+
+<option value="{{valueA}}" {{#if mobile}} selected > {{else}} > {{/if}}*{{placeholder3A}}
+<option value="{{valueB}}" {{#if mobile}} selected > {{placeholder1B}} {{else}} > {{placeholder2B}} {{/if}}*{{placeholder3B}}
+<option value="{{valueC}}" {{#if mobile}} selected > {{{placeholder1C}}} {{else}} > {{{placeholder2C}}} {{/if}}*{{placeholder3C}}

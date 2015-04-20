@@ -9026,17 +9026,13 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
     });
 
     /* make lastStates[0] and lastStates[1] the same as the tree has one branch */
-    if (ast.left.length > 0 && ast.right.length === 0) {
-        debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[0].state+"]");
-        r.lastStates[1] = r.lastStates[0];
-    } else if (ast.left.length === 0 && ast.right.length > 0) {
-        debug("analyzeAst:["+r.lastStates[1].state+"/"+r.lastStates[1].state+"]");
-        r.lastStates[0] = r.lastStates[1];
-    }
+    ast.left.length > 0 && ast.right.length === 0? r.lastStates[1] = r.lastStates[0] : '';
+    ast.left.length === 0 && ast.right.length > 0? r.lastStates[0] = r.lastStates[1] : '';
+    debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
 
     if (!this._html5Parser.deepCompareState(r.lastStates[0], r.lastStates[1])) {
         debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
-        msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template!";
+        msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+r.lastStates[0].state+"/"+r.lastStates[1].state+")";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
@@ -9067,8 +9063,6 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
 
     /* the max length of the input string */
     var len = input.length;
-    /* regular expression validation result */
-    var re;
     /* error msg */
     var exceptionObj;
     /* _handleXXXX return object */
@@ -9077,60 +9071,26 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
     var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
 
     try {
-        // we don't care about the expression with more than 4 braces, handlebars will handle it.
-        /* handling different type of expression */
-        if (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{') {
-            throw "Parsing error! Unexpected raw block expression.";
-        } else if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
-
+        if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
             handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
-            re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
-            if (re.result === false) {
-                throw "Parsing error! Invalid raw expression.";
-            }
-
-            /* _handleRawExpression */
+            /* _handleRawExpression and no validation need, it is safe guard in buildAst function */
             debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
             obj = this.consumeExpression(input, i, handlebarsExpressionType, true);
-            /* advance the index pointer by 1 to the char after the last brace of expression. */
-            return obj.index+1;
-
+            return;
         } else if (input[i] === '{' && i+1<len && input[i+1] === '{') {
             // this is just for lookAhead, does not guarantee the valid expression.
             handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, i);
             switch (handlebarsExpressionType) {
                 case handlebarsUtils.ESCAPE_EXPRESSION:
-                    re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
-                    if (re.result === false) {
-                        throw "Parsing error! Invalid escape expression.";
-                    }
-
-                    /* handleEscapeExpression */
+                    /* handleEscapeExpression and no validation need, it is safe guard in buildAst function */
                     debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
                     obj = this.handleEscapeExpression(input, i, len, stateObj, true);
-                    /* advance the index pointer by 1 to the char after the last brace of expression. */
-                    return obj.index+1;
-
-                case handlebarsUtils.PARTIAL_EXPRESSION:
-                    throw "Parsing error! Unexpected partial expression.";
-                case handlebarsUtils.REFERENCE_EXPRESSION:
-                    throw "Parsing error! Unexpected reference expression.";
-                case handlebarsUtils.BRANCH_EXPRESSION:
-                    throw "Parsing error! Unexpected {{[#|^].*}} expression.";
-                case handlebarsUtils.BRANCH_END_EXPRESSION:
-                    throw "Parsing error! Unexpected {{/.*}} expression.";
-                case handlebarsUtils.ELSE_EXPRESSION:
-                    throw "Parsing error! Unexpected {{else}} or {{^}} expression.";
-                case handlebarsUtils.UNHANDLED_EXPRESSION:
-                    throw "Parsing error! Unexpected expression.";
-                case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
-                case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
-                    throw "Parsing error! Unexpected comment expression.";
+                    return;
                 default:
-                    throw "Parsing error! Unknown expression.";
+                    throw "Parsing error! unexpected Handlebars markup.";
             }
         } else {
-            throw "Parsing error! Handlebars markup expected.";
+            throw "Parsing error! unexpected Handlebars markup.";
         }
     } catch (exception) {
         if (typeof exception === 'string') {
@@ -9879,5 +9839,6 @@ module.exports.create = overrideHbsCreate;
 
 // the following is in addition to the original Handlbars prototype
 module.exports.ContextParserHandlebars = ContextParserHandlebars;
+
 },{"./context-parser-handlebars":39,"handlebars":26,"xss-filters":38}]},{},[42])(42)
 });
