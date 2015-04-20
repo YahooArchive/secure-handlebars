@@ -11,14 +11,14 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     mocha = require("mocha");
     var expect = require('chai').expect,
-        utils = require('../utils.js'),
+        testPatterns = require('../test-patterns.js'),
         handlebars = require('handlebars');
 
     describe("Handlebars 3.0 Parsing Test Suite", function() {
 
         /* Handlebars basic {{expression}} test */
         it("handlebars basic {{expression}} test", function() {
-            utils.expressionTestPatterns.forEach(function(testObj) {
+            testPatterns.expressionTestPatterns.forEach(function(testObj) {
                 var ast;
                 try {
                     ast = handlebars.parse(testObj.syntax);
@@ -34,7 +34,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* Handlebars {{{raw expression}}} test */
         it("handlebars {{{raw expression}}} test", function() {
-            utils.rawExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.rawExpressionTestPatterns.forEach(function(testObj) {
                 var ast;
                 try {
                     ast = handlebars.parse(testObj.syntax);
@@ -50,7 +50,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* Handlebars {{{{raw block}}}} test */
         it("handlebars {{{{raw block}}}} test", function() {
-            utils.rawBlockTestPatterns.forEach(function(testObj) {
+            testPatterns.rawBlockTestPatterns.forEach(function(testObj) {
                 var ast;
                 try {
                     ast = handlebars.parse(testObj.syntax);
@@ -66,7 +66,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* Handlebars {{escape expression}} test */
         it("handlebars {{escape expression}} test", function() {
-            utils.escapeExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.escapeExpressionTestPatterns.forEach(function(testObj) {
                 var ast;
                 try {
                     ast = handlebars.parse(testObj.syntax);
@@ -82,7 +82,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* Handlebars {{>partial}} test */
         it("handlebars {{>partial}} test", function() {
-            utils.partialExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.partialExpressionTestPatterns.forEach(function(testObj) {
                 var ast;
                 try {
                     ast = handlebars.parse(testObj.syntax);
@@ -98,7 +98,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* Handlebars {{&reference}} test */
         it("handlebars {{&reference}} test", function() {
-            utils.referenceExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.referenceExpressionTestPatterns.forEach(function(testObj) {
                 var ast;
                 try {
                     ast = handlebars.parse(testObj.syntax);
@@ -114,7 +114,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* Handlebars {{[#|^]branch}} test */
         it("handlebars {{[#|^]branch}} test", function() {
-            utils.branchExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.branchExpressionTestPatterns.forEach(function(testObj) {
                 var ast;
                 try {
                     ast = handlebars.parse(testObj.syntax);
@@ -130,7 +130,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* Handlebars {{!comment}} test */
         it("handlebars {{!comment}} test", function() {
-            utils.commentExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.commentExpressionTestPatterns.forEach(function(testObj) {
                 var ast;
                 try {
                     ast = handlebars.parse(testObj.syntax);

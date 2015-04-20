@@ -13,6 +13,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
     var promise = require('bluebird'),
         fs = require('fs'),
         utils = require("../utils.js"),
+        testPatterns = require("../test-patterns.js"),
         expect = require('chai').expect,
         ContextParserHandlebars = require("../../src/context-parser-handlebars");
 
@@ -35,7 +36,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* template tests */
-        utils.templatePatterns.forEach(function(testObj) {
+        testPatterns.templatePatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
                 exec('./bin/handlebarspp '+testObj.file)
@@ -50,7 +51,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* filter template tests */
-        utils.filterTemplatePatterns.forEach(function(testObj) {
+        testPatterns.filterTemplatePatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
                 exec('./bin/handlebarspp '+testObj.file)
@@ -65,7 +66,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* exception tests */
-        utils.exceptionPatterns.forEach(function(testObj) {
+        testPatterns.exceptionPatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
                 exec('./bin/handlebarspp '+testObj.file+' '+testObj.strictMode)
@@ -80,7 +81,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         /* reported bug tests */
-        utils.reportedBugPatterns.forEach(function(testObj) {
+        testPatterns.reportedBugPatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
                 exec('./bin/handlebarspp '+testObj.file)

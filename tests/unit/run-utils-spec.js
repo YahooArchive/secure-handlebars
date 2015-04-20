@@ -12,6 +12,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
     require("mocha");
     var expect = require('chai').expect,
         utils = require("../utils.js"),
+        testPatterns = require("../test-patterns.js"),
         handlebarsUtils = require("../../src/handlebars-utils.js"),
         ContextParserHandlebars = require("../../src/context-parser-handlebars.js");
 
@@ -45,7 +46,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* isValidExpression rawExpressionRegExp test */
         it("handlebars-utils#isValidExpression rawExpressionRegExp test", function() {
-            utils.rawExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.rawExpressionTestPatterns.forEach(function(testObj) {
                 var r = handlebarsUtils.isValidExpression(testObj.syntax, 0, testObj.type);
                 expect(r.result).to.equal(testObj.result[1]);
                 expect(r.tag).to.equal(testObj.rstr);
@@ -55,7 +56,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         /* isValidExpression rawBlockRegExp test
            Please refer to "handlebars {{{{raw block}}}} test" in run-handlebars-3.0-spec.js */
         it("handlebars-utils#isValidExpression rawBlockRegExp test", function() {
-            utils.rawBlockTestPatterns.forEach(function(testObj) {
+            testPatterns.rawBlockTestPatterns.forEach(function(testObj) {
                 var r = handlebarsUtils.isValidExpression(testObj.syntax, 0, testObj.type);
                 if (r.result) {
                     expect(r.result).to.equal(testObj.result[1]);
@@ -64,7 +65,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                     expect(r.tag).to.equal(testObj.rstr);
                 }
             });
-            utils.rawEndBlockTestPatterns.forEach(function(testObj) {
+            testPatterns.rawEndBlockTestPatterns.forEach(function(testObj) {
                 var r = handlebarsUtils.isValidExpression(testObj.syntax, 0, testObj.type);
                 expect(r.result).to.equal(testObj.result[1]);
                 expect(r.tag).to.equal(testObj.rstr);
@@ -73,7 +74,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* isValidExpression escapeExpressionRegExp test */
         it("handlebars-utils#isValidExpression escapeExpressionRegExp test", function() {
-            utils.escapeExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.escapeExpressionTestPatterns.forEach(function(testObj) {
                 var r = handlebarsUtils.isValidExpression(testObj.syntax, 0, testObj.type);
                 expect(r.result).to.equal(testObj.result[1]);
                 expect(r.tag).to.equal(testObj.rstr);
@@ -83,7 +84,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* isValidExpression referenceExpressionRegExp test */
         it("handlebars-utils#isValidExpression referenceExpressionRegExp test", function() {
-            utils.referenceExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.referenceExpressionTestPatterns.forEach(function(testObj) {
                 var r = handlebarsUtils.isValidExpression(testObj.syntax, 0, testObj.type);
                 expect(r.result).to.equal(testObj.result[1]);
                 expect(r.tag).to.equal(testObj.rstr);
@@ -92,7 +93,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
    
         /* isValidExpression partialExpressionRegExp test */
         it("handlebars-utils#isValidExpression partialExpressionRegExp test", function() {
-            utils.partialExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.partialExpressionTestPatterns.forEach(function(testObj) {
                 var r = handlebarsUtils.isValidExpression(testObj.syntax, 0, testObj.type);
                 expect(r.result).to.equal(testObj.result[1]);
                 expect(r.tag).to.equal(testObj.rstr);
@@ -101,7 +102,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
    
         /* isValidExpression branchExpressionRegExp test */
         it("handlebars-utils#isValidExpression branchExpressionRegExp test", function() {
-            utils.branchExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.branchExpressionTestPatterns.forEach(function(testObj) {
                 var r = handlebarsUtils.isValidExpression(testObj.syntax, 0, testObj.type);
                 expect(r.result).to.equal(testObj.result[1]);
                 expect(r.tag).to.equal(testObj.rstr);
@@ -110,7 +111,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* isValidExpression branchEndExpressionRegExp test */
         it("handlebars-utils#isValidExpression branchEndExpressionRegExp test", function() {
-            utils.branchEndExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.branchEndExpressionTestPatterns.forEach(function(testObj) {
                 var r = handlebarsUtils.isValidExpression(testObj.syntax, 0, testObj.type);
                 expect(r.result).to.equal(testObj.result[1]);
                 expect(r.tag).to.equal(testObj.rstr);
@@ -119,7 +120,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* isValidExpression elseExpressionRegExp test */
         it("handlebars-utils#isValidExpression elseExpressionRegExp test", function() {
-            utils.elseExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.elseExpressionTestPatterns.forEach(function(testObj) {
                 var r = handlebarsUtils.isValidExpression(testObj.syntax, 0, testObj.type);
                 expect(r.result).to.equal(testObj.result[1]);
                 expect(r.tag).to.equal(testObj.rstr);
@@ -128,7 +129,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* isValidExpression commentExpressionRegExp test */
         it("handlebars-utils#isValidExpression commentExpressionRegExp test", function() {
-            utils.commentExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.commentExpressionTestPatterns.forEach(function(testObj) {
                 var r = handlebarsUtils.isValidExpression(testObj.syntax, 0, testObj.type);
                 expect(r.result).to.equal(testObj.result[1]);
                 expect(r.tag).to.equal(testObj.rstr);
