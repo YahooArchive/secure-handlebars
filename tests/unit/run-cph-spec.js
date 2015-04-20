@@ -12,6 +12,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
     require("mocha");
     var expect = require('chai').expect,
         utils = require("../utils.js"),
+        testPatterns = require("../test-patterns.js"),
         handlebarsUtils = require("../../src/handlebars-utils.js"),
         ContextParserHandlebars = require("../../src/context-parser-handlebars.js");
 
@@ -275,7 +276,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* consumeExpression test */
         it("context-parser-handlebars#consumeExpression test", function() {
-            utils.partialExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.partialExpressionTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
                     var r = parser.consumeExpression(testObj.syntax, 0, testObj.type, 1);
@@ -286,7 +287,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                     expect(testObj.result[2]).to.equal(false);
                 }
             });
-            utils.referenceExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.referenceExpressionTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
                     var r = parser.consumeExpression(testObj.syntax, 0, testObj.type, 1);
@@ -301,7 +302,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* handleRawExpression test */
         it("context-parser-handlebars#handleRawExpression test", function() {
-            utils.rawExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.rawExpressionTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
                     var r = parser.consumeExpression(testObj.syntax, 0, testObj.type, false);
@@ -316,7 +317,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* handleRawBlock test */
         it("context-parser-handlebars#handleRawBlock test", function() {
-            utils.rawBlockTestPatterns.forEach(function(testObj) {
+            testPatterns.rawBlockTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
                     var r = parser.handleRawBlock(testObj.syntax, 0);
@@ -331,7 +332,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         /* handleCommentExpression test */
         it("context-parser-handlebars#handleCommentExpression test", function() {
-            utils.commentExpressionTestPatterns.forEach(function(testObj) {
+            testPatterns.commentExpressionTestPatterns.forEach(function(testObj) {
                 try {
                     var parser = new ContextParserHandlebars(config);
                     var r = parser.consumeExpression(testObj.syntax, 0, testObj.type, false);
@@ -388,7 +389,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         it("context-parser-handlebars#buildAst/analyzeAst test", function() {
-            utils.buildAstPatterns.forEach(function(testObj) {
+            testPatterns.buildAstPatterns.forEach(function(testObj) {
                 var parser = new ContextParserHandlebars(config);
                 var ast = parser.buildAst(testObj.syntax, 0, []);
                 ast.left.forEach(function(r, i) {

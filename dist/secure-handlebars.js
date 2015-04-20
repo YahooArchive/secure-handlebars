@@ -623,7 +623,6 @@ StateMachine.lookupContext = [
 ];
 
 module.exports = StateMachine;
-
 },{}],3:[function(require,module,exports){
 
 /**
@@ -7726,7 +7725,7 @@ exports._getPrivFilters = function () {
         NULL   = /\x00/g,
         SPECIAL_ATTR_VALUE_UNQUOTED_CHARS = /(?:^(?:["'`]|\x00+$|$)|[\x09-\x0D >])/g,
         SPECIAL_HTML_CHARS = /[&<>"'`]/g, 
-        SPECIAL_COMMENT_CHARS = /(?:^-*!?>|--!?>|--?!?$|\]>|\]$)/g;
+        SPECIAL_COMMENT_CHARS = /(?:\x00|^-*!?>|--!?>|--?!?$|\]>|\]$)/g;
 
     // Given a full URI, need to support "[" ( IPv6address ) "]" in URI as per RFC3986
     // Reference: https://tools.ietf.org/html/rfc3986
@@ -7812,9 +7811,9 @@ exports._getPrivFilters = function () {
             return typeof s === STR_UD ? STR_UD
                  : s === null          ? STR_NL
                  : s.toString()
-                    .replace(NULL, '\uFFFD')
                     .replace(SPECIAL_COMMENT_CHARS, function(m){
-                        return m === '--!' || m === '--' || m === '-' || m === ']' ? m + ' '
+                        return m === '\x00' ? '\uFFFD'
+                            : m === '--!' || m === '--' || m === '-' || m === ']' ? m + ' '
                             :/*
                             :  m === ']>'   ? '] >'
                             :  m === '-->'  ? '-- >'
@@ -7874,16 +7873,16 @@ exports._getPrivFilters = function () {
             return typeof s === STR_UD ? STR_UD
                 : s === null           ? STR_NL
                 : s.toString().replace(SPECIAL_ATTR_VALUE_UNQUOTED_CHARS, function (m) {
-                    return m === '\t' ? '&#9;'  // in hex: 09
-                        :  m === '\n' ? '&#10;' // in hex: 0A
-                        :  m === '\v' ? '&#11;' // in hex: 0B  for IE
-                        :  m === '\f' ? '&#12;' // in hex: 0C
-                        :  m === '\r' ? '&#13;' // in hex: 0D
-                        :  m === ' '  ? '&#32;' // in hex: 20
-                        :  m === '>'  ? '&gt;'
-                        :  m === '"'  ? '&quot;'
-                        :  m === "'"  ? '&#39;'
-                        :  m === '`'  ? '&#96;'
+                    return m === '\t'   ? '&#9;'  // in hex: 09
+                        :  m === '\n'   ? '&#10;' // in hex: 0A
+                        :  m === '\x0B' ? '&#11;' // in hex: 0B  for IE. IE<9 \v equals v, so use \x0B instead
+                        :  m === '\f'   ? '&#12;' // in hex: 0C
+                        :  m === '\r'   ? '&#13;' // in hex: 0D
+                        :  m === ' '    ? '&#32;' // in hex: 20
+                        :  m === '>'    ? '&gt;'
+                        :  m === '"'    ? '&quot;'
+                        :  m === "'"    ? '&#39;'
+                        :  m === '`'    ? '&#96;'
                         : /*empty or all null*/ '\uFFFD';
                 });
         },
@@ -7942,7 +7941,7 @@ function uriInAttr (s, yav, yu) {
 *
 * @example
 * // output context to be applied by this filter.
-* <textarea>{{{inHTMLData html_data}}}</textarea>
+* <div>{{{inHTMLData htmlData}}}</div>
 *
 */
 exports.inHTMLData = privFilters.yd;
@@ -7954,7 +7953,7 @@ exports.inHTMLData = privFilters.yd;
 * @returns {string} All NULL characters in s are first replaced with \uFFFD. If s contains -->, --!>, or starts with -*>, insert a space right before > to stop state breaking at <!--{{{yc s}}}-->. If s ends with --!, --, or -, append a space to stop collaborative state breaking at {{{yc s}}}>, {{{yc s}}}!>, {{{yc s}}}-!>, {{{yc s}}}->. If s contains ]> or ends with ], append a space after ] is verified in IE to stop IE conditional comments.
 *
 * @description
-*
+* This filter is to be placed in HTML Comment context
 * <ul>
 * <li><a href="http://shazzer.co.uk/vector/Characters-that-close-a-HTML-comment-3">Shazzer - Closing comments for -.-></a>
 * <li><a href="http://shazzer.co.uk/vector/Characters-that-close-a-HTML-comment">Shazzer - Closing comments for --.></a>
@@ -8028,8 +8027,8 @@ exports.inDoubleQuotedAttr = privFilters.yavd;
 * @description
 * <p class="warning">Warning: This is NOT designed for any onX (e.g., onclick) attributes!</p>
 * <p class="warning">Warning: If you're working on URI/components, use the more specific uri___InUnQuotedAttr filter </p>
-* <p>Regarding \uFFFD injection,<br/>
-*        Rationale 1: our belief is that developers wouldn't expect an 
+* <p>Regarding \uFFFD injection, given <a id={{{id}}} name="passwd">,<br/>
+*        Rationale 1: our belief is that developers wouldn't expect when id equals an
 *          empty string would result in ' name="passwd"' rendered as 
 *          attribute value, even though this is how HTML5 is specified.<br/>
 *        Rationale 2: an empty or all null string (for IE) can 
@@ -9027,17 +9026,13 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
     });
 
     /* make lastStates[0] and lastStates[1] the same as the tree has one branch */
-    if (ast.left.length > 0 && ast.right.length === 0) {
-        debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[0].state+"]");
-        r.lastStates[1] = r.lastStates[0];
-    } else if (ast.left.length === 0 && ast.right.length > 0) {
-        debug("analyzeAst:["+r.lastStates[1].state+"/"+r.lastStates[1].state+"]");
-        r.lastStates[0] = r.lastStates[1];
-    }
+    ast.left.length > 0 && ast.right.length === 0? r.lastStates[1] = r.lastStates[0] : '';
+    ast.left.length === 0 && ast.right.length > 0? r.lastStates[0] = r.lastStates[1] : '';
+    debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
 
     if (!this._html5Parser.deepCompareState(r.lastStates[0], r.lastStates[1])) {
         debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
-        msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template!";
+        msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+r.lastStates[0].state+"/"+r.lastStates[1].state+")";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
@@ -9068,8 +9063,6 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
 
     /* the max length of the input string */
     var len = input.length;
-    /* regular expression validation result */
-    var re;
     /* error msg */
     var exceptionObj;
     /* _handleXXXX return object */
@@ -9078,60 +9071,26 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
     var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
 
     try {
-        // we don't care about the expression with more than 4 braces, handlebars will handle it.
-        /* handling different type of expression */
-        if (input[i] === '{' && i+3<len && input[i+1] === '{' && input[i+2] === '{' && input[i+3] === '{') {
-            throw "Parsing error! Unexpected raw block expression.";
-        } else if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
-
+        if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
             handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
-            re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
-            if (re.result === false) {
-                throw "Parsing error! Invalid raw expression.";
-            }
-
-            /* _handleRawExpression */
+            /* _handleRawExpression and no validation need, it is safe guard in buildAst function */
             debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
             obj = this.consumeExpression(input, i, handlebarsExpressionType, true);
-            /* advance the index pointer by 1 to the char after the last brace of expression. */
-            return obj.index+1;
-
+            return;
         } else if (input[i] === '{' && i+1<len && input[i+1] === '{') {
             // this is just for lookAhead, does not guarantee the valid expression.
             handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, i);
             switch (handlebarsExpressionType) {
                 case handlebarsUtils.ESCAPE_EXPRESSION:
-                    re = handlebarsUtils.isValidExpression(input, i, handlebarsExpressionType);
-                    if (re.result === false) {
-                        throw "Parsing error! Invalid escape expression.";
-                    }
-
-                    /* handleEscapeExpression */
+                    /* handleEscapeExpression and no validation need, it is safe guard in buildAst function */
                     debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
                     obj = this.handleEscapeExpression(input, i, len, stateObj, true);
-                    /* advance the index pointer by 1 to the char after the last brace of expression. */
-                    return obj.index+1;
-
-                case handlebarsUtils.PARTIAL_EXPRESSION:
-                    throw "Parsing error! Unexpected partial expression.";
-                case handlebarsUtils.REFERENCE_EXPRESSION:
-                    throw "Parsing error! Unexpected reference expression.";
-                case handlebarsUtils.BRANCH_EXPRESSION:
-                    throw "Parsing error! Unexpected {{[#|^].*}} expression.";
-                case handlebarsUtils.BRANCH_END_EXPRESSION:
-                    throw "Parsing error! Unexpected {{/.*}} expression.";
-                case handlebarsUtils.ELSE_EXPRESSION:
-                    throw "Parsing error! Unexpected {{else}} or {{^}} expression.";
-                case handlebarsUtils.UNHANDLED_EXPRESSION:
-                    throw "Parsing error! Unexpected expression.";
-                case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
-                case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
-                    throw "Parsing error! Unexpected comment expression.";
+                    return;
                 default:
-                    throw "Parsing error! Unknown expression.";
+                    throw "Parsing error! unexpected Handlebars markup.";
             }
         } else {
-            throw "Parsing error! Handlebars markup expected.";
+            throw "Parsing error! unexpected Handlebars markup.";
         }
     } catch (exception) {
         if (typeof exception === 'string') {
@@ -9880,5 +9839,6 @@ module.exports.create = overrideHbsCreate;
 
 // the following is in addition to the original Handlbars prototype
 module.exports.ContextParserHandlebars = ContextParserHandlebars;
+
 },{"./context-parser-handlebars":39,"handlebars":26,"xss-filters":38}]},{},[42])(42)
 });

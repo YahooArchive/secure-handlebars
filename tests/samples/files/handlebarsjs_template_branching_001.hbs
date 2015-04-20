@@ -1,0 +1,10 @@
+{{! This file tests for Handlebars branching logic }}
+
+<html>{{#list people}}{{firstName}} {{lastName}}{{/list}}
+
+{{#with story}}
+<div class="intro">{{intro}}</div>
+<div class="body">{{body}}</div>
+{{/with}}
+
+</html>
