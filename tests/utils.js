@@ -577,14 +577,14 @@ var buildAstPatterns = [
     // branching
     { syntax: 'xxxx{{#if abc}} yyyy {{else}} zzzz {{/if}} xxxx',
       output: 'xxxx{{#if abc}} yyyy {{else}} zzzz {{/if}} xxxx',
-      rstr: [ 'xxxx', { left: { 
+      rstr: [ 'xxxx', { left:  { 
                                  rstr: [ '{{#if abc}}', ' yyyy ' ],
                                  rtype: [ 'branchstart', 'html' ],
-                                 }, 
+                               }, 
                         right: {
                                  rstr: [ '{{else}}', ' zzzz ', '{{/if}}' ],
                                  rtype: [ 'branchelse', 'html', 'branchend' ],
-                                 } 
+                               } 
                       }, ' xxxx' ],
       rtype: [ 'html', 'node', 'html' ],
     },
@@ -592,8 +592,7 @@ var buildAstPatterns = [
     // branching with different types
     { syntax: 'xxxx{{#if abc}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{escapeexpression}} {{>partial}} {{&reference}} yyyy {{else}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{escapeexpression}} {{>partial}} {{&reference}} zzzz {{/if}} xxxx',
       output: 'xxxx{{#if abc}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{{yd escapeexpression}}} {{>partial}} {{&reference}} yyyy {{else}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{{yd escapeexpression}}} {{>partial}} {{&reference}} zzzz {{/if}} xxxx',
-      rstr: [ 'xxxx', 
-                      { left: { 
+      rstr: [ 'xxxx', { left:  { 
                                  rstr: [ '{{#if abc}}', ' ', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', ' ', '{{{rawexpression}}}', ' ', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' yyyy ' ],
                                  rtype: [ 'branchstart', 'html', 'rawblock', 'html', 'rawexpression', 'html', 'escapeexpression', 'html', 'expression', 'html', 'expression', 'html' ], }, 
                         right: {
@@ -605,23 +604,22 @@ var buildAstPatterns = [
     // branching (nested)
     { syntax: 'xxxx{{#if abc}} yyyy {{#msg def}} 123 {{else}} 456 {{/msg}} {{else}} zzzz {{/if}} xxxx',
       output: 'xxxx{{#if abc}} yyyy {{#msg def}} 123 {{else}} 456 {{/msg}} {{else}} zzzz {{/if}} xxxx',
-      rstr: [ 'xxxx', 
-                      { left: { 
-                                 rstr: [ '{{#if abc}}', ' yyyy ', { left: {
+      rstr: [ 'xxxx', { left:  { 
+                                 rstr: [ '{{#if abc}}', ' yyyy ', { left:  {
                                                                              rstr: [ '{{#msg def}}', ' 123 ' ],
                                                                              rtype: [ 'branchstart', 'html' ],
-                                                                             },
+                                                                           },
                                                                     right: {
                                                                              rstr: [ '{{else}}', ' 456 ', '{{/msg}}' ],
                                                                              rtype: [ 'branchelse', 'html', 'branchend' ],
-                                                                             },
-                                                                    }, ' ' ],
+                                                                           },
+                                                                  }, ' ' ],
                                  rtype: [ 'branchstart', 'html', 'node', 'html' ],
-                                 }, 
+                               }, 
                         right: {
                                  rstr: [ '{{else}}', ' zzzz ', '{{/if}}' ],
                                  rtype: [ 'branchelse', 'html', 'branchend' ],
-                                 } 
+                               } 
                       }, ' xxxx' ],
       rtype: [ 'html', 'node', 'html' ],
     },
@@ -758,6 +756,274 @@ var templatePatterns = [
     },
 ];
 exports.templatePatterns = templatePatterns;
+
+var filterTemplatePatterns = [
+    {
+        title: './bin/handlebarspp data state template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_data_state.hbs',
+        result: [ /{{{yd name}}}/ ],
+    },
+    {
+        title: './bin/handlebarspp comment state template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_comment_state.hbs',
+        result: [ /{{{yd name}}}/, /{{{yc comment}}}/ ],
+    },
+    {
+        title: './bin/handlebarspp attribute value / URI state template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_href.hbs',
+        result: [ 
+                  // test against double quoted, single quoted and unquoted URL in attribute href
+                  /{{{yubl \(yavd \(yufull url11\)\)}}}/, /{{{yubl \(yavs \(yufull url12\)\)}}}/, /{{{yubl \(yavd \(yufull url13\)\)}}}/,
+                  /{{{yubl \(yavs \(yufull url14\)\)}}}/, /{{{yubl \(yavu \(yufull url15\)\)}}}/, /{{{yubl \(yavu \(yufull url16\)\)}}}/,
+                  // test against double quoted, single quoted and unquoted URL Path in attribute href
+                  /{{{yavd \(yu path11\)}}}/, /{{{yavs \(yu path12\)}}}/, /{{{yavd \(yu path13\)}}}/,
+                  /{{{yavs \(yu path14\)}}}/, /{{{yavu \(yu path15\)}}}/, /{{{yavu \(yu path16\)}}}/,
+                  // test against double quoted, single quoted and unquoted after URL ? in attribute href
+                  /{{{yavd \(yu kv11\)}}}/, /{{{yavs \(yu kv12\)}}}/, /{{{yavd \(yu kv13\)}}}/,
+                  /{{{yavs \(yu kv14\)}}}/, /{{{yavu \(yu kv15\)}}}/, /{{{yavu \(yu kv16\)}}}/,
+                  // test against double quoted, single quoted and unquoted URL query string in attribute href
+                  /{{{yavd \(yuc q11\)}}}/, /{{{yavd \(yuc q12\)}}}/, /{{{yavd \(yuc q13\)}}}/,
+                  /{{{yavs \(yuc q14\)}}}/, /{{{yavs \(yuc q15\)}}}/, /{{{yavs \(yuc q16\)}}}/,
+                  /{{{yavd \(yuc q17\)}}}/, /{{{yavd \(yuc q18\)}}}/, /{{{yavs \(yuc q19\)}}}/,
+                  /{{{yavs \(yuc q20\)}}}/, /{{{yavu \(yuc q21\)}}}/, /{{{yavu \(yuc q22\)}}}/,
+                  /{{{yavu \(yuc q22\)}}}/, /{{{yavu \(yuc q23\)}}}/, /{{{yavu \(yuc q24\)}}}/,
+                  /{{{yavu \(yuc q25\)}}}/,
+                  // test against double quoted, single quoted and unquoted URL hash in attribute href
+                  /{{{yavd \(yuc hash11\)}}}/, /{{{yavs \(yuc hash12\)}}}/, /{{{yavd \(yuc hash13\)}}}/,
+                  /{{{yavs \(yuc hash14\)}}}/, /{{{yavu \(yuc hash15\)}}}/, /{{{yavu \(yuc hash16\)}}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp attribute value / URI state template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_src.hbs',
+        result: [],
+    },
+    {
+        title: './bin/handlebarspp attribute value / URI state template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_form_action.hbs',
+        result: [],
+    },
+    {
+        title: './bin/handlebarspp attribute value / URI state template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_button_formaction.hbs',
+        result: [],
+    },
+    {
+        title: './bin/handlebarspp attribute value / CSS state (value string) template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_style_001.hbs',
+        result: [
+                  // double quoted
+                  /{{{y color11}}}/, /{{{y color12}}}/, /{{{y bgcolor1}}}/, /{{{y color41}}}/,
+                  /{{{y color5}}}/, /{{{y bgcolor5}}}/,
+                  // single quoted
+                  /{{{y color21}}}/, /{{{y color22}}}/, /{{{y bgcolor2}}}/, /{{{y color42}}}/,
+                  /{{{y color6}}}/, /{{{y bgcolor6}}}/,
+                  // unquoted
+                  /{{{y color31}}}/, /{{{y color32}}}/, /{{{y bgcolor3}}}/, /{{{y color43}}}/,
+                  /{{{y color7}}}/, /{{{y bgcolor7}}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp attribute value / CSS state (full string) template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_style_002.hbs',
+        result: [ // double quoted
+                  /{{{y style1}}}/, /{{{y style4}}}/,
+                  // single quoted
+                  /{{{y style2}}}/, /{{{y style5}}}/,
+                  // unquoted
+                  /{{{y style3}}}/, /{{{y style6}}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp attribute value template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value.hbs',
+        result: [ // double quoted
+                  /{{{yavd class1}}}/, /{{{yavd class4}}}/,
+                  // single quoted
+                  /{{{yavs class2}}}/, /{{{yavs class5}}}/,
+                  // unquoted
+                  /{{{yavu class3}}}/, /{{{yavu class6}}}/, /{{{yavu class7}}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp attribute value / JS state template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_onclick.hbs',
+        result: [ // double quoted
+                  /{{{y arg1}}}/, /{{{y arg4}}}/,
+                  // single quoted
+                  /{{{y arg2}}}/, /{{{y arg5}}}/,
+                  // unquoted
+                  /{{{y arg3}}}/, /{{{y arg6}}}/,
+                  // double/single/unqouted line break
+                  /{{{y arg7}}}/, /{{{y arg8}}}/, /{{{y arg9}}}/// single quoted
+        ],
+    },
+    {
+        title: './bin/handlebarspp attribute value / JS state (as function argument) template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_onclick_function_arguments.hbs',
+        result: [ 
+                  // double quoted with parameter unquoted
+                  /{{{y arg1}}}/, /{{{y arg2}}}/, /{{{y arg3}}}/, /{{{y arg4}}}/, /{{{y arg5}}}/, /{{{y arg6}}}/, /{{{y arg7}}}/, /{{{y arg8}}}/, /{{{y arg9}}}/,
+                  // single quoted with parameter unquoted
+                  /{{{y arg10}}}/, /{{{y arg11}}}/, /{{{y arg12}}}/, /{{{y arg13}}}/, /{{{y arg14}}}/, /{{{y arg15}}}/, /{{{y arg16}}}/, /{{{y arg17}}}/, /{{{y arg18}}}/,
+                  // unquoted with parameter unquoted
+                  /{{{y arg19}}}/, /{{{y arg20}}}/, /{{{y arg21}}}/, /{{{y arg22}}}/, /{{{y arg23}}}/, /{{{y arg24}}}/, /{{{y arg25}}}/, /{{{y arg26}}}/, /{{{y arg27}}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp attribute value / JS state (quoted onclick) template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_onclick_quoted.hbs',
+        result: [ // double quoted with parameter unquoted
+                  /{{{y arg10}}}/, /{{{y arg11}}}/, /{{{y arg12}}}/,
+                  // single quoted with parameter unquoted
+                  /{{{y arg13}}}/, /{{{y arg14}}}/, /{{{y arg15}}}/,
+                  // double quoted with parameter unquoted (with space)
+                  /{{{y arg16}}}/, /{{{y arg17}}}/,
+                  // single quoted with parameter unquoted (with space)
+                  /{{{y arg18}}}/, /{{{y arg19}}}/,
+                  // double quoted with parameter quoted
+                  /{{{y arg20}}}/, /{{{y arg21}}}/, /{{{y arg22}}}/,
+                  // single quoted with parameter quoted
+                  /{{{y arg23}}}/, /{{{y arg24}}}/, /{{{y arg25}}}/,
+                  // double quoted with parameter quoted (with space)
+                  /{{{y arg26}}}/, /{{{y arg27}}}/,
+                  // single quoted with parameter quoted (with space)
+                  /{{{y arg28}}}/, /{{{y arg29}}}/,
+                  // double quoted with parameter slash quoted
+                  /{{{y arg30}}}/, /{{{y arg31}}}/, /{{{y arg32}}}/,
+                  // single quoted with parameter slash quoted
+                  /{{{y arg33}}}/, /{{{y arg34}}}/, /{{{y arg35}}}/,
+                  // double quoted with parameter slash quoted (with space)
+                  /{{{y arg36}}}/, /{{{y arg37}}}/,
+                  // single quoted with parameter slash quoted (with space)
+                  /{{{y arg38}}}/, /{{{y arg39}}}/,
+                  // double quoted
+                  /{{{y arg40}}}/, /{{{y arg43}}}/,
+                  // single quoted
+                  /{{{y arg41}}}/, /{{{y arg44}}}/,
+                  // unquoted
+                  /{{{y arg42}}}/, /{{{y arg45}}}/,
+        ],
+    },
+    {
+        title: './bin/handlebarspp attribute value / JS state (unquoted onclick) template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_onclick_unquoted.hbs',
+        result: [ // unquoted with parameter unquoted
+                  /{{{y arg10}}}/, /{{{y arg11}}}/, /{{{y arg12}}}/, /{{{y arg13}}}/, /{{{y arg14}}}/,
+                  // unquoted with parameter single / double quoted
+                  /{{{y arg20}}}/, /{{{y arg21}}}/, /{{{y arg22}}}/,
+                  // unquoted with parameter single quoted
+                  /{{{y arg23}}}/, /{{{y arg24}}}/,
+                  // unquoted with parameter double quoted
+                  /{{{y arg25}}}/, /{{{y arg26}}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp attribute value / JS state (quoted/unquoted href) template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_href_js.hbs',
+        result: [ // double quoted with parameter unquoted
+                  /{{{y arg10}}}/, /{{{y arg11}}}/, /{{{y arg12}}}/,
+                  // single quoted with parameter unquoted
+                  /{{{y arg13}}}/, /{{{y arg14}}}/, /{{{y arg15}}}/,
+                  // double quoted with parameter unquoted (with space)
+                  /{{{y arg16}}}/, /{{{y arg17}}}/,
+                  // single quoted with parameter unquoted (with space)
+                  /{{{y arg18}}}/, /{{{y arg19}}}/,
+                  // double quoted with parameter quoted
+                  /{{{y arg20}}}/, /{{{y arg21}}}/, /{{{y arg22}}}/,
+                  // single quoted with parameter quoted
+                  /{{{y arg23}}}/, /{{{y arg24}}}/, /{{{y arg25}}}/,
+                  // double quoted with parameter quoted (with space)
+                  /{{{y arg26}}}/, /{{{y arg27}}}/,
+                  // single quoted with parameter quoted (with space)
+                  /{{{y arg28}}}/, /{{{y arg29}}}/,
+                  // double quoted with parameter slash quoted
+                  /{{{y arg30}}}/, /{{{y arg31}}}/, /{{{y arg32}}}/,
+                  // single quoted with parameter slash quoted
+                  /{{{y arg33}}}/, /{{{y arg34}}}/, /{{{y arg35}}}/,
+                  // double quoted with parameter slash quoted (with space)
+                  /{{{y arg36}}}/, /{{{y arg37}}}/,
+                  // single quoted with parameter slash quoted (with space)
+                  /{{{y arg38}}}/, /{{{y arg39}}}/,
+
+                  // double quoted with parameter unquoted
+                  /{{{y vbarg10}}}/, /{{{y vbarg11}}}/, /{{{y vbarg12}}}/,
+                  // single quoted with parameter unquoted
+                  /{{{y vbarg13}}}/, /{{{y vbarg14}}}/, /{{{y vbarg15}}}/,
+                  // double quoted with parameter unquoted (with space)
+                  /{{{y vbarg16}}}/, /{{{y vbarg17}}}/,
+                  // single quoted with parameter unquoted (with space)
+                  /{{{y vbarg18}}}/, /{{{y vbarg19}}}/,
+                  // double quoted with parameter quoted
+                  /{{{y vbarg20}}}/, /{{{y vbarg21}}}/, /{{{y vbarg22}}}/,
+                  // single quoted with parameter quoted
+                  /{{{y vbarg23}}}/, /{{{y vbarg24}}}/, /{{{y vbarg25}}}/,
+                  // double quoted with parameter quoted (with space)
+                  /{{{y vbarg26}}}/, /{{{y vbarg27}}}/,
+                  // single quoted with parameter quoted (with space)
+                  /{{{y vbarg28}}}/, /{{{y vbarg29}}}/,
+                  // double quoted with parameter slash quoted
+                  /{{{y vbarg30}}}/, /{{{y vbarg31}}}/, /{{{y vbarg32}}}/,
+                  // single quoted with parameter slash quoted
+                  /{{{y vbarg33}}}/, /{{{y vbarg34}}}/, /{{{y vbarg35}}}/,
+                  // double quoted with parameter slash quoted (with space)
+                  /{{{y vbarg36}}}/, /{{{y vbarg37}}}/,
+                  // single quoted with parameter slash quoted (with space)
+                  /{{{y vbarg38}}}/, /{{{y vbarg39}}}/,
+
+                  // double quoted
+                  /{{{yubl \(yavd \(yufull arg40\)\)}}}/, /{{{yubl \(yavd \(yufull arg43\)\)}}}/,
+                  // single quoted
+                  /{{{yubl \(yavs \(yufull arg41\)\)}}}/, /{{{yubl \(yavs \(yufull arg44\)\)}}}/,
+                  // unquoted
+                  /{{{yubl \(yavu \(yufull arg42\)\)}}}/, /{{{yubl \(yavu \(yufull arg45\)\)}}}/
+        ]
+    },
+    {
+        title: './bin/handlebarspp attribute value / JS state (unquoted href) template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_href_js_unquoted.hbs',
+        result: [ // unquoted with parameter unquoted
+                  /{{{y arg10}}}/, /{{{y arg11}}}/, /{{{y arg12}}}/, /{{{y arg13}}}/, /{{{y arg14}}}/,
+                  // unquoted with parameter double / single unquoted
+                  /{{{y arg20}}}/, /{{{y arg21}}}/, /{{{y arg22}}}/, /{{{y arg23}}}/, /{{{y arg24}}}/, /{{{y arg25}}}/, /{{{y arg26}}}/,
+                  // unquoted with parameter unquoted (vbscript)
+                  /{{{y vbarg10}}}/, /{{{y vbarg11}}}/, /{{{y vbarg12}}}/, /{{{y vbarg13}}}/, /{{{y vbarg14}}}/,
+                  // unquoted with parameter double / single unquoted (vbscript)
+                  /{{{y vbarg20}}}/, /{{{y vbarg21}}}/, /{{{y vbarg22}}}/, /{{{y vbarg23}}}/, /{{{y vbarg24}}}/, /{{{y vbarg25}}}/, /{{{y vbarg26}}}/,
+        ]
+    },
+    {
+        title: './bin/handlebarspp script data template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_script_data.hbs',
+        result: [ // single quoted
+                  /{{{y arg11}}}/,
+                  // double quoted
+                  /{{{y arg12}}}/,
+                  // unquoted
+                  /{{{y arg13}}}/
+        ],
+    },
+    {
+        title: './bin/handlebarspp raw text state (<style>) template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_raw_text_style.hbs',
+        result: [ /{{{y fontsize}}}/ ],
+    },
+    {
+        title: './bin/handlebarspp rcdata state template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_rcdata.hbs',
+        result: [ /{{{yd title}}}/ ],
+    },
+    {
+        title: './bin/handlebarspp attribute name state template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_name.hbs',
+        result: [ /{{{y attribute1}}}/, /{{{y attribute2}}}/ ],
+    },
+];
+// the attribute value / URI state result is the same
+filterTemplatePatterns[3]['result'] = filterTemplatePatterns[2]['result'];
+filterTemplatePatterns[4]['result'] = filterTemplatePatterns[2]['result'];
+filterTemplatePatterns[5]['result'] = filterTemplatePatterns[2]['result'];
+exports.filterTemplatePatterns = filterTemplatePatterns;
 
 var exceptionPatterns = [
     {
