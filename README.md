@@ -80,7 +80,7 @@ npm test
 - Templates MUST be in UTF-8 encoding and using HTML 5 doctype (i.e., <!doctype html>).
 - We handle the HTML contextual analysis right now, and provide no support to the JavaScript and CSS contexts yet.
 - Our approach involves only static analysis on the template files, and thus data dynamically binded through raw output expressions that may alter the execution context on the rendered HTML CANNOT be taken into account.
-- We now assume that {{>partial}} is always placed in the HTML Data context, and by itself will result in the same Data context after its binding (hence, in-state and out-state are both of the data context). 
+- We now assume that {{>partial}} and {{{{rawblock}}}} is always placed in the HTML Data context, and by itself will result in the same Data context after its binding (hence, in-state and out-state are both of the data context). 
 
 ## License
 
