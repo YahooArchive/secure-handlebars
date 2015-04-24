@@ -32,7 +32,7 @@ module.exports = function(grunt) {
             ' * Bundling context-parser and xss-filters',
             ' * Yahoo! Inc. Copyrights licensed under the New BSD License. See the accompanying LICENSE file for terms.',
             ' *',
-            ' * Bundling handlebars v3.0.1',
+            ' * Bundling handlebars v3.0.2',
             ' * Copyright (C) 2011-2014 by Yehuda Katz',
             ' * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.',
             ' */', ''].join('\n'),
@@ -41,7 +41,7 @@ module.exports = function(grunt) {
         }
       },
       buildMin: {
-        src: 'dist/<%= pkg.name %>.js',
+        src: ['src/polyfill.js', 'dist/<%= pkg.name %>.js'],
         dest: 'dist/<%= pkg.name %>.min.js'
       }
     },

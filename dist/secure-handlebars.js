@@ -8986,7 +8986,7 @@ var filter = {
 ')*'].join('');
 */
 var reURIContextStartWhitespaces = /^(?:[\u0000-\u0020]|&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*/;
-var uriAttributeNames = ['href', 'src', 'action', 'formaction', 'background', 'cite', 'longdesc', 'usemap', 'poster', 'xlink:href'];
+var uriAttributeNames = {'href':1, 'src':1, 'action':1, 'formaction':1, 'background':1, 'cite':1, 'longdesc':1, 'usemap':1, 'poster':1, 'xlink:href':1};
 
 /////////////////////////////////////////////////////
 //
@@ -9302,21 +9302,16 @@ ContextParserHandlebars.prototype.generateNodeObject = function(type, content, s
 * Analyze the execution context of the AST node.
 */
 ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
-    var obj = {};
-
-    var r = {},
+    var r = {output: '', lastStates: [stateObj, stateObj]},
         t, msg, exceptionObj, debugString = [];
 
-    r.lastStates = [];
-    r.lastStates[0] = stateObj;
-    r.lastStates[1] = stateObj;
-    r.output = '';
-
-    var contextParserHandlebars = this;
     this._charNo = charNo;
-    [0, 1].forEach(function(i) {
-        var tree = i === 0? ast.left: ast.right;
-        tree.forEach(function(node) {
+
+    function analyzeAstTree (tree, i) {
+        /*jshint validthis: true */
+        for (var j = 0, len = tree.length, node; j < len; j++) {
+            node = tree[j];
+
             if (node.type === 'html') {
                 var html5Parser = new CustomizedContextParser();
                 html5Parser.setInternalState(r.lastStates[i]);
@@ -9330,11 +9325,11 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
                 node.type === 'rawexpression') {
                 /* lookupStateForHandlebarsOpenBraceChar from current state before handle it */
                 r.lastStates[i].state = ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[r.lastStates[i].state];
-                contextParserHandlebars.clearBuffer();
-                contextParserHandlebars.handleTemplate(node.content, 0, r.lastStates[i]);
-                r.output += contextParserHandlebars.getOutput();
+                this.clearBuffer();
+                this.handleTemplate(node.content, 0, r.lastStates[i]);
+                r.output += this.getOutput();
             } else if (node.type === 'node') {
-                t = contextParserHandlebars.analyzeAst(node.content, r.lastStates[i], node.startPos);
+                t = this.analyzeAst(node.content, r.lastStates[i], node.startPos);
                 r.lastStates[i] = t.lastStates[i]; // index 0 and 1 MUST be equal
                 r.output += t.output;
             } else if (node.type === 'branchstart' ||
@@ -9345,22 +9340,26 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
 
             /* calculate the char/line have been processed */
             if (typeof node.content === "string") {
-                contextParserHandlebars._charNo += node.content.length;
-                contextParserHandlebars._lineNo += contextParserHandlebars.countNewLineChar(node.content);
+                this._charNo += node.content.length;
+                this._lineNo += this.countNewLineChar(node.content);
             } else {
-                contextParserHandlebars._charNo = node.content.index+1;
+                this._charNo = node.content.index+1;
             }
-        });
-    });
+        }
+    }
+    analyzeAstTree.call(this, ast.left, 0);
+    analyzeAstTree.call(this, ast.right, 1);
+
 
     /* make lastStates[0] and lastStates[1] the same as the tree has one branch */
     ast.left.length > 0 && ast.right.length === 0? r.lastStates[1] = r.lastStates[0] : '';
     ast.left.length === 0 && ast.right.length > 0? r.lastStates[0] = r.lastStates[1] : '';
     debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
 
-    if (!this._html5Parser.deepCompareState(r.lastStates[0], r.lastStates[1])) {
+    // if the two branches result in different state
+    if (r.lastStates[0].state !== r.lastStates[1].state) {
         debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
-        msg  = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+r.lastStates[0].state+"/"+r.lastStates[1].state+")";
+        msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+r.lastStates[0].state+"/"+r.lastStates[1].state+")";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
@@ -9374,7 +9373,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
 * Count the new line in the string.
 */
 ContextParserHandlebars.prototype.countNewLineChar = function(str) {
-    return (str.match(/\n/g) || []).length;
+    return str.split('\n').length - 1;
 };
 
 /**
@@ -9481,7 +9480,7 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED: // 40
                 filters = [];
                 // URI scheme
-                if (uriAttributeNames.indexOf(attributeName) !== -1) {
+                if (uriAttributeNames[attributeName]) {
                     /* we don't support javascript parsing yet */
                     // TODO: this filtering rule cannot cover all cases.
                     if (handlebarsUtils.blacklistProtocol(attributeValue)) {
@@ -9795,38 +9794,6 @@ contextParser.Parser.prototype.setInternalState = function(stateObj) {
 };
 
 /**
-* @function CustomizedContextParser.deepCompareState
-*
-* @description
-* Compare the internal state of the Context Parser.
-*/
-contextParser.Parser.prototype.deepCompareState = function(stateObj1, stateObj2) {
-    return ![
-        'state', // test for the HTML5 state.
-        // 'tagNameIdx', // test for the close tag in the branching logic, but it is not balanced.
-        // 'attributeName', 'attributeValue' // not necessary the same in branching logic.
-    ].some(function(key) {
-        return (stateObj1[key] !== '' && stateObj2[key] !== '' && stateObj1[key] !== stateObj2[key]);
-    });
-    /*
-    [
-      // 'tagNames' // not necessary the same in branching logic.
-    ].forEach(function(key) {
-        if (!(stateObj1[key] instanceof Array) || !(stateObj2[key] instanceof Array)) {
-            r = false;
-            return;
-        }
-        for(var i=0;i<stateObj1[key].length;++i) {
-            if (stateObj1[key][i] !== stateObj2[key][i]) {
-                r = false;
-            }
-        }
-    });
-    */
-    // return r;
-};
-
-/**
 * @function CustomizedContextParser.clearBuffer
 *
 * @description
@@ -10063,18 +10030,21 @@ HandlebarsUtils.isReservedChar = function(input, i) {
     return (ch === '#' || ch === '/' || ch === '>' || ch === '^' || ch === '!' || ch === '&');
 };
 
-var consoleWarn = function(){};
-if (typeof console === 'object') {
-    if (console.hasOwnProperty('warn') && typeof console.warn === 'function') {
-        consoleWarn = console.warn;
-    } else if (console.hasOwnProperty('log') && typeof console.log === 'function') {
-        consoleWarn = console.log;
+HandlebarsUtils.warn = (function(){
+    if (typeof console === 'object') {
+        if (console.hasOwnProperty('warn') && typeof console.warn === 'function') {
+            return console.warn;
+        } else if (console.hasOwnProperty('log') && typeof console.log === 'function') {
+            return console.log;
+        }
     }
-}
+    return function(){};
+})();
+
 
 // @function HandlebarsUtils.handleError
 HandlebarsUtils.handleError = function(exceptionObj, throwErr) {
-    consoleWarn(exceptionObj.msg + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
+    HandlebarsUtils.warn(exceptionObj.msg + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
     if (throwErr) {
         throw exceptionObj;
     }
@@ -10106,16 +10076,13 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 */
 var Handlebars = require('handlebars'),
     ContextParserHandlebars = require("./context-parser-handlebars"),
-    xssFilters = require('xss-filters');
+    xssFilters = require('xss-filters'),
+    handlebarsUtils = require('./handlebars-utils.js');
 
 var hbsCreate = Handlebars.create,
     privateFilters = ['y', 'yd', 'yc', 'yavd', 'yavs', 'yavu', 'yu', 'yuc', 'yubl', 'yufull'],
     baseContexts = ['HTMLData', 'HTMLComment', 'SingleQuotedAttr', 'DoubleQuotedAttr', 'UnQuotedAttr'],
-    manualFilters = ['in', 'uriIn', 'uriPathIn', 'uriQueryIn', 'uriComponentIn', 'uriFragmentIn'].map(function (outerContext) {
-        return baseContexts.map(function (baseContext) {
-            return outerContext + baseContext;
-        });
-    }).reduce(function(a, b) {return a.concat(b);});
+    contextPrefixes = ['in', 'uriIn', 'uriPathIn', 'uriQueryIn', 'uriComponentIn', 'uriFragmentIn'];
 
 function preprocess(template, strictMode) {
     try {
@@ -10124,9 +10091,11 @@ function preprocess(template, strictMode) {
             return parser.analyzeContext(template);
         }
     } catch (err) {
-        console.log('[WARNING] SecureHandlebars: falling back to the original template');
-        Object.keys(err).forEach(function(k){console.log(k.toUpperCase() + ': ' + err[k]);});
-        console.log(template);
+        handlebarsUtils.warn('[WARNING] SecureHandlebars: falling back to the original template');
+        for (var k in err) {
+            handlebarsUtils.warn(k.toUpperCase() + ': ' + err[k]);
+        }
+        handlebarsUtils.warn(template);
     }
     return template;
 }
@@ -10135,7 +10104,8 @@ function overrideHbsCreate() {
     var h = hbsCreate(),
         c = h.compile, 
         pc = h.precompile,
-        privFilters = xssFilters._privFilters;
+        privFilters = xssFilters._privFilters,
+        i, j, filterName, prefix, baseContext;
 
     // override precompile function to preprocess the template first
     h.precompile = function (template, options) {
@@ -10150,14 +10120,17 @@ function overrideHbsCreate() {
     };
 
     // register below the filters that are automatically applied by context parser 
-    privateFilters.forEach(function(filterName){
+    for (i = 0; (filterName = privateFilters[i]); i++) {
         h.registerHelper(filterName, privFilters[filterName]);
-    });
+    }
 
     // register below the filters that might be manually applied by developers
-    manualFilters.forEach(function(filterName){
-        h.registerHelper(filterName, xssFilters[filterName]);
-    });
+    for (i = 0; (prefix = contextPrefixes[i]); i++) {
+        for (j = 0; (baseContext = baseContexts[j]); j++) {
+            filterName = prefix + baseContext;
+            h.registerHelper(filterName, xssFilters[filterName]);
+        }
+    }
 
     return h;
 }
@@ -10168,5 +10141,5 @@ module.exports.create = overrideHbsCreate;
 // the following is in addition to the original Handlbars prototype
 module.exports.ContextParserHandlebars = ContextParserHandlebars;
 
-},{"./context-parser-handlebars":39,"handlebars":26,"xss-filters":38}]},{},[42])(42)
+},{"./context-parser-handlebars":39,"./handlebars-utils.js":41,"handlebars":26,"xss-filters":38}]},{},[42])(42)
 });

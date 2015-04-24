@@ -9,16 +9,13 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 */
 var Handlebars = require('handlebars'),
     ContextParserHandlebars = require("./context-parser-handlebars"),
-    xssFilters = require('xss-filters');
+    xssFilters = require('xss-filters'),
+    handlebarsUtils = require('./handlebars-utils.js');
 
 var hbsCreate = Handlebars.create,
     privateFilters = ['y', 'yd', 'yc', 'yavd', 'yavs', 'yavu', 'yu', 'yuc', 'yubl', 'yufull'],
     baseContexts = ['HTMLData', 'HTMLComment', 'SingleQuotedAttr', 'DoubleQuotedAttr', 'UnQuotedAttr'],
-    manualFilters = ['in', 'uriIn', 'uriPathIn', 'uriQueryIn', 'uriComponentIn', 'uriFragmentIn'].map(function (outerContext) {
-        return baseContexts.map(function (baseContext) {
-            return outerContext + baseContext;
-        });
-    }).reduce(function(a, b) {return a.concat(b);});
+    contextPrefixes = ['in', 'uriIn', 'uriPathIn', 'uriQueryIn', 'uriComponentIn', 'uriFragmentIn'];
 
 function preprocess(template, strictMode) {
     try {
@@ -27,9 +24,11 @@ function preprocess(template, strictMode) {
             return parser.analyzeContext(template);
         }
     } catch (err) {
-        console.log('[WARNING] SecureHandlebars: falling back to the original template');
-        Object.keys(err).forEach(function(k){console.log(k.toUpperCase() + ': ' + err[k]);});
-        console.log(template);
+        handlebarsUtils.warn('[WARNING] SecureHandlebars: falling back to the original template');
+        for (var k in err) {
+            handlebarsUtils.warn(k.toUpperCase() + ': ' + err[k]);
+        }
+        handlebarsUtils.warn(template);
     }
     return template;
 }
@@ -38,7 +37,8 @@ function overrideHbsCreate() {
     var h = hbsCreate(),
         c = h.compile, 
         pc = h.precompile,
-        privFilters = xssFilters._privFilters;
+        privFilters = xssFilters._privFilters,
+        i, j, filterName, prefix, baseContext;
 
     // override precompile function to preprocess the template first
     h.precompile = function (template, options) {
@@ -53,14 +53,17 @@ function overrideHbsCreate() {
     };
 
     // register below the filters that are automatically applied by context parser 
-    privateFilters.forEach(function(filterName){
+    for (i = 0; (filterName = privateFilters[i]); i++) {
         h.registerHelper(filterName, privFilters[filterName]);
-    });
+    }
 
     // register below the filters that might be manually applied by developers
-    manualFilters.forEach(function(filterName){
-        h.registerHelper(filterName, xssFilters[filterName]);
-    });
+    for (i = 0; (prefix = contextPrefixes[i]); i++) {
+        for (j = 0; (baseContext = baseContexts[j]); j++) {
+            filterName = prefix + baseContext;
+            h.registerHelper(filterName, xssFilters[filterName]);
+        }
+    }
 
     return h;
 }
