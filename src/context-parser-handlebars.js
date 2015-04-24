@@ -439,7 +439,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
 * Count the new line in the string.
 */
 ContextParserHandlebars.prototype.countNewLineChar = function(str) {
-    return (str.match(/\n/g) || []).length;
+    return str.split('\n').length - 1;
 };
 
 /**
