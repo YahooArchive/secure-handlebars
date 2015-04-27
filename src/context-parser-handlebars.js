@@ -15,7 +15,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 var debug = require('debug')('cph');
 
 /* import the required package */
-var CustomizedContextParser = require('./customized-context-parser.js'),
+var ContextParser = require('./strong-context-parser.js'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = require('context-parser').StateMachine;
 
@@ -52,6 +52,7 @@ var filter = {
 */
 var reURIContextStartWhitespaces = /^(?:[\u0000-\u0020]|&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*/;
 var uriAttributeNames = {'href':1, 'src':1, 'action':1, 'formaction':1, 'background':1, 'cite':1, 'longdesc':1, 'usemap':1, 'poster':1, 'xlink:href':1};
+var reEqualSign = /(?:=|&#0*61;?|&#[xX]0*3[dD];?|&equals;)/;
 
 /////////////////////////////////////////////////////
 //
@@ -97,7 +98,7 @@ function ContextParserHandlebars(config) {
     this._lineNo = 1;
 
     /* context parser for HTML5 parsing */
-    this._html5Parser = new CustomizedContextParser();
+    this.contextParser = new ContextParser(config);
 }
 
 /**
@@ -165,8 +166,7 @@ ContextParserHandlebars.prototype.saveToBuffer = function(str) {
 ContextParserHandlebars.prototype.analyzeContext = function(input) {
     // the last parameter is the hack till we move to LR parser
     var ast = this.buildAst(input, 0, []);
-    var stateObj = this._html5Parser.getInternalState();
-    var r = this.analyzeAst(ast, stateObj, 0);
+    var r = this.analyzeAst(ast, this.contextParser, 0);
     (this._config._printCharEnable && typeof process === 'object')? process.stdout.write(r.output) : '';
     return r.output;
 };
@@ -366,41 +366,59 @@ ContextParserHandlebars.prototype.generateNodeObject = function(type, content, s
 * @description
 * Analyze the execution context of the AST node.
 */
-ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
-    var r = {output: '', lastStates: [stateObj, stateObj]},
+ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, charNo) {
+
+    var output = '', leftParser, rightParser,
         t, msg, exceptionObj, debugString = [];
+
+    // console.log('forked states', leftParser.state, rightParser.state, '\n', ast);
 
     this._charNo = charNo;
 
-    function analyzeAstTree (tree, i) {
+    function consumeAstNode (tree, parser) {
         /*jshint validthis: true */
+
         for (var j = 0, len = tree.length, node; j < len; j++) {
             node = tree[j];
 
             if (node.type === 'html') {
-                var html5Parser = new CustomizedContextParser();
-                html5Parser.setInternalState(r.lastStates[i]);
-                html5Parser.contextualize(node.content);
-                r.output += html5Parser.getOutput();
-                r.lastStates[i] = html5Parser.getInternalState();
-            } else if (node.type === 'rawblock' ||
-                node.type === 'expression') {
-                r.output += node.content;
+                // var html5Parser = new CustomizedContextParser();
+                // html5Parser.setInternalState(r.lastStates[i]);
+                // html5Parser.contextualize(node.content);
+                // r.output += html5Parser.getOutput();
+                // r.lastStates[i] = html5Parser.getInternalState();
+                // var newParser = parser.fork();
+                output += parser.parsePartial(node.content);
+
             } else if (node.type === 'escapeexpression' ||
                 node.type === 'rawexpression') {
+                // var lastState = parser.state;
                 /* lookupStateForHandlebarsOpenBraceChar from current state before handle it */
-                r.lastStates[i].state = ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[r.lastStates[i].state];
+                // r.lastStates[i].state = ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[r.lastStates[i].state];
+                parser.setCurrentState(ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[parser.state]);
                 this.clearBuffer();
-                this.handleTemplate(node.content, 0, r.lastStates[i]);
-                r.output += this.getOutput();
+                this.handleTemplate(node.content, 0, parser);
+                output += this.getOutput();
+
             } else if (node.type === 'node') {
-                t = this.analyzeAst(node.content, r.lastStates[i], node.startPos);
-                r.lastStates[i] = t.lastStates[i]; // index 0 and 1 MUST be equal
-                r.output += t.output;
-            } else if (node.type === 'branchstart' ||
+                // t = this.analyzeAst(node.content, r.lastStates[i], node.startPos);
+                // r.lastStates[i] = t.lastStates[i]; // index 0 and 1 MUST be equal
+
+
+                t = this.analyzeAst(node.content, parser, node.startPos);
+                // cloning states from either leftParser or rightParser makes no difference as they're ensured to result in same consistent state
+                parser.state = t.leftParser.state;
+                parser.attributeName = t.leftParser.attributeName;
+                parser.attributeValue = t.leftParser.attributeValue;
+
+                output += t.output;
+
+            } else if (node.type === 'rawblock' ||
+                node.type === 'expression' || 
+                node.type === 'branchstart' ||
                 node.type === 'branchelse' ||
                 node.type === 'branchend') {
-                r.output += node.content;
+                output += node.content;
             }
 
             /* calculate the char/line have been processed */
@@ -411,24 +429,38 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
                 this._charNo = node.content.index+1;
             }
         }
+
+        return parser;
     }
-    analyzeAstTree.call(this, ast.left, 0);
-    analyzeAstTree.call(this, ast.right, 1);
 
 
     /* make lastStates[0] and lastStates[1] the same as the tree has one branch */
-    ast.left.length > 0 && ast.right.length === 0? r.lastStates[1] = r.lastStates[0] : '';
-    ast.left.length === 0 && ast.right.length > 0? r.lastStates[0] = r.lastStates[1] : '';
-    debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
+    // ast.left.length > 0 && ast.right.length === 0? r.lastStates[1] = r.lastStates[0] : '';
+    // ast.left.length === 0 && ast.right.length > 0? r.lastStates[0] = r.lastStates[1] : '';
+    // debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
 
     // if the two branches result in different state
-    if (r.lastStates[0].state !== r.lastStates[1].state) {
-        debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
-        msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+r.lastStates[0].state+"/"+r.lastStates[1].state+")";
+    // if (r.lastStates[0].state !== r.lastStates[1].state) {
+    //     debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
+    //     msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+r.lastStates[0].state+"/"+r.lastStates[1].state+")";
+    //     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+    //     handlebarsUtils.handleError(exceptionObj, true);
+    // }
+
+    // consumeAstNode() for both ast.left and ast.right if they are non-empty
+    leftParser  = ast.left.length  && consumeAstNode.call(this, ast.left,  contextParser.fork());
+    rightParser = ast.right.length && consumeAstNode.call(this, ast.right, contextParser.fork());
+
+    // if the two non-empty branches result in different states
+    if (leftParser && rightParser && 
+            leftParser.state !== rightParser.state) {
+        // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
+        msg = "[ERROR] ContextParserHandlebars: Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+leftParser.state+"/"+rightParser.state+")";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
-    return r;
+
+    return {output: output, leftParser: leftParser, rightParser: rightParser};
 };
 
 /**
@@ -558,7 +590,7 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
                         f = filter.FILTER_FULL_URI;
                     } else {
                         isFullUri = false;
-                        f = (attributeValue.indexOf('=') === -1) ? filter.FILTER_ENCODE_URI : filter.FILTER_ENCODE_URI_COMPONENT;
+                        f = reEqualSign.test(attributeValue) ? filter.FILTER_ENCODE_URI_COMPONENT : filter.FILTER_ENCODE_URI;
                     }
                     filters.push(f);
 

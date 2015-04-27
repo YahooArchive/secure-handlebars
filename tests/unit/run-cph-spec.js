@@ -50,9 +50,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.right).to.deep.equal([]);
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser._html5Parser.getInternalState();
-            stateObj.state = 1;
-            var r = parser.analyzeAst(ast, stateObj);
+            var contextParser = parser.contextParser;
+            contextParser.state = 1;
+            var r = parser.analyzeAst(ast, contextParser);
             expect(r.output).to.equal(s);
         });
 
@@ -77,9 +77,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.right).to.deep.equal([]);
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser._html5Parser.getInternalState();
-            stateObj.state = 1;
-            var r = parser.analyzeAst(ast, stateObj);
+            var contextParser = parser.contextParser;
+            contextParser.state = 1;
+            var r = parser.analyzeAst(ast, contextParser);
             expect(r.output).to.not.equal(s);
         });
 
@@ -104,9 +104,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.right).to.deep.equal([]);
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser._html5Parser.getInternalState();
-            stateObj.state = 1;
-            var r = parser.analyzeAst(ast, stateObj);
+            var contextParser = parser.contextParser;
+            contextParser.state = 1;
+            var r = parser.analyzeAst(ast, contextParser);
             expect(r.output).to.equal(s);
 
             /* this is not a valid template
@@ -131,9 +131,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.right).to.deep.equal([]);
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser._html5Parser.getInternalState();
-            stateObj.state = 1;
-            r = parser.analyzeAst(ast, stateObj);
+            var contextParser = parser.contextParser;
+            contextParser.state = 1;
+            r = parser.analyzeAst(ast, contextParser);
             expect(r.output).to.equal(s);
             */
         });
@@ -157,9 +157,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.left[1].content).to.equal('xxxxxxxx');
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser._html5Parser.getInternalState();
-            stateObj.state = 1;
-            var r = parser.analyzeAst(ast, stateObj);
+            var contextParser = parser.contextParser;
+            contextParser.state = 1;
+            var r = parser.analyzeAst(ast, contextParser);
             expect(r.output).to.equal(s);
         });
 
@@ -210,9 +210,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.left[1].content).to.equal('xxxxxx');
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser._html5Parser.getInternalState();
-            stateObj.state = 1;
-            var r = parser.analyzeAst(ast, stateObj);
+            var contextParser = parser.contextParser;
+            contextParser.state = 1;
+            var r = parser.analyzeAst(ast, contextParser);
             expect(r.output).to.equal(s);
         });
 
@@ -258,9 +258,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(ast.left[1].content).to.equal('xxxxxxx');
             expect(ast.index).to.equal(s.length);
 
-            var stateObj = parser._html5Parser.getInternalState();
-            stateObj.state = 1;
-            var r = parser.analyzeAst(ast, stateObj);
+            var contextParser = parser.contextParser;
+            contextParser.state = 1;
+            var r = parser.analyzeAst(ast, contextParser);
             expect(r.output).to.equal(s);
         });
 
@@ -268,9 +268,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var parser = new ContextParserHandlebars(config);
             var s = "{{#if}} <script> {{#if xxx}} path2 {{else}} path3 {{/if}} </script> {{else}} path4 {{/if}}";
             var ast = parser.buildAst(s, 0, []);
-            var stateObj = parser._html5Parser.getInternalState();
-            stateObj.state = 1;
-            var r = parser.analyzeAst(ast, stateObj);
+            var contextParser = parser.contextParser;
+            contextParser.state = 1;
+            var r = parser.analyzeAst(ast, contextParser);
             expect(r.output).to.equal(s);
         });
 
@@ -379,12 +379,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             ].forEach(function(testObj) {
                 var parser1 = new ContextParserHandlebars(config);
                 var parser2 = new ContextParserHandlebars(config);
-                var stateObj1, stateObj2;
-                parser1._html5Parser.contextualize(testObj.s1);
-                parser2._html5Parser.contextualize(testObj.s2);
-                stateObj1 = parser1._html5Parser.getInternalState();
-                stateObj2 = parser2._html5Parser.getInternalState();
-                expect(stateObj1.state === stateObj2.state).to.equal(testObj.result);
+                var contextParser1, contextParser2;
+                parser1.contextParser.parsePartial(testObj.s1);
+                parser2.contextParser.parsePartial(testObj.s2);
+                // contextParser1 = parser1._html5Parser.getInternalState();
+                // contextParser2 = parser2._html5Parser.getInternalState();
+                expect(parser1.contextParser.state === parser2.contextParser.state).to.equal(testObj.result);
             });
         });
 
@@ -401,9 +401,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                     }
                 });
 
-                var stateObj = parser._html5Parser.getInternalState();
-                stateObj.state = 1;
-                var r = parser.analyzeAst(ast, stateObj);
+                var contextParser = parser.contextParser;
+                contextParser.state = 1;
+                var r = parser.analyzeAst(ast, contextParser);
                 expect(r.output).to.equal(testObj.output);
             });
         });
