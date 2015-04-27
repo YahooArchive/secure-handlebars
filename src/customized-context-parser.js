@@ -69,38 +69,6 @@ contextParser.Parser.prototype.setInternalState = function(stateObj) {
 };
 
 /**
-* @function CustomizedContextParser.deepCompareState
-*
-* @description
-* Compare the internal state of the Context Parser.
-*/
-contextParser.Parser.prototype.deepCompareState = function(stateObj1, stateObj2) {
-    return ![
-        'state', // test for the HTML5 state.
-        // 'tagNameIdx', // test for the close tag in the branching logic, but it is not balanced.
-        // 'attributeName', 'attributeValue' // not necessary the same in branching logic.
-    ].some(function(key) {
-        return (stateObj1[key] !== '' && stateObj2[key] !== '' && stateObj1[key] !== stateObj2[key]);
-    });
-    /*
-    [
-      // 'tagNames' // not necessary the same in branching logic.
-    ].forEach(function(key) {
-        if (!(stateObj1[key] instanceof Array) || !(stateObj2[key] instanceof Array)) {
-            r = false;
-            return;
-        }
-        for(var i=0;i<stateObj1[key].length;++i) {
-            if (stateObj1[key][i] !== stateObj2[key][i]) {
-                r = false;
-            }
-        }
-    });
-    */
-    // return r;
-};
-
-/**
 * @function CustomizedContextParser.clearBuffer
 *
 * @description

@@ -384,7 +384,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 parser2._html5Parser.contextualize(testObj.s2);
                 stateObj1 = parser1._html5Parser.getInternalState();
                 stateObj2 = parser2._html5Parser.getInternalState();
-                expect(parser1._html5Parser.deepCompareState(stateObj1, stateObj2)).to.equal(testObj.result);
+                expect(stateObj1.state === stateObj2.state).to.equal(testObj.result);
             });
         });
 
