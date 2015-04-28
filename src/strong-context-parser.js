@@ -317,9 +317,9 @@ function DisableIEConditionalComments(state, i){
 }
 
 /** 
-* @module StrongContextParser
+* @module StrictContextParser
 */
-function StrongContextParser(config, listeners) {
+function StrictContextParser(config, listeners) {
     var self = this, k;
 
     // super
@@ -368,22 +368,22 @@ function StrongContextParser(config, listeners) {
 }
 
 /* inherit contextParser.FastParser */
-StrongContextParser.prototype = Object.create(htmlParser.prototype);
-StrongContextParser.prototype.constructor = StrongContextParser;
+StrictContextParser.prototype = Object.create(htmlParser.prototype);
+StrictContextParser.prototype.constructor = StrictContextParser;
 
 /**
-* @function StrongContextParser._getSymbol
+* @function StrictContextParser._getSymbol
 * @param {integer} i - the index of input stream
 *
 * @description
 * Get the html symbol mapping for the character located in the given index of input stream
 */
-StrongContextParser.prototype._getSymbol = function (i) {
+StrictContextParser.prototype._getSymbol = function (i) {
     return i < this.inputLen ? this.lookupChar(this.input[i]) : -1;
 };
 
 /**
-* @function StrongContextParser._getNextState
+* @function StrictContextParser._getNextState
 * @param {integer} state - the current state
 * @param {integer} i - the index of input stream
 * @returns {integer} the potential state about to transition into, given the current state and an index of input stream
@@ -391,18 +391,18 @@ StrongContextParser.prototype._getSymbol = function (i) {
 * @description
 * Get the potential html state about to transition into
 */
-StrongContextParser.prototype._getNextState = function (state, i, endsWithEOF) {
+StrictContextParser.prototype._getNextState = function (state, i, endsWithEOF) {
     return i < this.inputLen ? stateMachine.lookupStateFromSymbol[this._getSymbol(i)][state] : -1;
 };
 
 /**
-* @function StrongContextParser.fork
+* @function StrictContextParser.fork
 * @returns {object} a new parser with all internal states inherited
 *
 * @description
 * create a new parser with all internal states inherited
 */
-StrongContextParser.prototype.fork = function() {
+StrictContextParser.prototype.fork = function() {
     var parser = new this.constructor(this.config, this.listeners);
 
     parser.state = this.state;
@@ -421,7 +421,7 @@ StrongContextParser.prototype.fork = function() {
 
 
 /**
- * @function StrongContextParser#on
+ * @function StrictContextParser#on
  *
  * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
  * @param {function} listener - the event listener
@@ -431,7 +431,7 @@ StrongContextParser.prototype.fork = function() {
  * <p>register the given event listener to the given eventType</p>
  *
  */
-StrongContextParser.prototype.on = function(eventType, listener) {
+StrictContextParser.prototype.on = function(eventType, listener) {
     var self = this, listeners = self.listeners[eventType];
     if (listener) {
         if (listeners) {
@@ -444,7 +444,7 @@ StrongContextParser.prototype.on = function(eventType, listener) {
 };
 
 /**
- * @function StrongContextParser#once
+ * @function StrictContextParser#once
  *
  * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
  * @param {function} listener - the event listener
@@ -454,7 +454,7 @@ StrongContextParser.prototype.on = function(eventType, listener) {
  * <p>register the given event listener to the given eventType, for which it will be fired only once</p>
  *
  */
-StrongContextParser.prototype.once = function(eventType, listener) {
+StrictContextParser.prototype.once = function(eventType, listener) {
     var self = this, onceListener;
     if (listener) {
         onceListener = function () {
@@ -467,7 +467,7 @@ StrongContextParser.prototype.once = function(eventType, listener) {
 };
 
 /**
- * @function StrongContextParser#off
+ * @function StrictContextParser#off
  *
  * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
  * @param {function} listener - the event listener
@@ -477,7 +477,7 @@ StrongContextParser.prototype.once = function(eventType, listener) {
  * <p>remove the listener from being fired when the eventType happen</p>
  *
  */
-StrongContextParser.prototype.off = function (eventType, listener) {
+StrictContextParser.prototype.off = function (eventType, listener) {
     if (listener) {
         var i, len, listeners = this.listeners[eventType];
         if (listeners) {
@@ -493,7 +493,7 @@ StrongContextParser.prototype.off = function (eventType, listener) {
 };
 
 /**
- * @function StrongContextParser#emit
+ * @function StrictContextParser#emit
  *
  * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
  * @returns this
@@ -502,7 +502,7 @@ StrongContextParser.prototype.off = function (eventType, listener) {
  * <p>fire those listeners correspoding to the given eventType</p>
  *
  */
-StrongContextParser.prototype.emit = function (eventType) {
+StrictContextParser.prototype.emit = function (eventType) {
     var self = this,
         listeners = self.listeners[eventType],
         i, args, listener;
@@ -517,7 +517,7 @@ StrongContextParser.prototype.emit = function (eventType) {
 };
 
 /**
- * @function StrongContextParser#parsePartial
+ * @function StrictContextParser#parsePartial
  *
  * @param {string} input - The HTML fragment
  * @returns {string} the inputs with parse errors and browser-inconsistent characters automatically corrected
@@ -526,7 +526,7 @@ StrongContextParser.prototype.emit = function (eventType) {
  * <p>Perform HTML fixer before the contextual analysis</p>
  *
  */
-StrongContextParser.prototype.parsePartial = function(input, endsWithEOF) {
+StrictContextParser.prototype.parsePartial = function(input, endsWithEOF) {
     var self = this;
     self.input = input.split('');
     self.inputLen = self.input.length;
@@ -545,7 +545,7 @@ StrongContextParser.prototype.parsePartial = function(input, endsWithEOF) {
 
 
 // the only difference from the original walk is to use the this.emit('reWalk') interface
-StrongContextParser.prototype.walk = function(i, input, endsWithEOF) {
+StrictContextParser.prototype.walk = function(i, input, endsWithEOF) {
 
     var ch = input[i],
         symbol = this.lookupChar(ch),
@@ -590,7 +590,7 @@ StrongContextParser.prototype.walk = function(i, input, endsWithEOF) {
 
 
 /**
- * @function StrongContextParser#setCurrentState
+ * @function StrictContextParser#setCurrentState
  *
  * @param {integer} state - The state of HTML5 page.
  *
@@ -598,7 +598,7 @@ StrongContextParser.prototype.walk = function(i, input, endsWithEOF) {
  * Set the current state of the HTML5 Context Parser.
  *
  */
-StrongContextParser.prototype.setCurrentState = function(state) {
+StrictContextParser.prototype.setCurrentState = function(state) {
     this.state = state;
     if (this.states) {
         this.states.pop();
@@ -608,7 +608,7 @@ StrongContextParser.prototype.setCurrentState = function(state) {
 };
 
 /**
- * @function StrongContextParser#getCurrentState
+ * @function StrictContextParser#getCurrentState
  *
  * @returns {integer} The last state of the HTML5 Context Parser.
  *
@@ -616,7 +616,7 @@ StrongContextParser.prototype.setCurrentState = function(state) {
  * Get the last state of HTML5 Context Parser.
  *
  */
-StrongContextParser.prototype.getCurrentState = function() {
+StrictContextParser.prototype.getCurrentState = function() {
     return this.state;
 };
 
@@ -638,7 +638,7 @@ StrongContextParser.prototype.getCurrentState = function() {
  */
 
 /**
- * @function StrongContextParser#setCurrentState
+ * @function StrictContextParser#setCurrentState
  *
  * @param {integer} state - The state of HTML5 page.
  *
@@ -646,13 +646,13 @@ StrongContextParser.prototype.getCurrentState = function() {
  * Set the current state of the HTML5 Context Parser.
  *
  */
-// StrongContextParser.prototype.setCurrentState = function(state) {
+// StrictContextParser.prototype.setCurrentState = function(state) {
 //     this.state = state;
 // };
 
 
 /**
- * @function StrongContextParser#getStates
+ * @function StrictContextParser#getStates
  *
  * @returns {Array} An array of states.
  *
@@ -660,12 +660,12 @@ StrongContextParser.prototype.getCurrentState = function() {
  * Get the states of the HTML5 page
  *
  */
-StrongContextParser.prototype.getStates = function() {
+StrictContextParser.prototype.getStates = function() {
     return this.states;
 };
 
 /**
- * @function StrongContextParser#setInitState
+ * @function StrictContextParser#setInitState
  *
  * @param {integer} state - The initial state of the HTML5 Context Parser.
  *
@@ -673,12 +673,12 @@ StrongContextParser.prototype.getStates = function() {
  * Set the init state of HTML5 Context Parser.
  *
  */
-StrongContextParser.prototype.setInitState = function(state) {
+StrictContextParser.prototype.setInitState = function(state) {
     this.states && (this.states[0] = state);
 };
 
 /**
- * @function StrongContextParser#getInitState
+ * @function StrictContextParser#getInitState
  *
  * @returns {integer} The initial state of the HTML5 Context Parser.
  *
@@ -686,12 +686,12 @@ StrongContextParser.prototype.setInitState = function(state) {
  * Get the init state of HTML5 Context Parser.
  *
  */
-StrongContextParser.prototype.getInitState = function() {
+StrictContextParser.prototype.getInitState = function() {
     return this.states && this.states[0];
 };
 
 /**
- * @function StrongContextParser#getLastState
+ * @function StrictContextParser#getLastState
  *
  * @returns {integer} The last state of the HTML5 Context Parser.
  *
@@ -699,13 +699,13 @@ StrongContextParser.prototype.getInitState = function() {
  * Get the last state of HTML5 Context Parser.
  *
  */
-StrongContextParser.prototype.getLastState = function() {
+StrictContextParser.prototype.getLastState = function() {
     // * undefined if length = 0 
     return this.states ? this.states[ this.states.length - 1 ] : this.state;
 };
 
 /**
- * @function StrongContextParser#getAttributeName
+ * @function StrictContextParser#getAttributeName
  *
  * @returns {string} The current handling attribute name.
  *
@@ -713,12 +713,12 @@ StrongContextParser.prototype.getLastState = function() {
  * Get the current handling attribute name of HTML tag.
  *
  */
-StrongContextParser.prototype.getAttributeName = function() {
+StrictContextParser.prototype.getAttributeName = function() {
     return this.attributeName;
 };
 
 /**
- * @function StrongContextParser#getAttributeValue
+ * @function StrictContextParser#getAttributeValue
  *
  * @returns {string} The current handling attribute name's value.
  *
@@ -726,23 +726,23 @@ StrongContextParser.prototype.getAttributeName = function() {
  * Get the current handling attribute name's value of HTML tag.
  *
  */
-StrongContextParser.prototype.getAttributeValue = function() {
+StrictContextParser.prototype.getAttributeValue = function() {
     return this.attributeValue;
 };
 
 /**
- * @function StrongContextParser#getStartTagName
+ * @function StrictContextParser#getStartTagName
  *
  * @returns {string} The current handling start tag name
  *
  */
-StrongContextParser.prototype.getStartTagName = function() {
+StrictContextParser.prototype.getStartTagName = function() {
     return this.tagNames[0];
 };
 
 
 
 /* exposing it */
-module.exports = StrongContextParser;
+module.exports = StrictContextParser;
 
 })();

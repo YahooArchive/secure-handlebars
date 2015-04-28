@@ -371,8 +371,6 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
     var output = '', leftParser, rightParser,
         t, msg, exceptionObj, debugString = [];
 
-    // console.log('forked states', leftParser.state, rightParser.state, '\n', ast);
-
     this._charNo = charNo;
 
     function consumeAstNode (tree, parser) {
@@ -382,34 +380,25 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
             node = tree[j];
 
             if (node.type === 'html') {
-                // var html5Parser = new CustomizedContextParser();
-                // html5Parser.setInternalState(r.lastStates[i]);
-                // html5Parser.contextualize(node.content);
-                // r.output += html5Parser.getOutput();
-                // r.lastStates[i] = html5Parser.getInternalState();
-                // var newParser = parser.fork();
+                
                 output += parser.parsePartial(node.content);
 
             } else if (node.type === 'escapeexpression' ||
                 node.type === 'rawexpression') {
-                // var lastState = parser.state;
-                /* lookupStateForHandlebarsOpenBraceChar from current state before handle it */
-                // r.lastStates[i].state = ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[r.lastStates[i].state];
+
+                // lookupStateForHandlebarsOpenBraceChar from current state before handle it
                 parser.setCurrentState(ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[parser.state]);
                 this.clearBuffer();
                 this.handleTemplate(node.content, 0, parser);
                 output += this.getOutput();
 
             } else if (node.type === 'node') {
-                // t = this.analyzeAst(node.content, r.lastStates[i], node.startPos);
-                // r.lastStates[i] = t.lastStates[i]; // index 0 and 1 MUST be equal
-
-
+                
                 t = this.analyzeAst(node.content, parser, node.startPos);
-                // cloning states from either leftParser or rightParser makes no difference as they're ensured to result in same consistent state
-                parser.state = t.leftParser.state;
-                parser.attributeName = t.leftParser.attributeName;
-                parser.attributeValue = t.leftParser.attributeValue;
+                // cloning states from the branches
+                parser.state = t.parser.state;
+                parser.attributeName = t.parser.attributeName;
+                parser.attributeValue = t.parser.attributeValue;
 
                 output += t.output;
 
@@ -418,6 +407,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
                 node.type === 'branchstart' ||
                 node.type === 'branchelse' ||
                 node.type === 'branchend') {
+
                 output += node.content;
             }
 
@@ -433,25 +423,12 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
         return parser;
     }
 
-
-    /* make lastStates[0] and lastStates[1] the same as the tree has one branch */
-    // ast.left.length > 0 && ast.right.length === 0? r.lastStates[1] = r.lastStates[0] : '';
-    // ast.left.length === 0 && ast.right.length > 0? r.lastStates[0] = r.lastStates[1] : '';
-    // debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
-
-    // if the two branches result in different state
-    // if (r.lastStates[0].state !== r.lastStates[1].state) {
-    //     debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
-    //     msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+r.lastStates[0].state+"/"+r.lastStates[1].state+")";
-    //     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-    //     handlebarsUtils.handleError(exceptionObj, true);
-    // }
-
     // consumeAstNode() for both ast.left and ast.right if they are non-empty
     leftParser  = ast.left.length  && consumeAstNode.call(this, ast.left,  contextParser.fork());
     rightParser = ast.right.length && consumeAstNode.call(this, ast.right, contextParser.fork());
 
     // if the two non-empty branches result in different states
+    // TODO: check also the attributeName, attributeValue and tagName differences
     if (leftParser && rightParser && 
             leftParser.state !== rightParser.state) {
         // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
@@ -460,7 +437,8 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
         handlebarsUtils.handleError(exceptionObj, true);
     }
 
-    return {output: output, leftParser: leftParser, rightParser: rightParser};
+    // returning either leftParser or rightParser makes no difference as they're assured to be in consistent state
+    return {output: output, parser: leftParser || rightParser};
 };
 
 /**
