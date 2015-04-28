@@ -8066,7 +8066,7 @@ exports._getPrivFilters = function () {
     // Reference: http://shazzer.co.uk/database/All/Characters-after-javascript-uri
     // Reference: https://html.spec.whatwg.org/multipage/syntax.html#consume-a-character-reference
     // Reference for named characters: https://html.spec.whatwg.org/multipage/entities.json
-    var URI_BLACKLIST_PROTOCOLS = ['javascript', 'data', 'vbscript', 'mhtml'],
+    var URI_BLACKLIST_PROTOCOLS = {'javascript':1, 'data':1, 'vbscript':1, 'mhtml':1},
         URI_PROTOCOL_COLON = /(?::|&#[xX]0*3[aA];?|&#0*58;?|&colon;)/,
         URI_PROTOCOL_HTML_ENTITIES = /&(?:#([xX][0-9A-Fa-f]+|\d+);?|Tab;|NewLine;)/g,
         URI_PROTOCOL_WHITESPACES = /(?:^[\x00-\x20]+|[\t\n\r\x00]+)/g,
@@ -8221,7 +8221,7 @@ exports._getPrivFilters = function () {
         // Notice that yubl MUST BE APPLIED LAST, and will not be used independently (expected output from encodeURI/encodeURIComponent and yavd/yavs/yavu)
         // This is used to disable JS execution capabilities by prefixing x- to ^javascript:, ^vbscript: or ^data: that possibly could trigger script execution in URI attribute context
         yubl: function (s) {
-            return URI_BLACKLIST_PROTOCOLS.indexOf(x.yup(s)) === -1 ? s : 'x-' + s;
+            return URI_BLACKLIST_PROTOCOLS[x.yup(s)] ? 'x-' + s : s;
         },
 
         // This is NOT a security-critical filter.
@@ -8989,6 +8989,22 @@ var reURIContextStartWhitespaces = /^(?:[\u0000-\u0020]|&#[xX]0*(?:1?[1-9a-fA-F]
 var uriAttributeNames = {'href':1, 'src':1, 'action':1, 'formaction':1, 'background':1, 'cite':1, 'longdesc':1, 'usemap':1, 'poster':1, 'xlink:href':1};
 var reEqualSign = /(?:=|&#0*61;?|&#[xX]0*3[dD];?|&equals;)/;
 
+/*
+'&#0*32;?|&#[xX]0*20;?|&#0*9;?|&#[xX]0*9;?|&Tab;|&#0*10;?|&#[xX]0*[aA];?|&NewLine;|&#0*12;?|&#[xX]0*[cC];?|&#0*13;?|&#[xX]0*[dD];?'; // space,\t,\r,\n,\f
+'&#0*58;?|&#[xX]0*3[aA];?|&colon;'      // colon
+'&#0*59;?|&#[xX]0*3[bB];?|&semi;'       // semicolon
+'&#0*40;?|&#[xX]0*28;?|&lpar;'          // (
+'&#0*41;?|&#[xX]0*29;?|&rpar;'          // )
+*/
+var cssReplaceChar = [ ' ', ':', ';', '(', ')' ];
+var reCss = [
+    /&#0*32;?|&#[xX]0*20;?|&#0*9;?|&#[xX]0*9;?|&Tab;|&#0*10;?|&#[xX]0*[aA];?|&NewLine;|&#0*12;?|&#[xX]0*[cC];?|&#0*13;?|&#[xX]0*[dD];?/g,
+    /&#0*58;?|&#[xX]0*3[aA];?|&colon;/g,
+    /&#0*59;?|&#[xX]0*3[bB];?|&semi;/g,
+    /&#0*40;?|&#[xX]0*28;?|&lpar;/g,
+    /&#0*41;?|&#[xX]0*29;?|&rpar;/g
+];
+
 /////////////////////////////////////////////////////
 //
 // @module ContextParserHandlebarsException
@@ -9463,7 +9479,7 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
 ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
 
     /* transitent var */
-    var isFullUri, f, filters, exceptionObj, msgPrefix,
+    var j, len, isFullUri, f, filters, exceptionObj, msgPrefix,
         attributeName = stateObj.attributeName,
         attributeValue = stateObj.attributeValue;
 
@@ -9539,11 +9555,49 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
                     }
                     return filters;
                 } else if (attributeName === "style") {  // CSS
-                    /* we don't support css parser yet
-                    * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                    * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                    */
-                    throw 'Unsafe output expression @ attribute style CSS context';
+                    /* html decode the attributeValue before CSS parsing,
+                       we follow the parsing order of the browser */
+                    len = reCss.length;
+                    for (j=0;j<len;++j) {
+                        attributeValue = attributeValue.replace(reCss[j], cssReplaceChar[j]);
+                    }
+                    attributeValue = attributeValue.replace(/ /g, ''); // ok to remove all space and space has been html decoded.
+
+                    /* split the string as per http://www.w3.org/TR/css-style-attr/ with ':' and ';' */
+                    var kv = attributeValue.split(';'); // it will return new array even there is no ';' in the string
+                    var v = kv[kv.length-1].split(':'); /* only handling the last element */
+
+                    if (v.length && v.length === 2) {
+                        filters = [];
+
+                        var prop = v[0],
+                            expr = v[1];
+
+                        /* TODO: we can whitelist the property here */
+                        if (prop !== '') { // && whitelisted
+
+                            /* TODO: need to add CSS xss filter here */
+
+                            /* add the attribute value filter */
+                            switch(stateObj.state) {
+                                case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
+                                    f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
+                                    break;
+                                case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
+                                    f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
+                                    break;
+                                default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
+                                    f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
+                            }
+                            filters.push(f);
+
+                        } else { /* the property name is empty */
+                            throw 'Unsafe output expression @ attribute style CSS context';
+                        }
+                        return filters;
+                    } else { // output place holder at property position
+                        throw 'Unsafe output expression @ attribute style CSS context';
+                    }
                 } else if (attributeName.match(/^on/i)) { // Javascript
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
