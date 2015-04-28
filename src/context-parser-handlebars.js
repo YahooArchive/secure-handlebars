@@ -15,7 +15,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 var debug = require('debug')('cph');
 
 /* import the required package */
-var CustomizedContextParser = require('./customized-context-parser.js'),
+var ContextParser = require('./strict-context-parser.js'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = require('context-parser').StateMachine;
 
@@ -52,6 +52,7 @@ var filter = {
 */
 var reURIContextStartWhitespaces = /^(?:[\u0000-\u0020]|&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*/;
 var uriAttributeNames = {'href':1, 'src':1, 'action':1, 'formaction':1, 'background':1, 'cite':1, 'longdesc':1, 'usemap':1, 'poster':1, 'xlink:href':1};
+var reEqualSign = /(?:=|&#0*61;?|&#[xX]0*3[dD];?|&equals;)/;
 
 /////////////////////////////////////////////////////
 //
@@ -97,7 +98,7 @@ function ContextParserHandlebars(config) {
     this._lineNo = 1;
 
     /* context parser for HTML5 parsing */
-    this._html5Parser = new CustomizedContextParser();
+    this.contextParser = new ContextParser(config);
 }
 
 /**
@@ -165,8 +166,7 @@ ContextParserHandlebars.prototype.saveToBuffer = function(str) {
 ContextParserHandlebars.prototype.analyzeContext = function(input) {
     // the last parameter is the hack till we move to LR parser
     var ast = this.buildAst(input, 0, []);
-    var stateObj = this._html5Parser.getInternalState();
-    var r = this.analyzeAst(ast, stateObj, 0);
+    var r = this.analyzeAst(ast, this.contextParser, 0);
     (this._config._printCharEnable && typeof process === 'object')? process.stdout.write(r.output) : '';
     return r.output;
 };
@@ -199,26 +199,38 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
         endPos = 0;
 
     /* Handlebars expression type */
-    var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION,
-        handlebarsExpressionTypeName = '';
+    var handlebarsExpressionType, handlebarsExpressionTypeName = '';
 
     try {
         for(j=i;j<len;++j) {
 
             /* distinguish the type */
             handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
-            if (input[j] === '{' && j+3<len && input[j+1] === '{' && input[j+2] === '{' && input[j+3] === '{') {
-                handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
-                handlebarsExpressionTypeName = 'rawblock';
-            } else if (input[j] === '{' && j+2<len && input[j+1] === '{' && input[j+2] === '{') {
-                handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
-                handlebarsExpressionTypeName = 'rawexpression';
-            } else if (input[j] === '{' && j+1<len && input[j+1] === '{') {
-                handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, j);
-                handlebarsExpressionTypeName = handlebarsExpressionType === handlebarsUtils.ESCAPE_EXPRESSION? 'escapeexpression' : 'expression';
-                handlebarsExpressionType === handlebarsUtils.BRANCH_EXPRESSION? handlebarsExpressionTypeName = 'branchstart' : '';
-                handlebarsExpressionType === handlebarsUtils.ELSE_EXPRESSION? handlebarsExpressionTypeName = 'branchelse' : '';
-                handlebarsExpressionType === handlebarsUtils.BRANCH_END_EXPRESSION? handlebarsExpressionTypeName = 'branchend' : '';
+            
+
+            if (input[j] === '{' && input[j+1] === '{') {
+                if (input[j+2] === '{') { 
+                    // 4 braces are encountered
+                    if (input[j+3] === '{') {
+                        handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
+                        handlebarsExpressionTypeName = 'rawblock';
+                    } 
+                    // 3 braces are encountered
+                    else {
+                        handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
+                        handlebarsExpressionTypeName = 'rawexpression';
+                    }
+                }
+                // 2 braces are encountered
+                else {
+                    handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, j);
+                    // 'expression' is the default handlebarsExpressionTypeName
+                    handlebarsExpressionTypeName = handlebarsExpressionType === handlebarsUtils.ESCAPE_EXPRESSION ? 'escapeexpression'
+                        : handlebarsExpressionType === handlebarsUtils.BRANCH_EXPRESSION ? 'branchstart' 
+                        : handlebarsExpressionType === handlebarsUtils.ELSE_EXPRESSION ? 'branchelse' 
+                        : handlebarsExpressionType === handlebarsUtils.BRANCH_END_EXPRESSION ? 'branchend' 
+                        : 'expression';
+                }
             }
 
             if (handlebarsExpressionType !== handlebarsUtils.NOT_EXPRESSION) {
@@ -366,41 +378,49 @@ ContextParserHandlebars.prototype.generateNodeObject = function(type, content, s
 * @description
 * Analyze the execution context of the AST node.
 */
-ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
-    var r = {output: '', lastStates: [stateObj, stateObj]},
+ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, charNo) {
+
+    var output = '', leftParser, rightParser,
         t, msg, exceptionObj, debugString = [];
 
     this._charNo = charNo;
 
-    function analyzeAstTree (tree, i) {
+    function consumeAstNode (tree, parser) {
         /*jshint validthis: true */
+
         for (var j = 0, len = tree.length, node; j < len; j++) {
             node = tree[j];
 
             if (node.type === 'html') {
-                var html5Parser = new CustomizedContextParser();
-                html5Parser.setInternalState(r.lastStates[i]);
-                html5Parser.contextualize(node.content);
-                r.output += html5Parser.getOutput();
-                r.lastStates[i] = html5Parser.getInternalState();
-            } else if (node.type === 'rawblock' ||
-                node.type === 'expression') {
-                r.output += node.content;
+                
+                output += parser.parsePartial(node.content);
+
             } else if (node.type === 'escapeexpression' ||
                 node.type === 'rawexpression') {
-                /* lookupStateForHandlebarsOpenBraceChar from current state before handle it */
-                r.lastStates[i].state = ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[r.lastStates[i].state];
+
+                // lookupStateForHandlebarsOpenBraceChar from current state before handle it
+                parser.setCurrentState(ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[parser.state]);
                 this.clearBuffer();
-                this.handleTemplate(node.content, 0, r.lastStates[i]);
-                r.output += this.getOutput();
+                this.handleTemplate(node.content, 0, parser);
+                output += this.getOutput();
+
             } else if (node.type === 'node') {
-                t = this.analyzeAst(node.content, r.lastStates[i], node.startPos);
-                r.lastStates[i] = t.lastStates[i]; // index 0 and 1 MUST be equal
-                r.output += t.output;
-            } else if (node.type === 'branchstart' ||
+                
+                t = this.analyzeAst(node.content, parser, node.startPos);
+                // cloning states from the branches
+                parser.state = t.parser.state;
+                parser.attributeName = t.parser.attributeName;
+                parser.attributeValue = t.parser.attributeValue;
+
+                output += t.output;
+
+            } else if (node.type === 'rawblock' ||
+                node.type === 'expression' || 
+                node.type === 'branchstart' ||
                 node.type === 'branchelse' ||
                 node.type === 'branchend') {
-                r.output += node.content;
+
+                output += node.content;
             }
 
             /* calculate the char/line have been processed */
@@ -411,24 +431,26 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, stateObj, charNo) {
                 this._charNo = node.content.index+1;
             }
         }
+
+        return parser;
     }
-    analyzeAstTree.call(this, ast.left, 0);
-    analyzeAstTree.call(this, ast.right, 1);
 
+    // consumeAstNode() for both ast.left and ast.right if they are non-empty
+    leftParser  = ast.left.length  && consumeAstNode.call(this, ast.left,  contextParser.fork());
+    rightParser = ast.right.length && consumeAstNode.call(this, ast.right, contextParser.fork());
 
-    /* make lastStates[0] and lastStates[1] the same as the tree has one branch */
-    ast.left.length > 0 && ast.right.length === 0? r.lastStates[1] = r.lastStates[0] : '';
-    ast.left.length === 0 && ast.right.length > 0? r.lastStates[0] = r.lastStates[1] : '';
-    debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
-
-    // if the two branches result in different state
-    if (r.lastStates[0].state !== r.lastStates[1].state) {
-        debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
-        msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+r.lastStates[0].state+"/"+r.lastStates[1].state+")";
+    // if the two non-empty branches result in different states
+    // TODO: check also the attributeName, attributeValue and tagName differences
+    if (leftParser && rightParser && 
+            leftParser.state !== rightParser.state) {
+        // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
+        msg = "[ERROR] ContextParserHandlebars: Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+leftParser.state+"/"+rightParser.state+")";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
-    return r;
+
+    // returning either leftParser or rightParser makes no difference as they're assured to be in consistent state
+    return {output: output, parser: leftParser || rightParser};
 };
 
 /**
@@ -558,7 +580,7 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
                         f = filter.FILTER_FULL_URI;
                     } else {
                         isFullUri = false;
-                        f = (attributeValue.indexOf('=') === -1) ? filter.FILTER_ENCODE_URI : filter.FILTER_ENCODE_URI_COMPONENT;
+                        f = reEqualSign.test(attributeValue) ? filter.FILTER_ENCODE_URI_COMPONENT : filter.FILTER_ENCODE_URI;
                     }
                     filters.push(f);
 
