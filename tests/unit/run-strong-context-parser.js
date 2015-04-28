@@ -12,7 +12,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
     require("mocha");
     var expect = require('chai').expect,
         utils = require("../utils.js"),
-        ContextParser = require("../../src/strong-context-parser.js"),
+        ContextParser = require("../../src/strict-context-parser.js"),
         contextParser = new ContextParser();
 
     describe('Input Stream Pre-processing Test', function(){

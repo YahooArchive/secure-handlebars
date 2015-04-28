@@ -15,7 +15,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 var debug = require('debug')('cph');
 
 /* import the required package */
-var ContextParser = require('./strong-context-parser.js'),
+var ContextParser = require('./strict-context-parser.js'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = require('context-parser').StateMachine;
 
@@ -199,26 +199,38 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
         endPos = 0;
 
     /* Handlebars expression type */
-    var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION,
-        handlebarsExpressionTypeName = '';
+    var handlebarsExpressionType, handlebarsExpressionTypeName = '';
 
     try {
         for(j=i;j<len;++j) {
 
             /* distinguish the type */
             handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
-            if (input[j] === '{' && j+3<len && input[j+1] === '{' && input[j+2] === '{' && input[j+3] === '{') {
-                handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
-                handlebarsExpressionTypeName = 'rawblock';
-            } else if (input[j] === '{' && j+2<len && input[j+1] === '{' && input[j+2] === '{') {
-                handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
-                handlebarsExpressionTypeName = 'rawexpression';
-            } else if (input[j] === '{' && j+1<len && input[j+1] === '{') {
-                handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, j);
-                handlebarsExpressionTypeName = handlebarsExpressionType === handlebarsUtils.ESCAPE_EXPRESSION? 'escapeexpression' : 'expression';
-                handlebarsExpressionType === handlebarsUtils.BRANCH_EXPRESSION? handlebarsExpressionTypeName = 'branchstart' : '';
-                handlebarsExpressionType === handlebarsUtils.ELSE_EXPRESSION? handlebarsExpressionTypeName = 'branchelse' : '';
-                handlebarsExpressionType === handlebarsUtils.BRANCH_END_EXPRESSION? handlebarsExpressionTypeName = 'branchend' : '';
+            
+
+            if (input[j] === '{' && input[j+1] === '{') {
+                if (input[j+2] === '{') { 
+                    // 4 braces are encountered
+                    if (input[j+3] === '{') {
+                        handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
+                        handlebarsExpressionTypeName = 'rawblock';
+                    } 
+                    // 3 braces are encountered
+                    else {
+                        handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
+                        handlebarsExpressionTypeName = 'rawexpression';
+                    }
+                }
+                // 2 braces are encountered
+                else {
+                    handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, j);
+                    // 'expression' is the default handlebarsExpressionTypeName
+                    handlebarsExpressionTypeName = handlebarsExpressionType === handlebarsUtils.ESCAPE_EXPRESSION ? 'escapeexpression'
+                        : handlebarsExpressionType === handlebarsUtils.BRANCH_EXPRESSION ? 'branchstart' 
+                        : handlebarsExpressionType === handlebarsUtils.ELSE_EXPRESSION ? 'branchelse' 
+                        : handlebarsExpressionType === handlebarsUtils.BRANCH_END_EXPRESSION ? 'branchend' 
+                        : 'expression';
+                }
             }
 
             if (handlebarsExpressionType !== handlebarsUtils.NOT_EXPRESSION) {

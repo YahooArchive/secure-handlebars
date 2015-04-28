@@ -8950,7 +8950,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 var debug = require('debug')('cph');
 
 /* import the required package */
-var ContextParser = require('./strong-context-parser.js'),
+var ContextParser = require('./strict-context-parser.js'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = require('context-parser').StateMachine;
 
@@ -9134,26 +9134,38 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
         endPos = 0;
 
     /* Handlebars expression type */
-    var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION,
-        handlebarsExpressionTypeName = '';
+    var handlebarsExpressionType, handlebarsExpressionTypeName = '';
 
     try {
         for(j=i;j<len;++j) {
 
             /* distinguish the type */
             handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
-            if (input[j] === '{' && j+3<len && input[j+1] === '{' && input[j+2] === '{' && input[j+3] === '{') {
-                handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
-                handlebarsExpressionTypeName = 'rawblock';
-            } else if (input[j] === '{' && j+2<len && input[j+1] === '{' && input[j+2] === '{') {
-                handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
-                handlebarsExpressionTypeName = 'rawexpression';
-            } else if (input[j] === '{' && j+1<len && input[j+1] === '{') {
-                handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, j);
-                handlebarsExpressionTypeName = handlebarsExpressionType === handlebarsUtils.ESCAPE_EXPRESSION? 'escapeexpression' : 'expression';
-                handlebarsExpressionType === handlebarsUtils.BRANCH_EXPRESSION? handlebarsExpressionTypeName = 'branchstart' : '';
-                handlebarsExpressionType === handlebarsUtils.ELSE_EXPRESSION? handlebarsExpressionTypeName = 'branchelse' : '';
-                handlebarsExpressionType === handlebarsUtils.BRANCH_END_EXPRESSION? handlebarsExpressionTypeName = 'branchend' : '';
+            
+
+            if (input[j] === '{' && input[j+1] === '{') {
+                if (input[j+2] === '{') { 
+                    // 4 braces are encountered
+                    if (input[j+3] === '{') {
+                        handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
+                        handlebarsExpressionTypeName = 'rawblock';
+                    } 
+                    // 3 braces are encountered
+                    else {
+                        handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
+                        handlebarsExpressionTypeName = 'rawexpression';
+                    }
+                }
+                // 2 braces are encountered
+                else {
+                    handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, j);
+                    // 'expression' is the default handlebarsExpressionTypeName
+                    handlebarsExpressionTypeName = handlebarsExpressionType === handlebarsUtils.ESCAPE_EXPRESSION ? 'escapeexpression'
+                        : handlebarsExpressionType === handlebarsUtils.BRANCH_EXPRESSION ? 'branchstart' 
+                        : handlebarsExpressionType === handlebarsUtils.ELSE_EXPRESSION ? 'branchelse' 
+                        : handlebarsExpressionType === handlebarsUtils.BRANCH_END_EXPRESSION ? 'branchend' 
+                        : 'expression';
+                }
             }
 
             if (handlebarsExpressionType !== handlebarsUtils.NOT_EXPRESSION) {
@@ -9306,8 +9318,6 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
     var output = '', leftParser, rightParser,
         t, msg, exceptionObj, debugString = [];
 
-    // console.log('forked states', leftParser.state, rightParser.state, '\n', ast);
-
     this._charNo = charNo;
 
     function consumeAstNode (tree, parser) {
@@ -9317,34 +9327,25 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
             node = tree[j];
 
             if (node.type === 'html') {
-                // var html5Parser = new CustomizedContextParser();
-                // html5Parser.setInternalState(r.lastStates[i]);
-                // html5Parser.contextualize(node.content);
-                // r.output += html5Parser.getOutput();
-                // r.lastStates[i] = html5Parser.getInternalState();
-                // var newParser = parser.fork();
+                
                 output += parser.parsePartial(node.content);
 
             } else if (node.type === 'escapeexpression' ||
                 node.type === 'rawexpression') {
-                // var lastState = parser.state;
-                /* lookupStateForHandlebarsOpenBraceChar from current state before handle it */
-                // r.lastStates[i].state = ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[r.lastStates[i].state];
+
+                // lookupStateForHandlebarsOpenBraceChar from current state before handle it
                 parser.setCurrentState(ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[parser.state]);
                 this.clearBuffer();
                 this.handleTemplate(node.content, 0, parser);
                 output += this.getOutput();
 
             } else if (node.type === 'node') {
-                // t = this.analyzeAst(node.content, r.lastStates[i], node.startPos);
-                // r.lastStates[i] = t.lastStates[i]; // index 0 and 1 MUST be equal
-
-
+                
                 t = this.analyzeAst(node.content, parser, node.startPos);
-                // cloning states from either leftParser or rightParser makes no difference as they're ensured to result in same consistent state
-                parser.state = t.leftParser.state;
-                parser.attributeName = t.leftParser.attributeName;
-                parser.attributeValue = t.leftParser.attributeValue;
+                // cloning states from the branches
+                parser.state = t.parser.state;
+                parser.attributeName = t.parser.attributeName;
+                parser.attributeValue = t.parser.attributeValue;
 
                 output += t.output;
 
@@ -9353,6 +9354,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
                 node.type === 'branchstart' ||
                 node.type === 'branchelse' ||
                 node.type === 'branchend') {
+
                 output += node.content;
             }
 
@@ -9368,25 +9370,12 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
         return parser;
     }
 
-
-    /* make lastStates[0] and lastStates[1] the same as the tree has one branch */
-    // ast.left.length > 0 && ast.right.length === 0? r.lastStates[1] = r.lastStates[0] : '';
-    // ast.left.length === 0 && ast.right.length > 0? r.lastStates[0] = r.lastStates[1] : '';
-    // debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
-
-    // if the two branches result in different state
-    // if (r.lastStates[0].state !== r.lastStates[1].state) {
-    //     debug("analyzeAst:["+r.lastStates[0].state+"/"+r.lastStates[1].state+"]");
-    //     msg = "[ERROR] ContextParserHandlebars: Parsing error! Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+r.lastStates[0].state+"/"+r.lastStates[1].state+")";
-    //     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
-    //     handlebarsUtils.handleError(exceptionObj, true);
-    // }
-
     // consumeAstNode() for both ast.left and ast.right if they are non-empty
     leftParser  = ast.left.length  && consumeAstNode.call(this, ast.left,  contextParser.fork());
     rightParser = ast.right.length && consumeAstNode.call(this, ast.right, contextParser.fork());
 
     // if the two non-empty branches result in different states
+    // TODO: check also the attributeName, attributeValue and tagName differences
     if (leftParser && rightParser && 
             leftParser.state !== rightParser.state) {
         // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
@@ -9395,7 +9384,8 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
         handlebarsUtils.handleError(exceptionObj, true);
     }
 
-    return {output: output, leftParser: leftParser, rightParser: rightParser};
+    // returning either leftParser or rightParser makes no difference as they're assured to be in consistent state
+    return {output: output, parser: leftParser || rightParser};
 };
 
 /**
@@ -9754,7 +9744,7 @@ module.exports = ContextParserHandlebars;
 })();
 
 }).call(this,require('_process'))
-},{"./handlebars-utils.js":40,"./strong-context-parser.js":42,"_process":8,"context-parser":1,"debug":3}],40:[function(require,module,exports){
+},{"./handlebars-utils.js":40,"./strict-context-parser.js":42,"_process":8,"context-parser":1,"debug":3}],40:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -10375,9 +10365,9 @@ function DisableIEConditionalComments(state, i){
 }
 
 /** 
-* @module StrongContextParser
+* @module StrictContextParser
 */
-function StrongContextParser(config, listeners) {
+function StrictContextParser(config, listeners) {
     var self = this, k;
 
     // super
@@ -10426,22 +10416,22 @@ function StrongContextParser(config, listeners) {
 }
 
 /* inherit contextParser.FastParser */
-StrongContextParser.prototype = Object.create(htmlParser.prototype);
-StrongContextParser.prototype.constructor = StrongContextParser;
+StrictContextParser.prototype = Object.create(htmlParser.prototype);
+StrictContextParser.prototype.constructor = StrictContextParser;
 
 /**
-* @function StrongContextParser._getSymbol
+* @function StrictContextParser._getSymbol
 * @param {integer} i - the index of input stream
 *
 * @description
 * Get the html symbol mapping for the character located in the given index of input stream
 */
-StrongContextParser.prototype._getSymbol = function (i) {
+StrictContextParser.prototype._getSymbol = function (i) {
     return i < this.inputLen ? this.lookupChar(this.input[i]) : -1;
 };
 
 /**
-* @function StrongContextParser._getNextState
+* @function StrictContextParser._getNextState
 * @param {integer} state - the current state
 * @param {integer} i - the index of input stream
 * @returns {integer} the potential state about to transition into, given the current state and an index of input stream
@@ -10449,18 +10439,18 @@ StrongContextParser.prototype._getSymbol = function (i) {
 * @description
 * Get the potential html state about to transition into
 */
-StrongContextParser.prototype._getNextState = function (state, i, endsWithEOF) {
+StrictContextParser.prototype._getNextState = function (state, i, endsWithEOF) {
     return i < this.inputLen ? stateMachine.lookupStateFromSymbol[this._getSymbol(i)][state] : -1;
 };
 
 /**
-* @function StrongContextParser.fork
+* @function StrictContextParser.fork
 * @returns {object} a new parser with all internal states inherited
 *
 * @description
 * create a new parser with all internal states inherited
 */
-StrongContextParser.prototype.fork = function() {
+StrictContextParser.prototype.fork = function() {
     var parser = new this.constructor(this.config, this.listeners);
 
     parser.state = this.state;
@@ -10477,7 +10467,19 @@ StrongContextParser.prototype.fork = function() {
     return parser;
 };
 
-StrongContextParser.prototype.on = function(eventType, listener) {
+
+/**
+ * @function StrictContextParser#on
+ *
+ * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
+ * @param {function} listener - the event listener
+ * @returns this
+ *
+ * @description
+ * <p>register the given event listener to the given eventType</p>
+ *
+ */
+StrictContextParser.prototype.on = function(eventType, listener) {
     var self = this, listeners = self.listeners[eventType];
     if (listener) {
         if (listeners) {
@@ -10489,7 +10491,18 @@ StrongContextParser.prototype.on = function(eventType, listener) {
     return self;
 };
 
-StrongContextParser.prototype.once = function(eventType, listener) {
+/**
+ * @function StrictContextParser#once
+ *
+ * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
+ * @param {function} listener - the event listener
+ * @returns this
+ *
+ * @description
+ * <p>register the given event listener to the given eventType, for which it will be fired only once</p>
+ *
+ */
+StrictContextParser.prototype.once = function(eventType, listener) {
     var self = this, onceListener;
     if (listener) {
         onceListener = function () {
@@ -10501,7 +10514,18 @@ StrongContextParser.prototype.once = function(eventType, listener) {
     return self;
 };
 
-StrongContextParser.prototype.off = function (eventType, listener) {
+/**
+ * @function StrictContextParser#off
+ *
+ * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
+ * @param {function} listener - the event listener
+ * @returns this
+ *
+ * @description
+ * <p>remove the listener from being fired when the eventType happen</p>
+ *
+ */
+StrictContextParser.prototype.off = function (eventType, listener) {
     if (listener) {
         var i, len, listeners = this.listeners[eventType];
         if (listeners) {
@@ -10516,7 +10540,17 @@ StrongContextParser.prototype.off = function (eventType, listener) {
     return this;
 };
 
-StrongContextParser.prototype.emit = function (eventType) {
+/**
+ * @function StrictContextParser#emit
+ *
+ * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
+ * @returns this
+ *
+ * @description
+ * <p>fire those listeners correspoding to the given eventType</p>
+ *
+ */
+StrictContextParser.prototype.emit = function (eventType) {
     var self = this,
         listeners = self.listeners[eventType],
         i, args, listener;
@@ -10531,7 +10565,7 @@ StrongContextParser.prototype.emit = function (eventType) {
 };
 
 /**
- * @function StrongContextStrongContextParser#parsePartial
+ * @function StrictContextParser#parsePartial
  *
  * @param {string} input - The HTML fragment
  * @returns {string} the inputs with parse errors and browser-inconsistent characters automatically corrected
@@ -10540,7 +10574,7 @@ StrongContextParser.prototype.emit = function (eventType) {
  * <p>Perform HTML fixer before the contextual analysis</p>
  *
  */
-StrongContextParser.prototype.parsePartial = function(input, endsWithEOF) {
+StrictContextParser.prototype.parsePartial = function(input, endsWithEOF) {
     var self = this;
     self.input = input.split('');
     self.inputLen = self.input.length;
@@ -10548,6 +10582,7 @@ StrongContextParser.prototype.parsePartial = function(input, endsWithEOF) {
     for (var i = 0, lastState; i < self.inputLen; i++) {
         lastState = self.state;
 
+        // TODO: endsWithEOF handling
         self.emit('preWalk', lastState, i, endsWithEOF);
         self.walk(i, self.input, endsWithEOF);
         self.emit('postWalk', lastState, self.state, i, endsWithEOF);
@@ -10557,7 +10592,8 @@ StrongContextParser.prototype.parsePartial = function(input, endsWithEOF) {
 };
 
 
-StrongContextParser.prototype.walk = function(i, input, endsWithEOF) {
+// the only difference from the original walk is to use the this.emit('reWalk') interface
+StrictContextParser.prototype.walk = function(i, input, endsWithEOF) {
 
     var ch = input[i],
         symbol = this.lookupChar(ch),
@@ -10602,7 +10638,7 @@ StrongContextParser.prototype.walk = function(i, input, endsWithEOF) {
 
 
 /**
- * @function StrongContextParser#setCurrentState
+ * @function StrictContextParser#setCurrentState
  *
  * @param {integer} state - The state of HTML5 page.
  *
@@ -10610,7 +10646,7 @@ StrongContextParser.prototype.walk = function(i, input, endsWithEOF) {
  * Set the current state of the HTML5 Context Parser.
  *
  */
-StrongContextParser.prototype.setCurrentState = function(state) {
+StrictContextParser.prototype.setCurrentState = function(state) {
     this.state = state;
     if (this.states) {
         this.states.pop();
@@ -10620,7 +10656,7 @@ StrongContextParser.prototype.setCurrentState = function(state) {
 };
 
 /**
- * @function StrongContextParser#getCurrentState
+ * @function StrictContextParser#getCurrentState
  *
  * @returns {integer} The last state of the HTML5 Context Parser.
  *
@@ -10628,9 +10664,19 @@ StrongContextParser.prototype.setCurrentState = function(state) {
  * Get the last state of HTML5 Context Parser.
  *
  */
-StrongContextParser.prototype.getCurrentState = function() {
+StrictContextParser.prototype.getCurrentState = function() {
     return this.state;
 };
+
+
+
+
+
+
+
+
+
+
 
 
 /**
@@ -10640,7 +10686,7 @@ StrongContextParser.prototype.getCurrentState = function() {
  */
 
 /**
- * @function StrongContextParser#setCurrentState
+ * @function StrictContextParser#setCurrentState
  *
  * @param {integer} state - The state of HTML5 page.
  *
@@ -10648,13 +10694,13 @@ StrongContextParser.prototype.getCurrentState = function() {
  * Set the current state of the HTML5 Context Parser.
  *
  */
-// StrongContextParser.prototype.setCurrentState = function(state) {
+// StrictContextParser.prototype.setCurrentState = function(state) {
 //     this.state = state;
 // };
 
 
 /**
- * @function StrongContextParser#getStates
+ * @function StrictContextParser#getStates
  *
  * @returns {Array} An array of states.
  *
@@ -10662,12 +10708,12 @@ StrongContextParser.prototype.getCurrentState = function() {
  * Get the states of the HTML5 page
  *
  */
-StrongContextParser.prototype.getStates = function() {
+StrictContextParser.prototype.getStates = function() {
     return this.states;
 };
 
 /**
- * @function StrongContextParser#setInitState
+ * @function StrictContextParser#setInitState
  *
  * @param {integer} state - The initial state of the HTML5 Context Parser.
  *
@@ -10675,12 +10721,12 @@ StrongContextParser.prototype.getStates = function() {
  * Set the init state of HTML5 Context Parser.
  *
  */
-StrongContextParser.prototype.setInitState = function(state) {
+StrictContextParser.prototype.setInitState = function(state) {
     this.states && (this.states[0] = state);
 };
 
 /**
- * @function StrongContextParser#getInitState
+ * @function StrictContextParser#getInitState
  *
  * @returns {integer} The initial state of the HTML5 Context Parser.
  *
@@ -10688,12 +10734,12 @@ StrongContextParser.prototype.setInitState = function(state) {
  * Get the init state of HTML5 Context Parser.
  *
  */
-StrongContextParser.prototype.getInitState = function() {
+StrictContextParser.prototype.getInitState = function() {
     return this.states && this.states[0];
 };
 
 /**
- * @function StrongContextParser#getLastState
+ * @function StrictContextParser#getLastState
  *
  * @returns {integer} The last state of the HTML5 Context Parser.
  *
@@ -10701,13 +10747,13 @@ StrongContextParser.prototype.getInitState = function() {
  * Get the last state of HTML5 Context Parser.
  *
  */
-StrongContextParser.prototype.getLastState = function() {
+StrictContextParser.prototype.getLastState = function() {
     // * undefined if length = 0 
     return this.states ? this.states[ this.states.length - 1 ] : this.state;
 };
 
 /**
- * @function StrongContextParser#getAttributeName
+ * @function StrictContextParser#getAttributeName
  *
  * @returns {string} The current handling attribute name.
  *
@@ -10715,12 +10761,12 @@ StrongContextParser.prototype.getLastState = function() {
  * Get the current handling attribute name of HTML tag.
  *
  */
-StrongContextParser.prototype.getAttributeName = function() {
+StrictContextParser.prototype.getAttributeName = function() {
     return this.attributeName;
 };
 
 /**
- * @function StrongContextParser#getAttributeValue
+ * @function StrictContextParser#getAttributeValue
  *
  * @returns {string} The current handling attribute name's value.
  *
@@ -10728,24 +10774,24 @@ StrongContextParser.prototype.getAttributeName = function() {
  * Get the current handling attribute name's value of HTML tag.
  *
  */
-StrongContextParser.prototype.getAttributeValue = function() {
+StrictContextParser.prototype.getAttributeValue = function() {
     return this.attributeValue;
 };
 
 /**
- * @function StrongContextParser#getStartTagName
+ * @function StrictContextParser#getStartTagName
  *
  * @returns {string} The current handling start tag name
  *
  */
-StrongContextParser.prototype.getStartTagName = function() {
+StrictContextParser.prototype.getStartTagName = function() {
     return this.tagNames[0];
 };
 
 
 
 /* exposing it */
-module.exports = StrongContextParser;
+module.exports = StrictContextParser;
 
 })();
 

@@ -11,7 +11,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     require("mocha");
     var expect = require("chai").expect,
-        ContextParser = require("../../src/strong-context-parser");
+        ContextParser = require("../../src/strict-context-parser");
 
     describe('HTML5 Customized Context Parser html5 state test suite', function(){
 
