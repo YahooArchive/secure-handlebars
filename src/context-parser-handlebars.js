@@ -33,6 +33,10 @@ var filter = {
     FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED: 'yavd',
     FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED: 'yavs',
     FILTER_ATTRIBUTE_VALUE_UNQUOTED: 'yavu',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED: 'yced',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED: 'yces',  
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED: 'yceu', 	
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL: 'ycufull',	
     FILTER_ENCODE_URI: 'yu',
     FILTER_ENCODE_URI_COMPONENT: 'yuc',
     FILTER_URI_SCHEME_BLACKLIST: 'yubl',
@@ -55,7 +59,7 @@ var uriAttributeNames = {'href':1, 'src':1, 'action':1, 'formaction':1, 'backgro
 var reEqualSign = /(?:=|&#0*61;?|&#[xX]0*3[dD];?|&equals;)/;
 
 /*
-'&#0*32;?|&#[xX]0*20;?|&#0*9;?|&#[xX]0*9;?|&Tab;|&#0*10;?|&#[xX]0*[aA];?|&NewLine;|&#0*12;?|&#[xX]0*[cC];?|&#0*13;?|&#[xX]0*[dD];?'; // space,\t,\r,\n,\f
+'&#0*32;?|&#[xX]0*20;?|&#0*9;?|&#[xX]0*9;?|&Tab;|&#0*10;?|&#[xX]0*[aA];?|&NewLine;|&#0*12;?|&#[xX]0*[cC];?|&#0*13;?|&#[xX]0*[dD];?|\t|\r|\n|\f'; // space,\t,\r,\n,\f
 '&#0*58;?|&#[xX]0*3[aA];?|&colon;'      // colon
 '&#0*59;?|&#[xX]0*3[bB];?|&semi;'       // semicolon
 '&#0*40;?|&#[xX]0*28;?|&lpar;'          // (
@@ -63,7 +67,7 @@ var reEqualSign = /(?:=|&#0*61;?|&#[xX]0*3[dD];?|&equals;)/;
 */
 var cssReplaceChar = [ ' ', ':', ';', '(', ')' ];
 var reCss = [
-    /&#0*32;?|&#[xX]0*20;?|&#0*9;?|&#[xX]0*9;?|&Tab;|&#0*10;?|&#[xX]0*[aA];?|&NewLine;|&#0*12;?|&#[xX]0*[cC];?|&#0*13;?|&#[xX]0*[dD];?/g,
+    /&#0*32;?|&#[xX]0*20;?|&#0*9;?|&#[xX]0*9;?|&Tab;|&#0*10;?|&#[xX]0*[aA];?|&NewLine;|&#0*12;?|&#[xX]0*[cC];?|&#0*13;?|&#[xX]0*[dD];?|\t|\r|\n|\f/g,
     /&#0*58;?|&#[xX]0*3[aA];?|&colon;/g,
     /&#0*59;?|&#[xX]0*3[bB];?|&semi;/g,
     /&#0*40;?|&#[xX]0*28;?|&lpar;/g,
@@ -630,7 +634,7 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
 
                     /* split the string as per http://www.w3.org/TR/css-style-attr/ with ':' and ';' */
                     var kv = attributeValue.split(';'); // it will return new array even there is no ';' in the string
-                    var v = kv[kv.length-1].split(':'); /* only handling the last element */
+                    var v = kv[kv.length-1].split(':'); // only handling the last element
 
                     if (v.length && v.length === 2) {
                         filters = [];
@@ -641,7 +645,20 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
                         /* TODO: we can whitelist the property here */
                         if (prop !== '') { // && whitelisted
 
-                            /* TODO: need to add CSS xss filter here */
+                            /* space has been trimmed above */
+                            if (expr.match(/^url\($/)) {
+                                isFullUri = true;
+                                f = filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL; // we only support full URL filtering in CSS url()
+                            } else if (expr.match(/^'$/)) {
+                                f = filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED;
+                            } else if (expr.match(/^"$/)) {
+                                f = filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED;
+                            } else if (expr === "") {
+                                f = filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED;
+                            } else {
+                                throw 'Unsafe output expression @ attribute style CSS context (invalid CSS syntax)';
+                            }
+                            filters.push(f);
 
                             /* add the attribute value filter */
                             switch(stateObj.state) {
@@ -656,12 +673,17 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
                             }
                             filters.push(f);
 
+                            /* add blacklist filters at the end of filtering chain */
+                            if (isFullUri) {
+                                /* blacklist the URI scheme for full uri */
+                                filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
+                            }
                         } else { /* the property name is empty */
-                            throw 'Unsafe output expression @ attribute style CSS context';
+                            throw 'Unsafe output expression @ attribute style CSS context (property name empty)';
                         }
                         return filters;
                     } else { // output place holder at property position
-                        throw 'Unsafe output expression @ attribute style CSS context';
+                        throw 'Unsafe output expression @ attribute style CSS context (output at property position)';
                     }
                 } else if (attributeName.match(/^on/i)) { // Javascript
                     /* we don't support js parser yet

@@ -778,25 +778,43 @@ var filterTemplatePatterns = [
         file: './tests/samples/files/handlebarsjs_filter_attr_value_style_001.hbs',
         result: [
                   // double quoted
-                  /{{{y color11}}}/, /{{{y color12}}}/, /{{{y bgcolor1}}}/, /{{{y color41}}}/,
-                  /{{{y color5}}}/, /{{{y bgcolor5}}}/,
+                  /{{{yavd \(yceu color11\)}}}/, /{{{yavd \(yceu color12\)}}}/, /{{{yavd \(yceu bgcolor1\)}}}/,
+                  /{{{yavd \(yceu color5\)}}}/, /{{{yavd \(yceu bgcolor5\)}}}/,
+                  /{{{yavd \(yceu color8\)}}}/, /{{{yavd \(yceu bgcolor8\)}}}/,
+                  /{{{yavd \(yceu color9\)}}}/, /{{{yavd \(yceu bgcolor9\)}}}/,
+                  // double quoted with css single quoted
+                  /{{{yavd \(yces color41\)}}}/,
+                  // double quoted with css url()
+                  /{{{yubl \(yavd \(ycufull url1\)\)}}}/, /{{{yubl \(yavd \(ycufull url2\)\)}}}/,
+                  // double quoted with invalid css url()
+                  /{{{y url3}}}/, /{{{y url4}}}/,
+
                   // single quoted
-                  /{{{y color21}}}/, /{{{y color22}}}/, /{{{y bgcolor2}}}/, /{{{y color42}}}/,
-                  /{{{y color6}}}/, /{{{y bgcolor6}}}/,
+                  /{{{yavs \(yceu color21\)}}}/, /{{{yavs \(yceu color22\)}}}/, /{{{yavs \(yceu bgcolor2\)}}}/,
+                  /{{{yavs \(yceu color6\)}}}/, /{{{yavs \(yceu bgcolor6\)}}}/,
+                  // single quoted with css double quoted
+                  /{{{yavs \(yced color42\)}}}/,
+
                   // unquoted
-                  /{{{y color31}}}/, /{{{y color32}}}/, /{{{y bgcolor3}}}/, /{{{y color43}}}/,
-                  /{{{y color7}}}/, /{{{y bgcolor7}}}/
+                  /{{{yavu \(yceu color31\)}}}/, /{{{yavu \(yceu color32\)}}}/, /{{{yavu \(yceu bgcolor3\)}}}/,
+                  /{{{yavu \(yceu color7\)}}}/,
+
+                  // attribute name
+                  /{{{y bgcolor7}}}/, /{{{y color43}}}/, /{{{y color44}}}/,
+
+                  // invalid
+                  /{{{y invalid1}}}/, /{{{y invalid2}}}/, /{{{y invalid3}}}/, /{{{y invalid4}}}/,
         ],
     },
     {
         title: './bin/handlebarspp attribute value / CSS state (full string) template filter test',
         file: './tests/samples/files/handlebarsjs_filter_attr_value_style_002.hbs',
         result: [ // double quoted
-                  /{{{y style1}}}/, /{{{y style4}}}/,
+                  /{{{y style1}}}/, /{{{y style4}}}/, /{{{y style7}}}/,
                   // single quoted
-                  /{{{y style2}}}/, /{{{y style5}}}/,
+                  /{{{y style2}}}/, /{{{y style5}}}/, /{{{y style8}}}/,
                   // unquoted
-                  /{{{y style3}}}/, /{{{y style6}}}/
+                  /{{{y style3}}}/, /{{{y style6}}}/, /{{{y style9}}}/,
         ],
     },
     {
