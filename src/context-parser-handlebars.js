@@ -631,6 +631,7 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
                         attributeValue = attributeValue.replace(reCss[j], cssReplaceChar[j]);
                     }
                     attributeValue = attributeValue.replace(/ /g, ''); // ok to remove all space and space has been html decoded.
+                    debug("addFilter:attributeValue:["+attributeValue+"]");
 
                     /* split the string as per http://www.w3.org/TR/css-style-attr/ with ':' and ';' */
                     var kv = attributeValue.split(';'); // it will return new array even there is no ';' in the string
@@ -641,6 +642,7 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
 
                         var prop = v[0],
                             expr = v[1];
+                        debug("addFilter:prop:"+prop+",expr:"+expr);
 
                         /* TODO: we can whitelist the property here */
                         if (prop !== '') { // && whitelisted

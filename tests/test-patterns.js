@@ -818,6 +818,29 @@ var filterTemplatePatterns = [
         ],
     },
     {
+        title: './bin/handlebarspp attribute value / CSS state branching template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_style_003.hbs',
+        result: [ // double quoted
+                  /{{{yavd \(yceu color1\)}}}/,
+                  /{{{yavd \(yceu color2\)}}}/,
+                  /{{{yavd \(yces color5\)}}}/,
+                  /{{{yavd \(yces color6\)}}}/,
+                  // single quoted
+                  /{{{yavs \(yceu color3\)}}}/,
+                  /{{{yavs \(yceu color4\)}}}/,
+                  /{{{yavs \(yced color7\)}}}/,
+                  /{{{yavs \(yced color8\)}}}/,
+                  // unquoted 
+                  /{{{yavu \(yceu color9\)}}}/,
+                  /{{{yavu \(yceu color10\)}}}/,
+
+                  // invalid
+                  /{{{y color0}}}/,
+                  /{{{y invalid1}}}/, /{{{y invalid2}}}/, /{{{y invalid3}}}/, /{{{y invalid4}}}/,
+                  /{{{y invalid5}}}/, /{{{y invalid6}}}/, /{{{y invalid7}}}/, /{{{y invalid8}}}/,
+        ],
+    },
+    {
         title: './bin/handlebarspp attribute value template filter test',
         file: './tests/samples/files/handlebarsjs_filter_attr_value.hbs',
         result: [ // double quoted
