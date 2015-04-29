@@ -10158,25 +10158,14 @@ function Canonicalize(state, i, endsWithEOF) {
     if (chr === '\x00' && statesRequiringNullReplacement[state]) {
         input[i] = '\uFFFD';
     }
-    // convert < to &lt; for unknown tagnames (not started with alpha)
-    else if (potentialState === htmlState.STATE_TAG_OPEN) {    // only from STATE_DATA
-        if (nextPotentialState === htmlState.STATE_DATA) {     // [<]3, where last char is non-alpha about to transit to data
-            // <3 must be interpreted as &lt;3 (don't turn it to a heart :)
-            // replace the current < with &lt; 
-            // potentialState will be changed from TAG_OPEN to DATA
-            input.splice(i, 1, '&', 'l', 't', ';');
-            this.inputLen += 3;
-        } 
-        /*
-        // found </>. convert it to <!--/-->
-        else if (nextPotentialState === htmlState.STATE_END_TAG_OPEN && input[i + 2] === '>') {  // [<]/>
-            // found </>, remove this ambigious block 
-            input.splice(i, 3);
-            this.inputLen -= 3;
-        */ 
-        else {
-            reCanonicalizeNeeded = false;
-        }
+    // encode < into &lt; for [<]* (* is non-alpha) in STATE_DATA, [<]% and [<]! in STATE_RCDATA and STATE_RAWTEXT
+    else if ((potentialState === htmlState.STATE_TAG_OPEN && nextPotentialState === htmlState.STATE_DATA) ||  // [<]*, where * is non-alpha
+             ((state === htmlState.STATE_RCDATA || state === htmlState.STATE_RAWTEXT) &&                            // in STATE_RCDATA and STATE_RAWTEXT
+            chr === '<' && (nextChr === '%' || nextChr === '!'))) {   // [<]% or [<]!
+        
+        // [<]*, [<]%, [<]!
+        input.splice(i, 1, '&', 'l', 't', ';');
+        this.inputLen += 3;
     }
     // enforce <!doctype html>
     // + convert bogus comment or unknown doctype to the standard html comment
