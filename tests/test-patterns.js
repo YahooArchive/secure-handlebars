@@ -734,7 +734,7 @@ var filterTemplatePatterns = [
         result: [ /{{{yd name}}}/, /{{{yc comment}}}/ ],
     },
     {
-        title: './bin/handlebarspp attribute value / URI state template filter test',
+        title: './bin/handlebarspp attribute value / URI state template filter test 1',
         file: './tests/samples/files/handlebarsjs_filter_attr_value_href.hbs',
         result: [ 
                   // test against double quoted, single quoted and unquoted URL in attribute href
@@ -759,19 +759,35 @@ var filterTemplatePatterns = [
         ],
     },
     {
-        title: './bin/handlebarspp attribute value / URI state template filter test',
+        title: './bin/handlebarspp attribute value / URI state template filter test 2',
         file: './tests/samples/files/handlebarsjs_filter_attr_value_src.hbs',
         result: [],
     },
     {
-        title: './bin/handlebarspp attribute value / URI state template filter test',
+        title: './bin/handlebarspp attribute value / URI state template filter test 3',
         file: './tests/samples/files/handlebarsjs_filter_attr_value_form_action.hbs',
         result: [],
     },
     {
-        title: './bin/handlebarspp attribute value / URI state template filter test',
+        title: './bin/handlebarspp attribute value / URI state template filter test 4',
         file: './tests/samples/files/handlebarsjs_filter_attr_value_button_formaction.hbs',
         result: [],
+    },
+    {
+        title: './bin/handlebarspp URI attribute test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_uri_contexts.hbs',
+        result: [
+            /{{{yubl \(yavd \(yufull url01\)\)}}}/, /{{{yubl \(yavd \(yufull url02\)\)}}}/, /{{{yubl \(yavd \(yufull url03\)\)}}}/,
+            /{{{yubl \(yavd \(yufull url04\)\)}}}/, /{{{yubl \(yavd \(yufull url05\)\)}}}/, /{{{yubl \(yavd \(yufull url06\)\)}}}/,
+            /{{{yubl \(yavd \(yufull url07\)\)}}}/, /{{{yubl \(yavd \(yufull url08\)\)}}}/, /{{{yubl \(yavd \(yufull url09\)\)}}}/,
+            /{{{yubl \(yavd \(yufull url10\)\)}}}/, /{{{yubl \(yavd \(yufull url11\)\)}}}/, /{{{yubl \(yavd \(yufull url12\)\)}}}/,
+            /{{{yubl \(yavd \(yufull url13\)\)}}}/, /{{{yubl \(yavd \(yufull url14\)\)}}}/, /{{{yubl \(yavd \(yufull url15\)\)}}}/,
+            /{{{yubl \(yavd \(yufull url16\)\)}}}/, /{{{yubl \(yavd \(yufull url17\)\)}}}/, /{{{yubl \(yavd \(yufull url18\)\)}}}/,
+
+            // only add url filters to tag specific attribute
+            /{{{yubl \(yavd \(yufull url90\)\)}}}/, /{{{yubl \(yavd \(yufull url91\)\)}}}/, 
+            /{{{yavd url92}}}/, /{{{yavd url93}}}/
+        ]
     },
     {
         title: './bin/handlebarspp attribute value / CSS state (value string) template filter test',
@@ -1051,49 +1067,49 @@ var exceptionPatterns = [
         title: './bin/handlebarspp STATE_SCRIPT_DATA strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_001.hbs',
         strictMode: true,
-        result: [ /ERROR/, /STATE_SCRIPT_DATA/, ],
+        result: [ /ERROR/, /SCRIPT_DATA/, ],
     },
     {
         title: './bin/handlebarspp STATE_ATTRIBUTE_NAME strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_002.hbs',
         strictMode: true,
-        result: [ /ERROR/, /STATE_ATTRIBUTE_NAME/ ],
+        result: [ /ERROR/, /attribute name/ ],
     },
     {
         title: './bin/handlebarspp STATE_RAWTEXT strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_003.hbs',
         strictMode: true,
-        result: [ /ERROR/, /STATE_RAWTEXT/ ],
+        result: [ /ERROR/, /RAWTEXT/ ],
     },
     {
-        title: './bin/handlebarspp NOT HANDLE strict mode test',
+        title: './bin/handlebarspp STATE_TAG_NAME strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_004.hbs',
         strictMode: true,
-        result: [ /ERROR/, /NOT HANDLE/ ],
+        result: [ /ERROR/, /TAG_NAME/ ],
     },
     {
         title: './bin/handlebarspp attribute URI Javascript context strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_005.hbs',
         strictMode: true,
-        result: [ /ERROR/, /attribute URI Javascript context/ ],
+        result: [ /ERROR/, /scriptable URI/ ],
     },
     {
         title: './bin/handlebarspp attribute style CSS context strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_006.hbs',
         strictMode: true,
-        result: [ /ERROR/, /attribute style CSS context/ ],
+        result: [ /ERROR/, /CSS style attribute/ ],
     },
     {
         title: './bin/handlebarspp attribute on* Javascript context strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_007.hbs',
         strictMode: true,
-        result: [ /ERROR/, /attribute on\* Javascript context/ ],
+        result: [ /ERROR/, /JavaScript event attribute/ ],
     },
     {
         title: './bin/handlebarspp NOT HANDLE state strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_008.hbs',
         strictMode: true,
-        result: [ /ERROR/, /NOT HANDLE/ ],
+        result: [ /ERROR/, /unsupported/ ],
     },
 ];
 exports.exceptionPatterns = exceptionPatterns;
