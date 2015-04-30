@@ -62,6 +62,8 @@ CSSParser.reCss = [
     /&#0*32;?|&#[xX]0*20;?|&#0*9;?|&#[xX]0*9;?|&Tab;|&#0*10;?|&#[xX]0*[aA];?|&NewLine;|&#0*12;?|&#[xX]0*[cC];?|&#0*13;?|&#[xX]0*[dD];?|\t|\r|\n|\f/g,
 ];
 
+CSSParser.reExpr = /(['"]?)?\s*([0-9a-z%#\-+_,!\/\\\*]+)(\([^\(]?\)?)?\s*(['"]?)?\s*/ig;
+
 /* re for URL pattern */
 CSSParser.reUrlUnquoted = /^url\(\s*$/i;
 CSSParser.reUrlSingleQuoted = /^url\(\s*'$/i;
@@ -103,7 +105,6 @@ CSSParser.htmlStyleAttributeValueEntitiesDecode = function(str) {
 * @description
 */
 CSSParser.parseStyleAttributeValue = function(str) {
-console.log(str);
     var r = { prop: '', code: NaN };
     var kv = str.split(';'); // it will return new array even there is no ';' in the string
     var v = kv[kv.length-1].split(':'); // only handling the last element
@@ -123,7 +124,7 @@ console.log(str);
         * (EXPERIMENTAL)
         */
         var parseError = false;
-        var lexpr = expr.replace(/(['"]?)?\s*([0-9a-z%\-_#+,\/!]+)(\([^\(]?\)?)?\s*(['"]?)?\s*/ig, function(m, p1, p2, p3, p4) {
+        var lexpr = expr.replace(CSSParser.reExpr, function(m, p1, p2, p3, p4) {
             // console.log("["+p1+"]["+p2+"]["+p3+"]["+p4+"]");
             p3 = p3 !== undefined? p3.trim() : p3; // p3 may has space
             // p2 is always not undefined based on the regExp

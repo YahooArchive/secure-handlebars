@@ -645,7 +645,7 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
                         case cssParser.STYLE_ATTRIBUTE_ERROR_PROP_EMPTY:
                             throw 'Unsafe output expression @ attribute style CSS context (property name empty)';
                         case cssParser.STYLE_ATTRIBUTE_ERROR:
-                            throw 'Unsafe output expression @ attribute style CSS context';
+                            throw 'Unsafe output expression @ attribute style CSS context (parsing error)';
                     }
 
                     /* add the attribute value filter */
