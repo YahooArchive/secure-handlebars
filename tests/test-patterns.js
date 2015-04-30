@@ -5,7 +5,8 @@ See the accompanying LICENSE file for terms.
 */
 (function() {
 
-var handlebarsUtils = require('../src/handlebars-utils');
+var handlebarsUtils = require('../src/handlebars-utils'),
+    cssParser = require('../src/css-parser');
 
 // for handlebars-3.0-spec test only
 var expressionTestPatterns = [
@@ -780,14 +781,8 @@ var filterTemplatePatterns = [
                   // double quoted
                   /{{{yavd \(yceu color11\)}}}/, /{{{yavd \(yceu color12\)}}}/, /{{{yavd \(yceu bgcolor1\)}}}/,
                   /{{{yavd \(yceu color5\)}}}/, /{{{yavd \(yceu bgcolor5\)}}}/,
-                  /{{{yavd \(yceu color8\)}}}/, /{{{yavd \(yceu bgcolor8\)}}}/,
-                  /{{{yavd \(yceu color9\)}}}/, /{{{yavd \(yceu bgcolor9\)}}}/,
                   // double quoted with css single quoted
                   /{{{yavd \(yces color41\)}}}/,
-                  // double quoted with css url()
-                  /{{{yubl \(yavd \(ycufull url1\)\)}}}/, /{{{yubl \(yavd \(ycufull url2\)\)}}}/,
-                  // double quoted with invalid css url()
-                  /{{{y url3}}}/, /{{{y url4}}}/,
 
                   // single quoted
                   /{{{yavs \(yceu color21\)}}}/, /{{{yavs \(yceu color22\)}}}/, /{{{yavs \(yceu bgcolor2\)}}}/,
@@ -799,11 +794,21 @@ var filterTemplatePatterns = [
                   /{{{yavu \(yceu color31\)}}}/, /{{{yavu \(yceu color32\)}}}/, /{{{yavu \(yceu bgcolor3\)}}}/,
                   /{{{yavu \(yceu color7\)}}}/,
 
+                  // url
+                  /{{{yubl \(yavd \(yceu \(yufull url4\)\)\)}}}/,
+                  /{{{yubl \(yavd \(yces \(yufull url5\)\)\)}}}/,
+                  /{{{yubl \(yavs \(yced \(yufull url6\)\)\)}}}/,
+                  /{{{yubl \(yavd \(yceu \(yufull url7\)\)\)}}}/,
+                  /{{{yubl \(yavd \(yces \(yufull url8\)\)\)}}}/,
+                  /{{{yubl \(yavs \(yced \(yufull url9\)\)\)}}}/,
+
                   // attribute name
                   /{{{y bgcolor7}}}/, /{{{y color43}}}/, /{{{y color44}}}/,
 
                   // invalid
-                  /{{{y invalid1}}}/, /{{{y invalid2}}}/, /{{{y invalid3}}}/, /{{{y invalid4}}}/,
+                  /{{{y invalid1}}}/, /{{{y invalid2}}}/, /{{{y invalid3}}}/, /{{{y invalid4}}}/, /{{{y invalid5}}}/,
+                  /{{{y invalid6}}}/, /{{{y invalid7}}}/,
+                  /{{{y url1}}}/, /{{{y url2}}}/, /{{{y url3}}}/,
         ],
     },
     {
@@ -837,7 +842,12 @@ var filterTemplatePatterns = [
                   // invalid
                   /{{{y color0}}}/,
                   /{{{y invalid1}}}/, /{{{y invalid2}}}/, /{{{y invalid3}}}/, /{{{y invalid4}}}/,
-                  /{{{y invalid5}}}/, /{{{y invalid6}}}/, /{{{y invalid7}}}/, /{{{y invalid8}}}/,
+
+                  // TODO: need double check on this pattern
+                  /{{{yavu \(yced invalid5\)}}}/,
+                  /{{{yavu \(yced invalid6\)}}}/,
+                  /{{{yavu \(yces invalid7\)}}}/,
+                  /{{{yavu \(yces invalid8\)}}}/,
         ],
     },
     {
@@ -1166,5 +1176,102 @@ var reportedBugPatterns = [
 */
 ];
 exports.reportedBugPatterns = reportedBugPatterns;
+
+var cssStyleAttributeValuePatterns1 = [
+    { css: '', result: '' },
+    { css: '&#058&#058;&#x03a&#x03A;&colon;',               result: ':::::' },
+    { css: '&#059&#059;&#x03b&#x03B;&semi;',                result: ';;;;;' },
+    { css: '&#040&#040;&#x028&#x028;&lpar;',                result: '(((((' },
+    { css: '&#041&#041;&#x029&#x029;&rpar;',                result: ')))))' },
+    { css: '&#034&#034;&#x022&#x022;&quot;&QUOT;',          result: '\"\"\"\"\"\"' },
+    { css: '&#039&#039;&#x027&#x027;&apos;',                result: '\'\'\'\'\''   },
+    { css: '&#047&#047;&#x02f&#x02F;&sol;',                 result: '\/\/\/\/\/'   },
+    { css: '&#044&#044;&#x02c&#x02C;&comma;',               result: ',,,,,' },
+    { css: '&#043&#043;&#x02b&#x02B;&plus;',                result: '+++++' },
+    { css: '&#8722&#8722;&#x02212&#x02212;&minus;',         result: '-----' },
+    { css: '&#8208&#8208;&#x02010&#x02010;&dash;&hyphen;',  result: '------' },
+    { css: '&#037&#037;&#x025&#x025;&percnt;',              result: '%%%%%' },
+    { css: '&#035&#035;&#x023&#x023;&num;',                 result: '#####' },
+    { css: '&#033&#033;&#x021&#x021;&excl;',                result: '!!!!!' },
+    { css: '&#095&#095;&#x05f&#x05F;&lowbar;&UnderBar;',    result: '______' },
+    { css: '&#092&#092;&#x05c&#x05C;&bsol;',                result: '\\\\\\\\\\'    },
+    { css: '&#042&#042;&#x02a&#x02A;&ast;&midast;',         result: '******' },
+    { css: '&#032&#032;&#x020&#x020;&#9&#9;&Tab;&#010;&#010&#x0a&#x0A;&NewLine;&#012&#012;&#x0c&#x0C;&#013&#013;&#x0d&#x0D;\t\r\n\f',
+        result: '                        ' },
+];
+exports.cssStyleAttributeValuePatterns1 = cssStyleAttributeValuePatterns1;
+
+var cssStyleAttributeValuePatterns2 = [
+    // <div style="color:{{xxx}}">
+    { css: '"   :', result: { prop: '"', code: cssParser.STYLE_ATTRIBUTE_UNQUOTED } },
+    { css: 'color: ',              result: { prop: 'color', code: cssParser.STYLE_ATTRIBUTE_UNQUOTED } },
+    { css: 'color : ',             result: { prop: 'color', code: cssParser.STYLE_ATTRIBUTE_UNQUOTED } },
+    { css: 'color :    ',          result: { prop: 'color', code: cssParser.STYLE_ATTRIBUTE_UNQUOTED } },
+
+    // <div style="color:'{{xxx}}'">
+    // <div style='color:"{{xxx}}"'>
+    { css: "color: '", result: { prop: 'color', code: cssParser.STYLE_ATTRIBUTE_SINGLE_QUOTED } },
+    { css: 'color: "', result: { prop: 'color', code: cssParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED } },
+    { css: "color: '    ", result: { prop: 'color', code: cssParser.STYLE_ATTRIBUTE_SINGLE_QUOTED } },
+    { css: 'color: "    ', result: { prop: 'color', code: cssParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED } },
+
+    // <div style="font:italic bold {{xxx}}px">
+    { css: 'font: italic bold ',         result: { prop: 'font', code: cssParser.STYLE_ATTRIBUTE_UNQUOTED } },
+    { css: 'font:    italic    bold ',   result: { prop: 'font', code: cssParser.STYLE_ATTRIBUTE_UNQUOTED } },
+
+    // <div style='font-family: Times, "{{xxx}}"'>
+    { css: "font-family: Times, '",    result: { prop: 'font-family', code: cssParser.STYLE_ATTRIBUTE_SINGLE_QUOTED } },
+    { css: 'font-family: Times, "',    result: { prop: 'font-family', code: cssParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED } },
+    { css: "font-family: Times, '   ", result: { prop: 'font-family', code: cssParser.STYLE_ATTRIBUTE_SINGLE_QUOTED } },
+    { css: 'font-family: Times, "   ', result: { prop: 'font-family', code: cssParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED } },
+
+    // <div style='background: url({{xxx}})'>
+    { css: 'background: url(',        result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_UNQUOTED } },
+    { css: 'background: url(  ',      result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_UNQUOTED } },
+    { css: 'background: URL(',        result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_UNQUOTED } },
+
+    // <div style='background: url("{{xxx}}")'>
+    { css: "background: url('",       result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED } },
+    { css: 'background: url("',       result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED } },
+    { css: "background: url(  '  ",   result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED } },
+    { css: 'background: url(  "  ',   result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED } },
+
+    // <div style='background: red url({{xxx}})'>
+    { css: 'background: red   url(',    result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_UNQUOTED } },
+    { css: "background: red   url('",   result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED } },
+    { css: 'background: red   url("',   result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED } },
+    { css: 'background: red   url(   ', result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_UNQUOTED } },
+    { css: "background: red   url( ' ", result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED } },
+    { css: 'background: red   url( " ', result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED } },
+
+    // 2 delcarations
+    { css: 'color: xxx; background-color: ',    result: { prop: 'background-color', code: cssParser.STYLE_ATTRIBUTE_UNQUOTED } },
+    { css: "color: xxx; background-color: '  ", result: { prop: 'background-color', code: cssParser.STYLE_ATTRIBUTE_SINGLE_QUOTED } },
+    { css: 'color: xxx; background-color: "  ', result: { prop: 'background-color', code: cssParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED } },
+
+    // 'r'ed is invalid expr
+    { css: "background: 'r'ed   url('  ", result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED } },
+    // 'red    url' is a string and it is multiple expr pattern
+    { css: "background: 'red    '  ",     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_UNQUOTED } },
+    { css: "background: 'red    ' '",     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_SINGLE_QUOTED } },
+    { css: 'background: "red    " "',     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED } },
+
+    // unknown filter to be applied
+    { css: "background: 'red      ",     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_ERROR } },
+    { css: 'background: "red      ',     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_ERROR } },
+
+    // <div style="{{xxx}}">
+    { css: '',  result: { prop: '', code: cssParser.STYLE_ATTRIBUTE_ERROR_AT_PROP_LOCATION } },
+
+    // <div style=":{{xxx}}">
+    { css: ':',          result: { prop: '',  code: cssParser.STYLE_ATTRIBUTE_ERROR_PROP_EMPTY } },
+    { css: '    :',      result: { prop: '',  code: cssParser.STYLE_ATTRIBUTE_ERROR_PROP_EMPTY } },
+    { css: "anything_but_not_delimiter", result: { prop: '', code: cssParser.STYLE_ATTRIBUTE_ERROR_AT_PROP_LOCATION } },
+    { css: ':;',         result: { prop: '',  code: cssParser.STYLE_ATTRIBUTE_ERROR_AT_PROP_LOCATION } },
+    { css: 'color::',    result: { prop: '',  code: cssParser.STYLE_ATTRIBUTE_ERROR_AT_PROP_LOCATION } },
+    { css: 'color:""',   result: { prop: 'color',  code: cssParser.STYLE_ATTRIBUTE_ERROR } },
+    { css: "color:''",   result: { prop: 'color',  code: cssParser.STYLE_ATTRIBUTE_ERROR } },
+];
+exports.cssStyleAttributeValuePatterns2 = cssStyleAttributeValuePatterns2;
 
 })();

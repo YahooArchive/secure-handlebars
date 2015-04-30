@@ -19,6 +19,8 @@ var ContextParser = require('./strict-context-parser.js'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = require('context-parser').StateMachine;
 
+var cssParser = require('./css-parser.js');
+
 /////////////////////////////////////////////////////
 //
 // TODO: need to move this code back to filter module
@@ -34,9 +36,8 @@ var filter = {
     FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED: 'yavs',
     FILTER_ATTRIBUTE_VALUE_UNQUOTED: 'yavu',
     FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED: 'yced',
-    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED: 'yces',  
-    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED: 'yceu', 	
-    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL: 'ycufull',	
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED: 'yces',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED: 'yceu',
     FILTER_ENCODE_URI: 'yu',
     FILTER_ENCODE_URI_COMPONENT: 'yuc',
     FILTER_URI_SCHEME_BLACKLIST: 'yubl',
@@ -57,22 +58,6 @@ var filter = {
 var reURIContextStartWhitespaces = /^(?:[\u0000-\u0020]|&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*/;
 var uriAttributeNames = {'href':1, 'src':1, 'action':1, 'formaction':1, 'background':1, 'cite':1, 'longdesc':1, 'usemap':1, 'poster':1, 'xlink:href':1};
 var reEqualSign = /(?:=|&#0*61;?|&#[xX]0*3[dD];?|&equals;)/;
-
-/*
-'&#0*32;?|&#[xX]0*20;?|&#0*9;?|&#[xX]0*9;?|&Tab;|&#0*10;?|&#[xX]0*[aA];?|&NewLine;|&#0*12;?|&#[xX]0*[cC];?|&#0*13;?|&#[xX]0*[dD];?|\t|\r|\n|\f'; // space,\t,\r,\n,\f
-'&#0*58;?|&#[xX]0*3[aA];?|&colon;'      // colon
-'&#0*59;?|&#[xX]0*3[bB];?|&semi;'       // semicolon
-'&#0*40;?|&#[xX]0*28;?|&lpar;'          // (
-'&#0*41;?|&#[xX]0*29;?|&rpar;'          // )
-*/
-var cssReplaceChar = [ ' ', ':', ';', '(', ')' ];
-var reCss = [
-    /&#0*32;?|&#[xX]0*20;?|&#0*9;?|&#[xX]0*9;?|&Tab;|&#0*10;?|&#[xX]0*[aA];?|&NewLine;|&#0*12;?|&#[xX]0*[cC];?|&#0*13;?|&#[xX]0*[dD];?|\t|\r|\n|\f/g,
-    /&#0*58;?|&#[xX]0*3[aA];?|&colon;/g,
-    /&#0*59;?|&#[xX]0*3[bB];?|&semi;/g,
-    /&#0*40;?|&#[xX]0*28;?|&lpar;/g,
-    /&#0*41;?|&#[xX]0*29;?|&rpar;/g
-];
 
 /////////////////////////////////////////////////////
 //
@@ -548,7 +533,7 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
 ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
 
     /* transitent var */
-    var j, len, isFullUri, f, filters, exceptionObj, msgPrefix,
+    var isFullUri, f, filters, exceptionObj, msgPrefix,
         attributeName = stateObj.attributeName,
         attributeValue = stateObj.attributeValue;
 
@@ -624,69 +609,65 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
                     }
                     return filters;
                 } else if (attributeName === "style") {  // CSS
-                    /* html decode the attributeValue before CSS parsing,
-                       we follow the parsing order of the browser */
-                    len = reCss.length;
-                    for (j=0;j<len;++j) {
-                        attributeValue = attributeValue.replace(reCss[j], cssReplaceChar[j]);
-                    }
-                    attributeValue = attributeValue.replace(/ /g, ''); // ok to remove all space and space has been html decoded.
+
+                    filters = [];
+                    attributeValue = cssParser.htmlStyleAttributeValueEntitiesDecode(attributeValue);
                     debug("addFilter:attributeValue:["+attributeValue+"]");
 
-                    /* split the string as per http://www.w3.org/TR/css-style-attr/ with ':' and ';' */
-                    var kv = attributeValue.split(';'); // it will return new array even there is no ';' in the string
-                    var v = kv[kv.length-1].split(':'); // only handling the last element
-
-                    if (v.length && v.length === 2) {
-                        filters = [];
-
-                        var prop = v[0],
-                            expr = v[1];
-                        debug("addFilter:prop:"+prop+",expr:"+expr);
-
-                        /* TODO: we can whitelist the property here */
-                        if (prop !== '') { // && whitelisted
-
-                            /* space has been trimmed above */
-                            if (expr.match(/^url\($/)) {
-                                isFullUri = true;
-                                f = filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL; // we only support full URL filtering in CSS url()
-                            } else if (expr.match(/^'$/)) {
-                                f = filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED;
-                            } else if (expr.match(/^"$/)) {
-                                f = filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED;
-                            } else if (expr === "") {
-                                f = filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED;
-                            } else {
-                                throw 'Unsafe output expression @ attribute style CSS context (invalid CSS syntax)';
-                            }
-                            filters.push(f);
-
-                            /* add the attribute value filter */
-                            switch(stateObj.state) {
-                                case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
-                                    f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
-                                    break;
-                                case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
-                                    f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
-                                    break;
-                                default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
-                                    f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
-                            }
-                            filters.push(f);
-
-                            /* add blacklist filters at the end of filtering chain */
-                            if (isFullUri) {
-                                /* blacklist the URI scheme for full uri */
-                                filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
-                            }
-                        } else { /* the property name is empty */
+                    var r = cssParser.parseStyleAttributeValue(attributeValue);
+                    switch(r.code) {
+                        case cssParser.STYLE_ATTRIBUTE_URL_UNQUOTED:
+                            filters.push(filter.FILTER_FULL_URI);
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED:
+                            filters.push(filter.FILTER_FULL_URI);
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED:
+                            filters.push(filter.FILTER_FULL_URI);
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_UNQUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED);
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_SINGLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED);
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED);
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_ERROR_AT_PROP_LOCATION:
+                            throw 'Unsafe output expression @ attribute style CSS context (output at property position/invalid CSS syntax)';
+                        case cssParser.STYLE_ATTRIBUTE_ERROR_PROP_EMPTY:
                             throw 'Unsafe output expression @ attribute style CSS context (property name empty)';
-                        }
-                        return filters;
-                    } else { // output place holder at property position
-                        throw 'Unsafe output expression @ attribute style CSS context (output at property position)';
+                        case cssParser.STYLE_ATTRIBUTE_ERROR:
+                            throw 'Unsafe output expression @ attribute style CSS context';
                     }
+
+                    /* add the attribute value filter */
+                    switch(stateObj.state) {
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
+                            break;
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
+                            break;
+                        default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
+                            break;
+                    }
+                    filters.push(f);
+
+                    /* add blacklist filters at the end of filtering chain */
+                    if (isFullUri) {
+                        /* blacklist the URI scheme for full uri */
+                        filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
+                    }
+                    return filters;
                 } else if (attributeName.match(/^on/i)) { // Javascript
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
