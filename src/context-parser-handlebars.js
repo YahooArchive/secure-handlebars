@@ -527,17 +527,28 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
 ContextParserHandlebars.prototype.addFilters = function(parser, input) {
 
     /* transitent var */
-    var isFullUri = false, filters = [], f, exceptionObj, msgPrefix,
+    var isFullUri = false, filters = [], f, exceptionObj, errorMessage,
         state = parser.state,
         tagName = parser.getStartTagName(),
         attributeName = parser.attributeName,
         attributeValue = parser.attributeValue;
 
     try {
+
         switch(state) {
             case stateMachine.State.STATE_DATA: // 1
             case stateMachine.State.STATE_RCDATA: // 3
                 return [filter.FILTER_DATA];
+
+            case stateMachine.State.STATE_RAWTEXT:  // 5
+                // inside raw text state, HTML parser ignores any state change that looks like tag/attribute
+                // hence we apply the context-insensitive NOT_HANDLE filter that escapes '"`&<> without a warning/error
+                if (tagName === 'xmp' || tagName === 'noembed' || tagName === 'noframes') {
+                    return [filter.FILTER_NOT_HANDLE];
+                }
+                
+                // style, iframe, or other unknown/future ones are considered scriptable
+                throw 'scriptable tag';
 
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED: // 38
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED: // 39
@@ -603,10 +614,6 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
              * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
              * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
              */
-            case stateMachine.State.STATE_RAWTEXT:  // 5   // i.e., style, xmp, iframe, noembed, noframes tags
-                throw 'inside <' + tagName + '> tag (i.e., RAWTEXT state)';
-            case stateMachine.State.STATE_SCRIPT_DATA: // 6
-                throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
             case stateMachine.State.STATE_TAG_NAME: // 10
                 throw 'being an tag name (i.e., TAG_NAME state)';
             case stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME: // 34
@@ -616,6 +623,11 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                 throw 'being an attribute name (state #: ' + state + ')';
 
 
+            // the following will be caught by parser.isScriptableTag() anyway
+            // case stateMachine.State.STATE_SCRIPT_DATA: // 6
+            //     throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
+            
+
             // should not fall into the following states
             case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
                 throw 'unexpectedly BEFORE_ATTRIBUTE_VALUE state';
@@ -624,12 +636,17 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                 throw 'unsupported position (i.e., state #: ' + state + ')';
         }
     } catch (exception) {
+
         if (typeof exception === 'string') {
-            msgPrefix = (this._config._strictMode? '[ERROR]' : '[WARNING]') + ' SecureHandlebars: Unsafe output expression found at ';
-            exceptionObj = new ContextParserHandlebarsException(
-                msgPrefix + exception,
-                this._lineNo,
-                this._charNo);
+
+            errorMessage = (this._config._strictMode? '[ERROR]' : '[WARNING]') + ' SecureHandlebars: Unsafe output expression found at ';
+
+            // To be secure, scriptable tags when encountered will anyway throw an error/warning
+            // they require either special parsers of their own context (e.g., CSS/script parsers) 
+            //    or an application-specific whitelisted url check (e.g., <script src=""> with yubl-yavu-yufull is not enough)
+            errorMessage += parser.isScriptableTag() ? 'scriptable <' + tagName + '> tag' : exception;
+
+            exceptionObj = new ContextParserHandlebarsException(errorMessage, this._lineNo, this._charNo);
             handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
         } else {
             handlebarsUtils.handleError(exception, this._config._strictMode);

@@ -344,6 +344,7 @@ function StrictContextParser(config, listeners) {
         !config.disableCanonicalization && this.on('preWalk', Canonicalize).on('reWalk', Canonicalize);
         // disable IE conditional comments
         !config.disableIEConditionalComments && this.on('preWalk', DisableIEConditionalComments);
+        // TODO: rewrite IE <comment> tags
 
         // TODO: When a start tag token is emitted with its self-closing flag set, if the flag is not acknowledged when it is processed by the tree construction stage, that is a parse error.
         // TODO: When an end tag token is emitted with attributes, that is a parse error.
@@ -621,7 +622,6 @@ StrictContextParser.prototype.getCurrentState = function() {
 };
 
 
-// TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
 var uriAttributeNames = {
     // we generally do not differentiate whether these attribtues are tag specific during matching for simplicity
     'href':1, 'src':1,                    // for a, link, img, area, iframe, frame, video, object, embed ...
@@ -629,7 +629,7 @@ var uriAttributeNames = {
     'action':1, 'formaction':1,           // for form, input, button
     'cite':1,                             // for blockquote, del, ins, q
     'poster':1, 'usemap':1, 'longdesc':1, // for img, object, video, source
-    'srcdoc':1,                           // for iframe
+    'folder':1,                           // for a
     'manifest':1,                         // for html
     'classid':1,                          // for object
     'codebase':1,                         // for object, applet
@@ -644,19 +644,43 @@ var uriAttributeNames = {
 /**
  * @function StrictContextParser#isURIAttribute
  *
- * @returns {boolean} true if the attribute is of URI type, false otherwise
+ * @returns {boolean} true if the attribute is likely of URI type, false otherwise
  *
  * @description
- * check if the attribute is of URI type
+ * Check if the current attribute is likely of URI type. This might not be accurate since it could be agnostic to its tag name (e.g., <x href="">)
  *
  */
 StrictContextParser.prototype.isURIAttribute = function() {
+    // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
+
     // here,  uriAttrTags === 1 is a tag agnostic matching
-    // while, uriAttrTags[tagName] (=== 1) matches only those attribute of the given tagName
+    // while, uriAttrTags[tagName] === 1 matches only those attribute of the given tagName
     var uriAttrTags = uriAttributeNames[this.attributeName];
-    return uriAttrTags && (uriAttrTags === 1 || uriAttrTags[this.tagNames[0]]);
+    return uriAttrTags && (uriAttrTags === 1 || uriAttrTags[this.tagNames[0]] === 1);
 };
 
+
+// <iframe srcdoc=""> is a scriptable attribute too
+// Reference: https://html.spec.whatwg.org/multipage/embedded-content.html#attr-iframe-srcdoc
+var scriptableTags = {
+    script:1,style:1,
+    svg:1,xml:1,math:1,
+    applet:1,object:1,embed:1,link:1,
+    scriptlet:1                  // IE-specific
+};
+
+/**
+ * @function StrictContextParser#isScriptableTag
+ *
+ * @returns {boolean} true if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ * @description
+ * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ */
+StrictContextParser.prototype.isScriptableTag = function() {
+    return scriptableTags[this.tagNames[0]] === 1;
+};
 
 
 

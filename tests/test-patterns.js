@@ -1067,7 +1067,7 @@ var exceptionPatterns = [
         title: './bin/handlebarspp STATE_SCRIPT_DATA strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_001.hbs',
         strictMode: true,
-        result: [ /ERROR/, /SCRIPT_DATA/, ],
+        result: [ /ERROR/, /scriptable/, ],
     },
     {
         title: './bin/handlebarspp STATE_ATTRIBUTE_NAME strict mode test',
@@ -1079,7 +1079,7 @@ var exceptionPatterns = [
         title: './bin/handlebarspp STATE_RAWTEXT strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_003.hbs',
         strictMode: true,
-        result: [ /ERROR/, /RAWTEXT/ ],
+        result: [ /ERROR/, /scriptable <style> tag/ ],
     },
     {
         title: './bin/handlebarspp STATE_TAG_NAME strict mode test',
