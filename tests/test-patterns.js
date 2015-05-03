@@ -1255,6 +1255,8 @@ var cssStyleAttributeValuePatterns2 = [
     { css: "background: 'red    '  ",     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_UNQUOTED } },
     { css: "background: 'red    ' '",     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_SINGLE_QUOTED } },
     { css: 'background: "red    " "',     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED } },
+    { css: 'background: "url(   " "',     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED } },
+    { css: "background: 'url(   ' '",     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_SINGLE_QUOTED } },
 
     // unknown filter to be applied
     { css: "background: 'red      ",     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_ERROR } },
@@ -1269,8 +1271,16 @@ var cssStyleAttributeValuePatterns2 = [
     { css: "anything_but_not_delimiter", result: { prop: '', code: cssParser.STYLE_ATTRIBUTE_ERROR_AT_PROP_LOCATION } },
     { css: ':;',         result: { prop: '',  code: cssParser.STYLE_ATTRIBUTE_ERROR_AT_PROP_LOCATION } },
     { css: 'color::',    result: { prop: '',  code: cssParser.STYLE_ATTRIBUTE_ERROR_AT_PROP_LOCATION } },
-    { css: 'color:""',   result: { prop: 'color',  code: cssParser.STYLE_ATTRIBUTE_ERROR } },
-    { css: "color:''",   result: { prop: 'color',  code: cssParser.STYLE_ATTRIBUTE_ERROR } },
+    { css: 'color:""',   result: { prop: 'color',  code: cssParser.STYLE_ATTRIBUTE_ERROR } }, /* empty string cannot be matched by reExpr */
+    { css: 'color:"" ',  result: { prop: 'color',  code: cssParser.STYLE_ATTRIBUTE_ERROR } }, /* empty string cannot be matched by reExpr */
+    { css: "color:''",   result: { prop: 'color',  code: cssParser.STYLE_ATTRIBUTE_ERROR } }, /* empty string cannot be matched by reExpr */
+    { css: "color:'' ",  result: { prop: 'color',  code: cssParser.STYLE_ATTRIBUTE_ERROR } }, /* empty string cannot be matched by reExpr */
+
+    { css: "background: url( ' '  ",     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_ERROR } },
+    { css: 'background: url( " "  ',     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_ERROR } },
+
+    { css: "background: url(' ')  ",     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_ERROR } }, /* empty string cannot be matched by reExpr */
+    { css: "background: url( ' ') ",     result: { prop: 'background', code: cssParser.STYLE_ATTRIBUTE_ERROR } }, /* empty string cannot be matched by reExpr */
 ];
 exports.cssStyleAttributeValuePatterns2 = cssStyleAttributeValuePatterns2;
 

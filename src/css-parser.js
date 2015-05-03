@@ -122,31 +122,36 @@ CSSParser.parseStyleAttributeValue = function(str) {
         /* consume the expr and return the last expr 
         * this block can be remove with 'var lexpr = expr' without affecting the following code.
         * (EXPERIMENTAL)
+        *
+        * TODO: migrate to css-js when the npm is stable
         */
         var parseError = false;
         var lexpr = expr.replace(CSSParser.reExpr, function(m, p1, p2, p3, p4) {
-            // console.log("["+p1+"]["+p2+"]["+p3+"]["+p4+"]");
             p3 = p3 !== undefined? p3.trim() : p3; // p3 may has space
+
+            /* CSS STRING patterns */
+            if (p1 !== undefined && p4 !== undefined && p1.match(/^['"]$/) && p4.match(/^['"]$/)) {
+                return ''; /* consume the string */
+            }
+
             // p2 is always not undefined based on the regExp
-            if (p2.match(/url/i) && p3 !== undefined && p3.match(/\(/)) {
-                if (p3 === '("') {
+            if (p2 !== undefined && p2.match(/url/i) && p3 !== undefined && p3.match(/^\(/)) {
+                if (p3.match(/"$/) || (p4 !== undefined && p4.trim() === '"')) {
                     return 'url("';
-                } else if (p3 === "('") {
-                    return "url('";
-                } else if (p4 !== undefined && p4.trim() === '"') {
-                    return 'url("';
-                } else if (p4 !== undefined && p4.trim() === "'") {
+                } else if (p3.match(/'$/) || (p4 !== undefined && p4.trim() === "'")) {
                     return "url('";
                 } else if (p4 === undefined || (p4 !== undefined && p4.trim() === "")) {
                     return "url(";
                 }
             }
+
             if (p1 === undefined && p4 !== undefined) {
                 if (p4 === '"') return '"'; /* this quote belong to the next expr */
                 if (p4 === "'") return "'"; /* this quote belong to the next expr */
             } else if (p1 !== undefined && p4 === undefined) {
-                parseError = true;
+                parseError = true; /* placeholder is part of the CSS STRING */
             }
+
             /* consume the expr */
             return '';    
         });
