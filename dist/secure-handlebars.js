@@ -1360,32 +1360,64 @@ var substr = 'ab'.substr(-1) === 'b'
 var process = module.exports = {};
 var queue = [];
 var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
 
 function drainQueue() {
     if (draining) {
         return;
     }
+    var timeout = setTimeout(cleanUpNextTick);
     draining = true;
-    var currentQueue;
+
     var len = queue.length;
     while(len) {
         currentQueue = queue;
         queue = [];
-        var i = -1;
-        while (++i < len) {
-            currentQueue[i]();
+        while (++queueIndex < len) {
+            currentQueue[queueIndex].run();
         }
+        queueIndex = -1;
         len = queue.length;
     }
+    currentQueue = null;
     draining = false;
+    clearTimeout(timeout);
 }
+
 process.nextTick = function (fun) {
-    queue.push(fun);
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
     if (!draining) {
         setTimeout(drainQueue, 0);
     }
 };
 
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
 process.title = 'browser';
 process.browser = true;
 process.env = {};
@@ -1415,16 +1447,15 @@ process.chdir = function (dir) {
 process.umask = function() { return 0; };
 
 },{}],9:[function(require,module,exports){
-(function (global){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
 
 exports.__esModule = true;
 
-var _Handlebars = require('./handlebars.runtime');
+var _runtime = require('./handlebars.runtime');
 
-var _Handlebars2 = _interopRequireWildcard(_Handlebars);
+var _runtime2 = _interopRequireWildcard(_runtime);
 
 // Compiler imports
 
@@ -1444,7 +1475,11 @@ var _Visitor = require('./handlebars/compiler/visitor');
 
 var _Visitor2 = _interopRequireWildcard(_Visitor);
 
-var _create = _Handlebars2['default'].create;
+var _noConflict = require('./handlebars/no-conflict');
+
+var _noConflict2 = _interopRequireWildcard(_noConflict);
+
+var _create = _runtime2['default'].create;
 function create() {
   var hb = _create();
 
@@ -1467,31 +1502,20 @@ function create() {
 var inst = create();
 inst.create = create;
 
-inst.Visitor = _Visitor2['default'];
+_noConflict2['default'](inst);
 
-/*jshint -W040 */
-/* istanbul ignore next */
-var $Handlebars = global.Handlebars;
-/* istanbul ignore next */
-inst.noConflict = function () {
-  if (global.Handlebars === inst) {
-    global.Handlebars = $Handlebars;
-  }
-};
+inst.Visitor = _Visitor2['default'];
 
 inst['default'] = inst;
 
 exports['default'] = inst;
 module.exports = exports['default'];
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./handlebars.runtime":10,"./handlebars/compiler/ast":12,"./handlebars/compiler/base":13,"./handlebars/compiler/compiler":15,"./handlebars/compiler/javascript-compiler":17,"./handlebars/compiler/visitor":20}],10:[function(require,module,exports){
-(function (global){
+},{"./handlebars.runtime":10,"./handlebars/compiler/ast":12,"./handlebars/compiler/base":13,"./handlebars/compiler/compiler":15,"./handlebars/compiler/javascript-compiler":17,"./handlebars/compiler/visitor":20,"./handlebars/no-conflict":23}],10:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
 
 exports.__esModule = true;
-/*global window */
 
 var _import = require('./handlebars/base');
 
@@ -1516,6 +1540,10 @@ var _import3 = require('./handlebars/runtime');
 
 var runtime = _interopRequireWildcard(_import3);
 
+var _noConflict = require('./handlebars/no-conflict');
+
+var _noConflict2 = _interopRequireWildcard(_noConflict);
+
 // For compatibility and usage outside of module systems, make the Handlebars object a namespace
 function create() {
   var hb = new base.HandlebarsEnvironment();
@@ -1534,26 +1562,16 @@ function create() {
   return hb;
 }
 
-var Handlebars = create();
-Handlebars.create = create;
+var inst = create();
+inst.create = create;
 
-/*jshint -W040 */
-/* istanbul ignore next */
-var root = typeof global !== 'undefined' ? global : window,
-    $Handlebars = root.Handlebars;
-/* istanbul ignore next */
-Handlebars.noConflict = function () {
-  if (root.Handlebars === Handlebars) {
-    root.Handlebars = $Handlebars;
-  }
-};
+_noConflict2['default'](inst);
 
-Handlebars['default'] = Handlebars;
+inst['default'] = inst;
 
-exports['default'] = Handlebars;
+exports['default'] = inst;
 module.exports = exports['default'];
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./handlebars/base":11,"./handlebars/exception":22,"./handlebars/runtime":23,"./handlebars/safe-string":24,"./handlebars/utils":25}],11:[function(require,module,exports){
+},{"./handlebars/base":11,"./handlebars/exception":22,"./handlebars/no-conflict":23,"./handlebars/runtime":24,"./handlebars/safe-string":25,"./handlebars/utils":26}],11:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -1827,7 +1845,7 @@ function createFrame(object) {
 }
 
 /* [args, ]options */
-},{"./exception":22,"./utils":25}],12:[function(require,module,exports){
+},{"./exception":22,"./utils":26}],12:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -2027,7 +2045,7 @@ function parse(input, options) {
   var strip = new _WhitespaceControl2['default']();
   return strip.accept(_parser2['default'].parse(input));
 }
-},{"../utils":25,"./ast":12,"./helpers":16,"./parser":18,"./whitespace-control":21}],14:[function(require,module,exports){
+},{"../utils":26,"./ast":12,"./helpers":16,"./parser":18,"./whitespace-control":21}],14:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -2192,7 +2210,7 @@ exports['default'] = CodeGen;
 module.exports = exports['default'];
 
 /* NOP */
-},{"../utils":25,"source-map":27}],15:[function(require,module,exports){
+},{"../utils":26,"source-map":28}],15:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2720,7 +2738,7 @@ function transformLiteralToPath(sexpr) {
     sexpr.path = new _AST2['default'].PathExpression(false, 0, [literal.original + ''], literal.original + '', literal.loc);
   }
 }
-},{"../exception":22,"../utils":25,"./ast":12}],16:[function(require,module,exports){
+},{"../exception":22,"../utils":26,"./ast":12}],16:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2771,7 +2789,6 @@ function stripComment(comment) {
 }
 
 function preparePath(data, parts, locInfo) {
-  /*jshint -W040 */
   locInfo = this.locInfo(locInfo);
 
   var original = data ? '@' : '',
@@ -2803,7 +2820,6 @@ function preparePath(data, parts, locInfo) {
 }
 
 function prepareMustache(path, params, hash, open, strip, locInfo) {
-  /*jshint -W040 */
   // Must use charAt to support IE pre-10
   var escapeFlag = open.charAt(3) || open.charAt(2),
       escaped = escapeFlag !== '{' && escapeFlag !== '&';
@@ -2812,7 +2828,6 @@ function prepareMustache(path, params, hash, open, strip, locInfo) {
 }
 
 function prepareRawBlock(openRawBlock, content, close, locInfo) {
-  /*jshint -W040 */
   if (openRawBlock.path.original !== close) {
     var errorNode = { loc: openRawBlock.path.loc };
 
@@ -2826,7 +2841,6 @@ function prepareRawBlock(openRawBlock, content, close, locInfo) {
 }
 
 function prepareBlock(openBlock, program, inverseAndProgram, close, inverted, locInfo) {
-  /*jshint -W040 */
   // When we are chaining inverse calls, we will not have a close path
   if (close && close.path && openBlock.path.original !== close.path.original) {
     var errorNode = { loc: openBlock.path.loc };
@@ -3294,7 +3308,6 @@ JavaScriptCompiler.prototype = {
   //
   // Push the data lookup operator
   lookupData: function lookupData(depth, parts) {
-    /*jshint -W083 */
     if (!depth) {
       this.pushStackLiteral('data');
     } else {
@@ -3307,7 +3320,6 @@ JavaScriptCompiler.prototype = {
   resolvePath: function resolvePath(type, parts, i, falsy) {
     var _this = this;
 
-    /*jshint -W083 */
     if (this.options.strict || this.options.assumeObjects) {
       this.push(strictLookup(this.options.strict, this, parts, type));
       return;
@@ -3921,11 +3933,10 @@ function strictLookup(requireTerminal, compiler, parts, type) {
 
 exports['default'] = JavaScriptCompiler;
 module.exports = exports['default'];
-},{"../base":11,"../exception":22,"../utils":25,"./code-gen":14}],18:[function(require,module,exports){
+},{"../base":11,"../exception":22,"../utils":26,"./code-gen":14}],18:[function(require,module,exports){
 "use strict";
 
 exports.__esModule = true;
-/* jshint ignore:start */
 /* istanbul ignore next */
 /* Jison generated parser */
 var handlebars = (function () {
@@ -4600,8 +4611,6 @@ var handlebars = (function () {
     }Parser.prototype = parser;parser.Parser = Parser;
     return new Parser();
 })();exports["default"] = handlebars;
-
-/* jshint ignore:end */
 module.exports = exports["default"];
 },{}],19:[function(require,module,exports){
 'use strict';
@@ -5155,6 +5164,27 @@ Exception.prototype = new Error();
 exports['default'] = Exception;
 module.exports = exports['default'];
 },{}],23:[function(require,module,exports){
+(function (global){
+'use strict';
+
+exports.__esModule = true;
+/*global window */
+
+exports['default'] = function (Handlebars) {
+  /* istanbul ignore next */
+  var root = typeof global !== 'undefined' ? global : window,
+      $Handlebars = root.Handlebars;
+  /* istanbul ignore next */
+  Handlebars.noConflict = function () {
+    if (root.Handlebars === Handlebars) {
+      root.Handlebars = $Handlebars;
+    }
+  };
+};
+
+module.exports = exports['default'];
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],24:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -5387,7 +5417,7 @@ function initData(context, data) {
   }
   return data;
 }
-},{"./base":11,"./exception":22,"./utils":25}],24:[function(require,module,exports){
+},{"./base":11,"./exception":22,"./utils":26}],25:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5402,7 +5432,7 @@ SafeString.prototype.toString = SafeString.prototype.toHTML = function () {
 
 exports['default'] = SafeString;
 module.exports = exports['default'];
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5414,7 +5444,6 @@ exports.escapeExpression = escapeExpression;
 exports.isEmpty = isEmpty;
 exports.blockParams = blockParams;
 exports.appendContextPath = appendContextPath;
-/*jshint -W004 */
 var escape = {
   '&': '&amp;',
   '<': '&lt;',
@@ -5518,7 +5547,7 @@ function blockParams(params, ids) {
 function appendContextPath(contextPath, id) {
   return (contextPath ? contextPath + '.' : '') + id;
 }
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 // USAGE:
 // var handlebars = require('handlebars');
 /* eslint-disable no-var */
@@ -5545,7 +5574,7 @@ if (typeof require !== 'undefined' && require.extensions) {
   require.extensions['.hbs'] = extension;
 }
 
-},{"../dist/cjs/handlebars":9,"../dist/cjs/handlebars/compiler/printer":19,"fs":6}],27:[function(require,module,exports){
+},{"../dist/cjs/handlebars":9,"../dist/cjs/handlebars/compiler/printer":19,"fs":6}],28:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -5555,7 +5584,7 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":33,"./source-map/source-map-generator":34,"./source-map/source-node":35}],28:[function(require,module,exports){
+},{"./source-map/source-map-consumer":34,"./source-map/source-map-generator":35,"./source-map/source-node":36}],29:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5654,7 +5683,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":36,"amdefine":37}],29:[function(require,module,exports){
+},{"./util":37,"amdefine":38}],30:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5798,7 +5827,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./base64":30,"amdefine":37}],30:[function(require,module,exports){
+},{"./base64":31,"amdefine":38}],31:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5842,7 +5871,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":37}],31:[function(require,module,exports){
+},{"amdefine":38}],32:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5924,7 +5953,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":37}],32:[function(require,module,exports){
+},{"amdefine":38}],33:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2014 Mozilla Foundation and contributors
@@ -6012,7 +6041,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":36,"amdefine":37}],33:[function(require,module,exports){
+},{"./util":37,"amdefine":38}],34:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6589,7 +6618,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":28,"./base64-vlq":29,"./binary-search":31,"./util":36,"amdefine":37}],34:[function(require,module,exports){
+},{"./array-set":29,"./base64-vlq":30,"./binary-search":32,"./util":37,"amdefine":38}],35:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6991,7 +7020,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":28,"./base64-vlq":29,"./mapping-list":32,"./util":36,"amdefine":37}],35:[function(require,module,exports){
+},{"./array-set":29,"./base64-vlq":30,"./mapping-list":33,"./util":37,"amdefine":38}],36:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7407,7 +7436,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./source-map-generator":34,"./util":36,"amdefine":37}],36:[function(require,module,exports){
+},{"./source-map-generator":35,"./util":37,"amdefine":38}],37:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7728,7 +7757,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":37}],37:[function(require,module,exports){
+},{"amdefine":38}],38:[function(require,module,exports){
 (function (process,__filename){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 0.1.0 Copyright (c) 2011, The Dojo Foundation All Rights Reserved.
@@ -8031,7 +8060,7 @@ function amdefine(module, requireFn) {
 module.exports = amdefine;
 
 }).call(this,require('_process'),"/node_modules/handlebars/node_modules/source-map/node_modules/amdefine/amdefine.js")
-},{"_process":8,"path":7}],38:[function(require,module,exports){
+},{"_process":8,"path":7}],39:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo! Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -8066,7 +8095,7 @@ exports._getPrivFilters = function () {
     // Reference: http://shazzer.co.uk/database/All/Characters-after-javascript-uri
     // Reference: https://html.spec.whatwg.org/multipage/syntax.html#consume-a-character-reference
     // Reference for named characters: https://html.spec.whatwg.org/multipage/entities.json
-    var URI_BLACKLIST_PROTOCOLS = ['javascript', 'data', 'vbscript', 'mhtml'],
+    var URI_BLACKLIST_PROTOCOLS = {'javascript':1, 'data':1, 'vbscript':1, 'mhtml':1},
         URI_PROTOCOL_COLON = /(?::|&#[xX]0*3[aA];?|&#0*58;?|&colon;)/,
         URI_PROTOCOL_HTML_ENTITIES = /&(?:#([xX][0-9A-Fa-f]+|\d+);?|Tab;|NewLine;)/g,
         URI_PROTOCOL_WHITESPACES = /(?:^[\x00-\x20]+|[\t\n\r\x00]+)/g,
@@ -8221,7 +8250,7 @@ exports._getPrivFilters = function () {
         // Notice that yubl MUST BE APPLIED LAST, and will not be used independently (expected output from encodeURI/encodeURIComponent and yavd/yavs/yavu)
         // This is used to disable JS execution capabilities by prefixing x- to ^javascript:, ^vbscript: or ^data: that possibly could trigger script execution in URI attribute context
         yubl: function (s) {
-            return URI_BLACKLIST_PROTOCOLS.indexOf(x.yup(s)) === -1 ? s : 'x-' + s;
+            return URI_BLACKLIST_PROTOCOLS[x.yup(s)] ? 'x-' + s : s;
         },
 
         // This is NOT a security-critical filter.
@@ -8931,7 +8960,7 @@ exports.uriFragmentInHTMLData = exports.uriComponentInHTMLData;
 */
 exports.uriFragmentInHTMLComment = exports.uriComponentInHTMLComment;
 
-},{}],39:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 (function (process){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
@@ -8954,6 +8983,8 @@ var ContextParser = require('./strict-context-parser.js'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = require('context-parser').StateMachine;
 
+var cssParser = require('./css-parser.js');
+
 /////////////////////////////////////////////////////
 //
 // TODO: need to move this code back to filter module
@@ -8968,6 +8999,9 @@ var filter = {
     FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED: 'yavd',
     FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED: 'yavs',
     FILTER_ATTRIBUTE_VALUE_UNQUOTED: 'yavu',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED: 'yced',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED: 'yces',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED: 'yceu',
     FILTER_ENCODE_URI: 'yu',
     FILTER_ENCODE_URI_COMPONENT: 'yuc',
     FILTER_URI_SCHEME_BLACKLIST: 'yubl',
@@ -9539,11 +9573,65 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
                     }
                     return filters;
                 } else if (attributeName === "style") {  // CSS
-                    /* we don't support css parser yet
-                    * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                    * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                    */
-                    throw 'Unsafe output expression @ attribute style CSS context';
+
+                    filters = [];
+                    attributeValue = cssParser.htmlStyleAttributeValueEntitiesDecode(attributeValue);
+                    debug("addFilter:attributeValue:["+attributeValue+"]");
+
+                    var r = cssParser.parseStyleAttributeValue(attributeValue);
+                    switch(r.code) {
+                        case cssParser.STYLE_ATTRIBUTE_URL_UNQUOTED:
+                            filters.push(filter.FILTER_FULL_URI);
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED:
+                            filters.push(filter.FILTER_FULL_URI);
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED:
+                            filters.push(filter.FILTER_FULL_URI);
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_UNQUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED);
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_SINGLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED);
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED);
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_ERROR_AT_PROP_LOCATION:
+                            throw 'Unsafe output expression @ attribute style CSS context (output at property position/invalid CSS syntax)';
+                        case cssParser.STYLE_ATTRIBUTE_ERROR_PROP_EMPTY:
+                            throw 'Unsafe output expression @ attribute style CSS context (property name empty)';
+                        case cssParser.STYLE_ATTRIBUTE_ERROR:
+                            throw 'Unsafe output expression @ attribute style CSS context (parsing error)';
+                    }
+
+                    /* add the attribute value filter */
+                    switch(stateObj.state) {
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
+                            break;
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
+                            break;
+                        default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
+                            break;
+                    }
+                    filters.push(f);
+
+                    /* add blacklist filters at the end of filtering chain */
+                    if (isFullUri) {
+                        /* blacklist the URI scheme for full uri */
+                        filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
+                    }
+                    return filters;
                 } else if (attributeName.match(/^on/i)) { // Javascript
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
@@ -9744,7 +9832,202 @@ module.exports = ContextParserHandlebars;
 })();
 
 }).call(this,require('_process'))
-},{"./handlebars-utils.js":40,"./strict-context-parser.js":42,"_process":8,"context-parser":1,"debug":3}],40:[function(require,module,exports){
+},{"./css-parser.js":41,"./handlebars-utils.js":42,"./strict-context-parser.js":44,"_process":8,"context-parser":1,"debug":3}],41:[function(require,module,exports){
+/* 
+Copyright (c) 2015, Yahoo Inc. All rights reserved.
+Copyrights licensed under the New BSD License.
+See the accompanying LICENSE file for terms.
+
+Authors: Nera Liu <neraliu@yahoo-inc.com>
+         Albert Yu <albertyu@yahoo-inc.com>
+         Adonis Fung <adon@yahoo-inc.com>
+*/
+(function () {
+"use strict";
+
+/////////////////////////////////////////////////////
+//
+// @module CSSParser
+// 
+/////////////////////////////////////////////////////
+var CSSParser = {};
+
+/*
+'&#0*8722;?|&#[xX]0*2212;?|&minus;|&#0*8208;?|&#[xX]0*2010;?|&dash;|&hyphen;'		// minus & dash
+'&#0*92;?|&#[xX]0*5[cC];?|&bsol;'		 	// \
+'&#0*95;?|&#[xX]0*5[fF];?|&lowbar;|&UnderBar;'		// _
+'&#0*58;?|&#[xX]0*3[aA];?|&colon;'      		// colon
+'&#0*59;?|&#[xX]0*3[bB];?|&semi;'       		// semicolon
+'&#0*40;?|&#[xX]0*28;?|&lpar;'          		// (
+'&#0*41;?|&#[xX]0*29;?|&rpar;'          		// )
+'&#0*34;?|&#[xX]0*22;?|&quot;|&QUOT;'			// "
+'&#0*39;?|&#[xX]0*27;?|&apos;'				// '
+'&#0*47;?|&#[xX]0*2[fF];?|&sol;'			// /
+'&#0*44;?|&#[xX]0*2[cC];?|&comma;'			// ,
+'&#0*43;?|&#[xX]0*2[bB];?|&plus;'			// +
+'&#0*37;?|&#[xX]0*25;?|&percnt;'			// percentage
+'&#0*35;?|&#[xX]0*23;?|&num;'				// hash
+'&#0*33;?|&#[xX]0*21;?|&excl;'		 		// !
+'&#0*42;?|&#[xX]0*2[aA];?|&ast;|&midast;'		// *
+'&#0*32;?|&#[xX]0*20;?|&#0*9;?|&#[xX]0*9;?|&Tab;|&#0*10;?|&#[xX]0*[aA];?|&NewLine;|&#0*12;?|&#[xX]0*[cC];?|&#0*13;?|&#[xX]0*[dD];?|\t|\r|\n|\f'; // space,\t,\r,\n,\f
+
+note: the decoding order is important, as we are using regExp not real parsing. 
+for example, we need to replace \ before space, as &#0*92 needs to be checked before &#0*9.
+the correct decoding order is to match as greedy as possible first, that is matching N digit before N-1 digit.
+
+*/
+CSSParser.cssReplaceChar = [ '-', '\\', '_', ':', ';', '(', ')', '"', '\'', '\/', ',', '+', '%', '#', '!', '*', ' ' ];
+CSSParser.reCss = [
+    /&#0*8722;?|&#[xX]0*2212;?|&minus;|&#0*8208;?|&#[xX]0*2010;?|&dash;|&hyphen;/g,
+    /&#0*92;?|&#[xX]0*5[cC];?|&bsol;/g,
+    /&#0*95;?|&#[xX]0*5[fF];?|&lowbar;|&UnderBar;/g,
+    /&#0*58;?|&#[xX]0*3[aA];?|&colon;/g,
+    /&#0*59;?|&#[xX]0*3[bB];?|&semi;/g,
+    /&#0*40;?|&#[xX]0*28;?|&lpar;/g,
+    /&#0*41;?|&#[xX]0*29;?|&rpar;/g,
+    /&#0*34;?|&#[xX]0*22;?|&quot;|&QUOT;/g,
+    /&#0*39;?|&#[xX]0*27;?|&apos;/g,
+    /&#0*47;?|&#[xX]0*2[fF];?|&sol;/g,
+    /&#0*44;?|&#[xX]0*2[cC];?|&comma;/g,
+    /&#0*43;?|&#[xX]0*2[bB];?|&plus;/g,
+    /&#0*37;?|&#[xX]0*25;?|&percnt;/g,
+    /&#0*35;?|&#[xX]0*23;?|&num;/g,
+    /&#0*33;?|&#[xX]0*21;?|&excl;/g,
+    /&#0*42;?|&#[xX]0*2[aA];?|&ast;|&midast;/g,
+    /&#0*32;?|&#[xX]0*20;?|&#0*9;?|&#[xX]0*9;?|&Tab;|&#0*10;?|&#[xX]0*[aA];?|&NewLine;|&#0*12;?|&#[xX]0*[cC];?|&#0*13;?|&#[xX]0*[dD];?|\t|\r|\n|\f/g,
+];
+
+CSSParser.reExpr = /(['"]?)?\s*([0-9a-z%#\-+_,!\/\\\*]+)(\([^\(]?\)?)?\s*(['"]?)?\s*/ig;
+
+/* re for URL pattern */
+CSSParser.reUrlUnquoted = /^url\(\s*$/i;
+CSSParser.reUrlSingleQuoted = /^url\(\s*'$/i;
+CSSParser.reUrlDoubleQuoted = /^url\(\s*"$/i;
+
+/* emum type of parseStyleAttributeValue */
+CSSParser.STYLE_ATTRIBUTE_URL_UNQUOTED      = 1;
+CSSParser.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED = 2;
+CSSParser.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED = 3;
+CSSParser.STYLE_ATTRIBUTE_UNQUOTED          = 4;
+CSSParser.STYLE_ATTRIBUTE_SINGLE_QUOTED     = 5;
+CSSParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED     = 6;
+
+CSSParser.STYLE_ATTRIBUTE_ERROR_AT_PROP_LOCATION = -1;
+CSSParser.STYLE_ATTRIBUTE_ERROR_PROP_EMPTY       = -2;
+CSSParser.STYLE_ATTRIBUTE_ERROR                  = -3;
+
+/**
+* @function CSSParser.htmlStyleAttributeValueEntitiesDecode
+*
+* @description
+* htmlStyleAttributeValueEntitiesDecode for delimiter in style attribute as defined in the spec.
+* all special characters being defined must be decoded first (defined in cssReplaceChar).
+* http://www.w3.org/TR/css-style-attr/
+*/
+CSSParser.htmlStyleAttributeValueEntitiesDecode = function(str) {
+    /* html decode the str before CSS parsing,
+       we follow the parsing order of the browser */
+    var len = CSSParser.reCss.length;
+    for (var j=0;j<len;++j) {
+        str = str.replace(CSSParser.reCss[j], CSSParser.cssReplaceChar[j]);
+    }
+    return str;
+};
+
+/**
+* @function CSSParser.parseStyleAttributeValue
+*
+* @description
+*/
+CSSParser.parseStyleAttributeValue = function(str) {
+    var r = { prop: '', code: NaN };
+    var kv = str.split(';'); // it will return new array even there is no ';' in the string
+    var v = kv[kv.length-1].split(':'); // only handling the last element
+    if (v.length === 2) {
+
+        // it is ok to trim the space at both ends
+        var prop = v[0].trim(), 
+            expr = v[1].trim();
+        if (prop === '') {
+            r.code = CSSParser.STYLE_ATTRIBUTE_ERROR_PROP_EMPTY;
+            return r;
+        }
+        r.prop = prop;
+
+        /* consume the expr and return the last expr 
+        * this block can be remove with 'var lexpr = expr' without affecting the following code.
+        * (EXPERIMENTAL)
+        *
+        * TODO: migrate to css-js when the npm is stable
+        */
+        var parseError = false;
+        var lexpr = expr.replace(CSSParser.reExpr, function(m, p1, p2, p3, p4) {
+            p3 = p3 !== undefined? p3.trim() : p3; // p3 may has space
+
+            /* CSS STRING patterns */
+            if (p1 !== undefined && p4 !== undefined && p1.match(/^['"]$/) && p4.match(/^['"]$/)) {
+                return ''; /* consume the string */
+            }
+
+            // p2 is always not undefined based on the regExp
+            if (p2 !== undefined && p2.match(/url/i) && p3 !== undefined && p3.match(/^\(/)) {
+                if (p3.match(/"$/) || (p4 !== undefined && p4.trim() === '"')) {
+                    return 'url("';
+                } else if (p3.match(/'$/) || (p4 !== undefined && p4.trim() === "'")) {
+                    return "url('";
+                } else if (p4 === undefined || (p4 !== undefined && p4.trim() === "")) {
+                    return "url(";
+                }
+            }
+
+            if (p1 === undefined && p4 !== undefined) {
+                if (p4 === '"') return '"'; /* this quote belong to the next expr */
+                if (p4 === "'") return "'"; /* this quote belong to the next expr */
+            } else if (p1 !== undefined && p4 === undefined) {
+                parseError = true; /* placeholder is part of the CSS STRING */
+            }
+
+            /* consume the expr */
+            return '';    
+        });
+        if (parseError) { 
+            r.code = CSSParser.STYLE_ATTRIBUTE_ERROR;
+            return r;
+        }
+
+        if (lexpr === '') {
+            r.code = CSSParser.STYLE_ATTRIBUTE_UNQUOTED;
+            return r;
+        } else if (lexpr.match(/^'$/)) {
+            r.code = CSSParser.STYLE_ATTRIBUTE_SINGLE_QUOTED;
+            return r;
+        } else if (lexpr.match(/^"$/)) {
+            r.code = CSSParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED;
+            return r;
+        } else if (CSSParser.reUrlUnquoted.test(lexpr)) {
+            r.code = CSSParser.STYLE_ATTRIBUTE_URL_UNQUOTED;
+            return r;
+        } else if (CSSParser.reUrlSingleQuoted.test(lexpr)) {
+            r.code = CSSParser.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED;
+            return r;
+        } else if (CSSParser.reUrlDoubleQuoted.test(lexpr)) {
+            r.code = CSSParser.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED;
+            return r;
+        }
+
+        r.code = CSSParser.STYLE_ATTRIBUTE_ERROR;
+    } else {
+        r.code = CSSParser.STYLE_ATTRIBUTE_ERROR_AT_PROP_LOCATION;
+    }
+    return r;
+};
+
+/* exposing it */
+module.exports = CSSParser;
+
+})();
+
+},{}],42:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -9968,7 +10251,7 @@ module.exports = HandlebarsUtils;
 
 })();
 
-},{"xss-filters":38}],41:[function(require,module,exports){
+},{"xss-filters":39}],43:[function(require,module,exports){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -10045,7 +10328,7 @@ module.exports.create = overrideHbsCreate;
 // the following is in addition to the original Handlbars prototype
 module.exports.ContextParserHandlebars = ContextParserHandlebars;
 
-},{"./context-parser-handlebars":39,"./handlebars-utils.js":40,"handlebars":26,"xss-filters":38}],42:[function(require,module,exports){
+},{"./context-parser-handlebars":40,"./handlebars-utils.js":42,"handlebars":27,"xss-filters":39}],44:[function(require,module,exports){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -10795,5 +11078,5 @@ module.exports = StrictContextParser;
 
 })();
 
-},{"context-parser":1}]},{},[41])(41)
+},{"context-parser":1}]},{},[43])(43)
 });

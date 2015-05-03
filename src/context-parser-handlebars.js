@@ -19,6 +19,8 @@ var ContextParser = require('./strict-context-parser.js'),
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = require('context-parser').StateMachine;
 
+var cssParser = require('./css-parser.js');
+
 /////////////////////////////////////////////////////
 //
 // TODO: need to move this code back to filter module
@@ -33,6 +35,9 @@ var filter = {
     FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED: 'yavd',
     FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED: 'yavs',
     FILTER_ATTRIBUTE_VALUE_UNQUOTED: 'yavu',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED: 'yced',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED: 'yces',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED: 'yceu',
     FILTER_ENCODE_URI: 'yu',
     FILTER_ENCODE_URI_COMPONENT: 'yuc',
     FILTER_URI_SCHEME_BLACKLIST: 'yubl',
@@ -604,11 +609,65 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
                     }
                     return filters;
                 } else if (attributeName === "style") {  // CSS
-                    /* we don't support css parser yet
-                    * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                    * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                    */
-                    throw 'Unsafe output expression @ attribute style CSS context';
+
+                    filters = [];
+                    attributeValue = cssParser.htmlStyleAttributeValueEntitiesDecode(attributeValue);
+                    debug("addFilter:attributeValue:["+attributeValue+"]");
+
+                    var r = cssParser.parseStyleAttributeValue(attributeValue);
+                    switch(r.code) {
+                        case cssParser.STYLE_ATTRIBUTE_URL_UNQUOTED:
+                            filters.push(filter.FILTER_FULL_URI);
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED:
+                            filters.push(filter.FILTER_FULL_URI);
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED:
+                            filters.push(filter.FILTER_FULL_URI);
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_UNQUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED);
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_SINGLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED);
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_DOUBLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED);
+                            break;
+                        case cssParser.STYLE_ATTRIBUTE_ERROR_AT_PROP_LOCATION:
+                            throw 'Unsafe output expression @ attribute style CSS context (output at property position/invalid CSS syntax)';
+                        case cssParser.STYLE_ATTRIBUTE_ERROR_PROP_EMPTY:
+                            throw 'Unsafe output expression @ attribute style CSS context (property name empty)';
+                        case cssParser.STYLE_ATTRIBUTE_ERROR:
+                            throw 'Unsafe output expression @ attribute style CSS context (parsing error)';
+                    }
+
+                    /* add the attribute value filter */
+                    switch(stateObj.state) {
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
+                            break;
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
+                            break;
+                        default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
+                            break;
+                    }
+                    filters.push(f);
+
+                    /* add blacklist filters at the end of filtering chain */
+                    if (isFullUri) {
+                        /* blacklist the URI scheme for full uri */
+                        filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
+                    }
+                    return filters;
                 } else if (attributeName.match(/^on/i)) { // Javascript
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
