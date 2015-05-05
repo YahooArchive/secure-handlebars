@@ -73,7 +73,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
             var html = ['<!', '>'];
             expect(contextParser.parsePartial(html[0])).to.equal('<!--!');
-            console.log(contextParser.state);
             expect(contextParser.parsePartial(html[1])).to.equal('-->');
 
             var html = ['<!-', '>'];
@@ -125,6 +124,17 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
     });
 
+
+    describe("Comment Precedence in RAWTEXT and RCDATA", function() {
+        it("<% treatment", function() {
+            expect(contextParser.parsePartial('<style> <% </style> %> </style>')).to.equal('<style> &lt;% </style> %> </style>');
+            expect(contextParser.parsePartial('<textarea> <% </textarea> %> </textarea>')).to.equal('<textarea> &lt;% </textarea> %> </textarea>');
+        });
+        it("<! treatment", function() {
+            expect(contextParser.parsePartial('<style> <!-- </style> --> </style>')).to.equal('<style> &lt;!-- </style> --> </style>');
+            expect(contextParser.parsePartial('<textarea> <!-- </textarea> --> </textarea>')).to.equal('<textarea> &lt;!-- </textarea> --> </textarea>');
+        });
+    });
 
     describe("Parse Error Correction in DATA", function() {
         it("NULL treatment", function() {
