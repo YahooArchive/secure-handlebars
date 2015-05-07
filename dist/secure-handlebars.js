@@ -9074,7 +9074,7 @@ function ContextParserHandlebars(config) {
 * stateMachine.Symbol.ELSE is the symbol returns by Parser.lookupChar('{');
 */
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar = stateMachine.lookupStateFromSymbol[stateMachine.Symbol.ELSE].slice(0); // deep copy the array
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_TAG_OPEN]  = stateMachine.State.STATE_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_TAG_OPEN] = stateMachine.State.STATE_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_END_TAG_OPEN]  = stateMachine.State.STATE_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_RCDATA_END_TAG_OPEN] = stateMachine.State.STATE_RCDATA_END_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_RCDATA_END_TAG_NAME] = stateMachine.State.STATE_RCDATA_END_TAG_NAME;
@@ -9089,11 +9089,11 @@ ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END;
 
 /* The states that we will check for attribute name type for state consistency */
-ContextParserHandlebars.statesToCheckForStateConsistency = [
-    stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED,
-    stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED,
-    stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED
-];
+ContextParserHandlebars.statesToCheckForStateConsistency = {
+    '38':1, // stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
+    '39':1, // stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
+    '40':1, // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED
+};
 
 /**
 * @function ContextParserHandlebars.clearBuffer
@@ -9411,17 +9411,17 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
 
     // if the two non-empty branches result in different states
     if (leftParser && rightParser &&
-            (leftParser.state !== rightParser.state ||
+            ( 
+            leftParser.state !== rightParser.state ||
             // note: we compare the AttributeNameType while we are in the following states only.
-            (leftParser.state === rightParser.state &&  
-             ContextParserHandlebars.statesToCheckForStateConsistency.indexOf(leftParser.state)  !== -1 && 
-             ContextParserHandlebars.statesToCheckForStateConsistency.indexOf(rightParser.state) !== -1 &&
-             leftParser.getAttributeNamesType() !== rightParser.getAttributeNamesType())
-            )) {
+            (ContextParserHandlebars.statesToCheckForStateConsistency[leftParser.state] !== undefined &&
+             leftParser.getAttributeNameType() !== rightParser.getAttributeNameType())
+            )
+            ) {
         // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
         msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
         msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
-        msg += "attributeNameType:("+leftParser.getAttributeNamesType()+"/"+rightParser.getAttributeNamesType()+")";
+        msg += "attributeNameType:("+leftParser.getAttributeNameType()+"/"+rightParser.getAttributeNameType()+")";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
@@ -9532,7 +9532,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED: // 39
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED: // 40
 
-                if (parser.getAttributeNamesType() === ContextParser.ATTRTYPE_URI) {
+                if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_URI) {
                     /* we don't support javascript parsing yet */
                     // TODO: this filtering rule cannot cover all cases.
                     if (handlebarsUtils.blacklistProtocol(attributeValue)) {
@@ -9548,13 +9548,13 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     }
                     filters.push(f);                    
                     
-                } else if (parser.getAttributeNamesType() === ContextParser.ATTRTYPE_CSS) { // CSS
+                } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_CSS) { // CSS
                     /* we don't support css parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
                     */
                     throw 'CSS style attribute';
-                } else if (parser.getAttributeNamesType() === ContextParser.ATTRTYPE_SCRIPTABLE) { // JS
+                } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_SCRIPTABLE) { // JS
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
@@ -10265,7 +10265,7 @@ function Canonicalize(state, i, endsWithEOF) {
     }
     // remove the unnecessary SOLIDUS
     else if (potentialState === htmlState.STATE_SELF_CLOSING_START_TAG &&             // <***[/]*
-            nextPotentialState === htmlState.STATE_BEFORE_ATTRTYPE) {           // input[i+1] is ANYTHING_ELSE (i.e., not EOF nor >)
+            nextPotentialState === htmlState.STATE_BEFORE_ATTRIBUTE_NAME) {           // input[i+1] is ANYTHING_ELSE (i.e., not EOF nor >)
         // if ([htmlState.STATE_TAG_NAME,                                             // <a[/]* replaced with <a[ ]*
         //     /* following is unknown to CP
         //     htmlState.STATE_RCDATA_END_TAG_NAME,
@@ -10273,16 +10273,16 @@ function Canonicalize(state, i, endsWithEOF) {
         //     htmlState.STATE_SCRIPT_DATA_END_TAG_NAME,
         //     htmlState.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME,
         //     */
-        //     htmlState.STATE_BEFORE_ATTRTYPE,                                 // <a [/]* replaced with <a [ ]*
+        //     htmlState.STATE_BEFORE_ATTRIBUTE_NAME,                                 // <a [/]* replaced with <a [ ]*
         //     htmlState.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED].indexOf(state) !== -1)   // <a abc=""[/]* replaced with <a abc=""[ ]*
         input[i] = ' ';
 
-        // given input[i] was    '/', nextPotentialState was htmlState.STATE_BEFORE_ATTRTYPE
-        // given input[i] is now ' ', nextPotentialState becomes STATE_BEFORE_ATTRTYPE if current state is STATE_ATTRTYPE or STATE_AFTER_ATTRTYPE
-        // to preserve state, remove future EQUAL SIGNs (=)s to force STATE_AFTER_ATTRTYPE behave as if it is STATE_BEFORE_ATTRTYPE
-        // this is okay since EQUAL SIGNs (=)s will be stripped anyway in the STATE_BEFORE_ATTRTYPE cleanup handling 
-        if (state === htmlState.STATE_ATTRTYPE ||                               // <a abc[/]=abc  replaced with <a abc[ ]*
-                state === htmlState.STATE_AFTER_ATTRTYPE) {                     // <a abc [/]=abc replaced with <a abc [ ]*
+        // given input[i] was    '/', nextPotentialState was htmlState.STATE_BEFORE_ATTRIBUTE_NAME
+        // given input[i] is now ' ', nextPotentialState becomes STATE_BEFORE_ATTRIBUTE_NAME if current state is STATE_ATTRIBUTE_NAME or STATE_AFTER_ATTRIBUTE_NAME
+        // to preserve state, remove future EQUAL SIGNs (=)s to force STATE_AFTER_ATTRIBUTE_NAME behave as if it is STATE_BEFORE_ATTRIBUTE_NAME
+        // this is okay since EQUAL SIGNs (=)s will be stripped anyway in the STATE_BEFORE_ATTRIBUTE_NAME cleanup handling 
+        if (state === htmlState.STATE_ATTRIBUTE_NAME ||                               // <a abc[/]=abc  replaced with <a abc[ ]*
+                state === htmlState.STATE_AFTER_ATTRIBUTE_NAME) {                     // <a abc [/]=abc replaced with <a abc [ ]*
             for (var j = i + 1; j < this.inputLen && input[j] === '='; j++) {
                 input.splice(j, 1);
                 this.inputLen--;
@@ -10290,14 +10290,14 @@ function Canonicalize(state, i, endsWithEOF) {
         }
     }
     // remove unnecessary equal signs, hence <input checked[=]> become <input checked[>], or <input checked [=]> become <input checked [>]
-    else if (potentialState === htmlState.STATE_BEFORE_ATTRIBUTE_VALUE &&   // only from STATE_ATTRTYPE or STATE_AFTER_ATTRTYPE
+    else if (potentialState === htmlState.STATE_BEFORE_ATTRIBUTE_VALUE &&   // only from STATE_ATTRIBUTE_NAME or STATE_AFTER_ATTRIBUTE_NAME
             nextPotentialState === htmlState.STATE_DATA) {                  // <a abc[=]> or <a abc [=]>
         input.splice(i, 1);
         this.inputLen--;
     }
     // insert a space for <a abc="***["]* or <a abc='***[']* after quoted attribute value (i.e., <a abc="***["] * or <a abc='***['] *)
     else if (potentialState === htmlState.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED &&        // <a abc=""[*] where * is not SPACE (\t,\n,\f,' ')
-            nextPotentialState === htmlState.STATE_BEFORE_ATTRTYPE &&
+            nextPotentialState === htmlState.STATE_BEFORE_ATTRIBUTE_NAME &&
             this._getSymbol(i + 1) !== stateMachine.Symbol.SPACE) {
         input.splice(i + 1, 0, ' ');
         this.inputLen++;
@@ -10309,7 +10309,7 @@ function Canonicalize(state, i, endsWithEOF) {
 
     // remove " ' < = from being treated as part of attribute name (not as the spec recommends though)
     switch (potentialState) {
-        case htmlState.STATE_BEFORE_ATTRTYPE:     // remove ambigious symbols in <a [*]href where * is ", ', <, or = 
+        case htmlState.STATE_BEFORE_ATTRIBUTE_NAME:     // remove ambigious symbols in <a [*]href where * is ", ', <, or = 
             if (nextChr === "=") {
                 input.splice(i + 1, 1);
                 this.inputLen--;
@@ -10317,8 +10317,8 @@ function Canonicalize(state, i, endsWithEOF) {
                 break;
             }
             /* falls through */
-        case htmlState.STATE_ATTRTYPE:            // remove ambigious symbols in <a href[*] where * is ", ', or <
-        case htmlState.STATE_AFTER_ATTRTYPE:      // remove ambigious symbols in <a href [*] where * is ", ', or <
+        case htmlState.STATE_ATTRIBUTE_NAME:            // remove ambigious symbols in <a href[*] where * is ", ', or <
+        case htmlState.STATE_AFTER_ATTRIBUTE_NAME:      // remove ambigious symbols in <a href [*] where * is ", ', or <
             if (nextChr === '"' || nextChr === "'" || nextChr === '<') {
                 input.splice(i + 1, 1);
                 this.inputLen--;
@@ -10753,7 +10753,9 @@ var attributeNamesType = {
     'codebase'   :StrictContextParser.ATTRTYPE_URI,     // for object, applet
     'icon'       :StrictContextParser.ATTRTYPE_URI,     // for command
     'profile'    :StrictContextParser.ATTRTYPE_URI,     // for head
-    'content'    :StrictContextParser.ATTRTYPE_URI,     // for meta http-equiv=refresh, kill more than need
+    /* TODO: we allow content before we implement the stack in CP for tracking attributeName
+    'content'    :StrictContextParser.ATTRTYPE_URI,     // for meta http-equiv=refresh
+    */
 
     // http://www.w3.org/TR/xmlbase/#syntax
     'xmlns'      :StrictContextParser.ATTRTYPE_URI,     // for svg, etc?
@@ -10766,7 +10768,7 @@ var attributeNamesType = {
 
     'style'      :StrictContextParser.ATTRTYPE_CSS,     // for global attributes list
 
-    // pattern matching, handling it within the function getAttributeNamesType
+    // pattern matching, handling it within the function getAttributeNameType
     // 'on*'     :StrictContextParser.ATTRTYPE_SCRIPTABLE,
 
     'type'       :StrictContextParser.ATTRTYPE_MIME,    // TODO: any potential attack of the MIME type?
@@ -10777,7 +10779,7 @@ var attributeNamesType = {
 };
 
 /**
- * @function StrictContextParser#getAttributeNamesType
+ * @function StrictContextParser#getAttributeNameType
  *
  * @returns {integer} the attribute type defined for different handling
  *
@@ -10785,10 +10787,11 @@ var attributeNamesType = {
  * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
  *
  */
-StrictContextParser.prototype.getAttributeNamesType = function() {
+StrictContextParser.prototype.getAttributeNameType = function() {
     if (this.attributeName[0] === 'o' && this.attributeName[1] === 'n') { /* assuming it is from Strict Context Parser.
                                                                              and o{{placeholder}}n* can bypass the check.
-                                                                             anyway, we are good to throw error in atttribute name state. */
+                                                                             anyway, we are good to throw error in atttribute name state. 
+                                                                             note: CP has lowerCase the attributeName */
         return StrictContextParser.ATTRTYPE_SCRIPTABLE;
     } else {
         // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">

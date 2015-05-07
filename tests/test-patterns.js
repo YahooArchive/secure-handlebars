@@ -783,7 +783,7 @@ var filterTemplatePatterns = [
             /{{{yubl \(yavd \(yufull url10\)\)}}}/, /{{{yubl \(yavd \(yufull url11\)\)}}}/, /{{{yubl \(yavd \(yufull url12\)\)}}}/,
             /{{{yubl \(yavd \(yufull url13\)\)}}}/, /{{{yubl \(yavd \(yufull url14\)\)}}}/, /{{{yubl \(yavd \(yufull url15\)\)}}}/,
             /{{{yubl \(yavd \(yufull url16\)\)}}}/, /{{{yubl \(yavd \(yufull url17\)\)}}}/, /{{{yubl \(yavd \(yufull url18\)\)}}}/,
-            /{{{yubl \(yavd \(yufull url19\)\)}}}/, /{{{yubl \(yavd \(yufull url20\)\)}}}/, /{{{yubl \(yavd \(yufull url21\)\)}}}/,
+            /{{{yubl \(yavd \(yufull url19\)\)}}}/, /{{{yubl \(yavd \(yufull url20\)\)}}}/,
 
             // only add url filters to tag specific attribute
             /{{{yubl \(yavd \(yufull url90\)\)}}}/, /{{{yubl \(yavd \(yufull url91\)\)}}}/, 
