@@ -42,7 +42,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 [ '<link xlink:href=""   ',   ' ></link>', ContextParser.ATTRTYPE_URI ],
                 [ '<svg xmlns=""         ',   ' ></svg>',  ContextParser.ATTRTYPE_URI ],
 
-/*
                 [ '<div style=""         ',   ' ></div>',  ContextParser.ATTRTYPE_CSS ],
 
                 [ '<a class=""           ',   ' ></a>',    ContextParser.ATTRTYPE_GENERAL ],
@@ -60,7 +59,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 [ '<XXX rel=""        ',   ' ></XXX>',    ContextParser.ATTRTYPE_GENERAL ],
 
                 [ '<iframe srcdoc=""       ',   ' ></iframe>',  ContextParser.ATTRTYPE_URI ],
-*/
 
             ].forEach(function(testObj) {
                 parser.parsePartial(testObj[0]);
