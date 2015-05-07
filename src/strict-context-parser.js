@@ -554,7 +554,7 @@ StrictContextParser.prototype.walk = function(i, input, endsWithEOF) {
         case 6:                       /* match end tag token with start tag token's tag name */
             if(this.tagNames[0] === this.tagNames[1]) {
                 reconsume = 0;  /* see 12.2.4.13 - switch state for the following case, otherwise, reconsume. */
-                this.matchEndTagWithStartTag(ch);
+                this.matchEndTagWithStartTag(symbol);
             }
             break;
         case 8:  this.matchEscapedScriptTag(ch); break;

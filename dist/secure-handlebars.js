@@ -75,7 +75,7 @@ FastParser.prototype.walk = function(i, input) {
         case 6:                       /* match end tag token with start tag token's tag name */
             if(this.tagNames[0] === this.tagNames[1]) {
                 reconsume = 0;  /* see 12.2.4.13 - switch state for the following case, otherwise, reconsume. */
-                this.matchEndTagWithStartTag(ch);
+                this.matchEndTagWithStartTag(symbol);
             }
             break;
         case 8:  this.matchEscapedScriptTag(ch); break;
@@ -115,7 +115,7 @@ FastParser.prototype.resetEndTag = function (ch) {
     this.tagNames[1] = '';
 };
 
-FastParser.prototype.matchEndTagWithStartTag = function (ch) {
+FastParser.prototype.matchEndTagWithStartTag = function (symbol) {
         /* Extra Logic #6 :
         WHITESPACE: If the current end tag token is an appropriate end tag token, then switch to the before attribute name state.
                 Otherwise, treat it as per the 'anything else' entry below.
@@ -126,14 +126,14 @@ FastParser.prototype.matchEndTagWithStartTag = function (ch) {
         */
         this.tagNames[0] = '';
         this.tagNames[1] = '';
-        switch (ch) {
-            case ' ': /** Whitespaces */
+        switch (symbol) {
+            case stateMachine.Symbol.SPACE: /** Whitespaces */
                 this.state = stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME;
                 return ;
-            case '/': /** [/] */
+            case stateMachine.Symbol.SOLIDUS: /** [/] */
                 this.state = stateMachine.State.STATE_SELF_CLOSING_START_TAG;
                 return ;
-            case '>': /** [>] */
+            case stateMachine.Symbol.GREATER: /** [>] */
                 this.state = stateMachine.State.STATE_DATA;
                 return ; 
         }
@@ -373,7 +373,6 @@ module.exports = {
 };
 
 })();
-
 },{"./html5-state-machine.js":2}],2:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo! Inc. All rights reserved.
@@ -1360,32 +1359,64 @@ var substr = 'ab'.substr(-1) === 'b'
 var process = module.exports = {};
 var queue = [];
 var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
 
 function drainQueue() {
     if (draining) {
         return;
     }
+    var timeout = setTimeout(cleanUpNextTick);
     draining = true;
-    var currentQueue;
+
     var len = queue.length;
     while(len) {
         currentQueue = queue;
         queue = [];
-        var i = -1;
-        while (++i < len) {
-            currentQueue[i]();
+        while (++queueIndex < len) {
+            currentQueue[queueIndex].run();
         }
+        queueIndex = -1;
         len = queue.length;
     }
+    currentQueue = null;
     draining = false;
+    clearTimeout(timeout);
 }
+
 process.nextTick = function (fun) {
-    queue.push(fun);
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
     if (!draining) {
         setTimeout(drainQueue, 0);
     }
 };
 
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
 process.title = 'browser';
 process.browser = true;
 process.env = {};
@@ -8066,7 +8097,7 @@ exports._getPrivFilters = function () {
     // Reference: http://shazzer.co.uk/database/All/Characters-after-javascript-uri
     // Reference: https://html.spec.whatwg.org/multipage/syntax.html#consume-a-character-reference
     // Reference for named characters: https://html.spec.whatwg.org/multipage/entities.json
-    var URI_BLACKLIST_PROTOCOLS = ['javascript', 'data', 'vbscript', 'mhtml'],
+    var URI_BLACKLIST_PROTOCOLS = {'javascript':1, 'data':1, 'vbscript':1, 'mhtml':1},
         URI_PROTOCOL_COLON = /(?::|&#[xX]0*3[aA];?|&#0*58;?|&colon;)/,
         URI_PROTOCOL_HTML_ENTITIES = /&(?:#([xX][0-9A-Fa-f]+|\d+);?|Tab;|NewLine;)/g,
         URI_PROTOCOL_WHITESPACES = /(?:^[\x00-\x20]+|[\t\n\r\x00]+)/g,
@@ -8221,7 +8252,7 @@ exports._getPrivFilters = function () {
         // Notice that yubl MUST BE APPLIED LAST, and will not be used independently (expected output from encodeURI/encodeURIComponent and yavd/yavs/yavu)
         // This is used to disable JS execution capabilities by prefixing x- to ^javascript:, ^vbscript: or ^data: that possibly could trigger script execution in URI attribute context
         yubl: function (s) {
-            return URI_BLACKLIST_PROTOCOLS.indexOf(x.yup(s)) === -1 ? s : 'x-' + s;
+            return URI_BLACKLIST_PROTOCOLS[x.yup(s)] ? 'x-' + s : s;
         },
 
         // This is NOT a security-critical filter.
@@ -8986,7 +9017,6 @@ var filter = {
 ')*'].join('');
 */
 var reURIContextStartWhitespaces = /^(?:[\u0000-\u0020]|&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*/;
-var uriAttributeNames = {'href':1, 'src':1, 'action':1, 'formaction':1, 'background':1, 'cite':1, 'longdesc':1, 'usemap':1, 'poster':1, 'xlink:href':1};
 var reEqualSign = /(?:=|&#0*61;?|&#[xX]0*3[dD];?|&equals;)/;
 
 /////////////////////////////////////////////////////
@@ -9272,7 +9302,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
     } catch (exception) {
         if (typeof exception === 'string') {
             exceptionObj = new ContextParserHandlebarsException(
-                '[ERROR] ContextParserHandlebars: ' + exception,
+                '[ERROR] SecureHandlebars: ' + exception,
                 this.countNewLineChar(input.slice(0, j)), j);
             handlebarsUtils.handleError(exceptionObj, true);
         } else {
@@ -9379,7 +9409,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
     if (leftParser && rightParser && 
             leftParser.state !== rightParser.state) {
         // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
-        msg = "[ERROR] ContextParserHandlebars: Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+leftParser.state+"/"+rightParser.state+")";
+        msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+leftParser.state+"/"+rightParser.state+")";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
@@ -9444,7 +9474,7 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
     } catch (exception) {
         if (typeof exception === 'string') {
             exceptionObj = new ContextParserHandlebarsException(
-                '[ERROR] ContextParserHandlebars: ' + exception,
+                '[ERROR] SecureHandlebars: ' + exception,
                 this._lineNo, 
                 this._charNo);
             handlebarsUtils.handleError(exceptionObj, true);
@@ -9460,53 +9490,41 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
 * @description
 * Add the filters to the escape expression based on the state.
 */
-ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
+ContextParserHandlebars.prototype.addFilters = function(parser, input) {
 
     /* transitent var */
-    var isFullUri, f, filters, exceptionObj, msgPrefix,
-        attributeName = stateObj.attributeName,
-        attributeValue = stateObj.attributeValue;
+    var isFullUri = false, filters = [], f, exceptionObj, errorMessage,
+        state = parser.state,
+        tagName = parser.getStartTagName(),
+        attributeName = parser.attributeName,
+        attributeValue = parser.attributeValue;
 
     try {
-        switch(stateObj.state) {
+
+        switch(state) {
             case stateMachine.State.STATE_DATA: // 1
-                return [filter.FILTER_DATA];
             case stateMachine.State.STATE_RCDATA: // 3
                 return [filter.FILTER_DATA];
+
             case stateMachine.State.STATE_RAWTEXT:  // 5
-                /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                */
-                throw 'Unsafe output expression @ STATE_RAWTEXT state';
-            case stateMachine.State.STATE_SCRIPT_DATA: // 6
-                /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                */
-                throw 'Unsafe output expression @ STATE_SCRIPT_DATA state.';
-            case stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME: // 34
-                /* never fall into state 34 */
-                throw 'Unexpected output expression @ STATE_BEFORE_ATTRIBUTE_NAME state';
-            case stateMachine.State.STATE_ATTRIBUTE_NAME: // 35
-                /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                */
-                throw 'Unsafe output expression @ STATE_ATTRIBUTE_NAME state';
-            case stateMachine.State.STATE_AFTER_ATTRIBUTE_NAME: // 36
-                /* never fall into state 36 */
-                throw 'Unexpected output expression @ STATE_AFTER_ATTRIBUTE_NAME state';
-            case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
-                /* never fall into state 37 */
-                throw 'Unexpected output expression @ STATE_BEFORE_ATTRIBUTE_VALUE state';
+                // inside raw text state, HTML parser ignores any state change that looks like tag/attribute
+                // hence we apply the context-insensitive NOT_HANDLE filter that escapes '"`&<> without a warning/error
+                if (tagName === 'xmp' || tagName === 'noembed' || tagName === 'noframes') {
+                    return [filter.FILTER_NOT_HANDLE];
+                }
+                
+                // style, iframe, or other unknown/future ones are considered scriptable
+                throw 'scriptable tag';
+
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED: // 38
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED: // 39
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED: // 40
-                filters = [];
-                // URI scheme
-                if (uriAttributeNames[attributeName]) {
+
+                if (parser.isURIAttribute()) {
                     /* we don't support javascript parsing yet */
                     // TODO: this filtering rule cannot cover all cases.
                     if (handlebarsUtils.blacklistProtocol(attributeValue)) {
-                        throw 'Unsafe output expression @ attribute URI Javascript context';
+                        throw 'scriptable URI attribute (e.g., after <a href="javascript: )';
                     }
 
                     /* add the correct uri filter */
@@ -9514,69 +9532,87 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
                         isFullUri = true;
                         f = filter.FILTER_FULL_URI;
                     } else {
-                        isFullUri = false;
                         f = reEqualSign.test(attributeValue) ? filter.FILTER_ENCODE_URI_COMPONENT : filter.FILTER_ENCODE_URI;
                     }
-                    filters.push(f);
-
-                    /* add the attribute value filter */
-                    switch(stateObj.state) {
-                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
-                            f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
-                            break;
-                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
-                            f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
-                            break;
-                        default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
-                            f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
-                    }
-                    filters.push(f);
-
-                    /* add blacklist filters at the end of filtering chain */
-                    if (isFullUri) {
-                        /* blacklist the URI scheme for full uri */
-                        filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
-                    }
-                    return filters;
+                    filters.push(f);                    
+                    
                 } else if (attributeName === "style") {  // CSS
                     /* we don't support css parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
                     */
-                    throw 'Unsafe output expression @ attribute style CSS context';
+                    throw 'CSS style attribute';
                 } else if (attributeName.match(/^on/i)) { // Javascript
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
                     */
-                    throw 'Unsafe output expression @ attribute on* Javascript context';
-                } else {
-                    /* add the attribute value filter */
-                    switch(stateObj.state) {
-                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
-                            return [filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED];
-                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
-                            return [filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED];
-                        default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
-                            return [filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED];
-                    }
+                    throw attributeName + ' JavaScript event attribute';
                 }
-                break;
-            case stateMachine.State.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED: // 42
-                /* never fall into state 42 */
-                throw 'Unsafe output expression @ STATE_AFTER_ATTRIBUTE_VALUE_QUOTED state';
+
+
+                /* add the attribute value filter */
+                switch(state) {
+                    case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
+                        f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
+                        break;
+                    case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
+                        f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
+                        break;
+                    default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
+                        f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
+                }
+                filters.push(f);
+
+                /* add blacklist filters at the end of filtering chain */
+                if (isFullUri) {
+                    /* blacklist the URI scheme for full uri */
+                    filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
+                }
+                return filters;
+            
+
             case stateMachine.State.STATE_COMMENT: // 48
                 return [filter.FILTER_COMMENT];
+
+
+            /* the following are those unsafe contexts that we have no plans to support (yet?)
+             * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
+             * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
+             */
+            case stateMachine.State.STATE_TAG_NAME: // 10
+                throw 'being an tag name (i.e., TAG_NAME state)';
+            case stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME: // 34
+            case stateMachine.State.STATE_ATTRIBUTE_NAME: // 35
+            case stateMachine.State.STATE_AFTER_ATTRIBUTE_NAME: // 36
+            case stateMachine.State.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED: // 42
+                throw 'being an attribute name (state #: ' + state + ')';
+
+
+            // the following will be caught by parser.isScriptableTag() anyway
+            // case stateMachine.State.STATE_SCRIPT_DATA: // 6
+            //     throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
+            
+
+            // should not fall into the following states
+            case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
+                throw 'unexpectedly BEFORE_ATTRIBUTE_VALUE state';
+
             default:
-                throw 'Unsafe output expression @ NOT HANDLE state:'+stateObj.state;
+                throw 'unsupported position (i.e., state #: ' + state + ')';
         }
     } catch (exception) {
+
         if (typeof exception === 'string') {
-            msgPrefix = this._config._strictMode? '[ERROR] ContextParserHandlebars:' : '[WARNING] ContextParserHandlebars:';
-            exceptionObj = new ContextParserHandlebarsException(
-                msgPrefix + exception,
-                this._lineNo,
-                this._charNo);
+
+            errorMessage = (this._config._strictMode? '[ERROR]' : '[WARNING]') + ' SecureHandlebars: Unsafe output expression found at ';
+
+            // To be secure, scriptable tags when encountered will anyway throw an error/warning
+            // they require either special parsers of their own context (e.g., CSS/script parsers) 
+            //    or an application-specific whitelisted url check (e.g., <script src=""> with yubl-yavu-yufull is not enough)
+            errorMessage += parser.isScriptableTag() ? 'scriptable <' + tagName + '> tag' : exception;
+
+            exceptionObj = new ContextParserHandlebarsException(errorMessage, this._lineNo, this._charNo);
             handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
         } else {
             handlebarsUtils.handleError(exception, this._config._strictMode);
@@ -9634,7 +9670,7 @@ ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, s
         }
         saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
     }
-    throw "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter close brace of expression.";
+    throw "[ERROR] SecureHandlebars: Parsing error! Cannot encounter close brace of expression.";
 };
 
 /**
@@ -9688,7 +9724,7 @@ ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, le
             saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of escape expression.";
+    msg = "[ERROR] SecureHandlebars: Parsing error! Cannot encounter '}}' close brace of escape expression.";
     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
     handlebarsUtils.handleError(exceptionObj, true);
 };
@@ -9716,10 +9752,10 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
         } else if (!isStartExpression && input[j] === '{' && j+4<len && input[j+1] === '{' && input[j+2] === '{' && input[j+3] === '{' && input[j+4] === '/') {
             re = handlebarsUtils.isValidExpression(input, j, handlebarsUtils.RAW_END_BLOCK);
             if (re.result === false) {
-                throw "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw end block expression.";
+                throw "[ERROR] SecureHandlebars: Parsing error! Invalid raw end block expression.";
             }
             if (re.tag !== tag) {
-                throw "[ERROR] ContextParserHandlebars: Parsing error! start/end raw block name mismatch.";
+                throw "[ERROR] SecureHandlebars: Parsing error! start/end raw block name mismatch.";
             }
             for(var k=j;k<len;++k) {
                 if (input[k] === '}' && k+3<len && input[k+1] === '}' && input[k+2] === '}' && input[k+3] === '}') {
@@ -9735,7 +9771,7 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
             saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
-    throw "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}}}' close brace of raw block.";
+    throw "[ERROR] SecureHandlebars: Parsing error! Cannot encounter '}}}}' close brace of raw block.";
 };
 
 /* exposing it */
@@ -10381,6 +10417,7 @@ function StrictContextParser(config, listeners) {
         !config.disableCanonicalization && this.on('preWalk', Canonicalize).on('reWalk', Canonicalize);
         // disable IE conditional comments
         !config.disableIEConditionalComments && this.on('preWalk', DisableIEConditionalComments);
+        // TODO: rewrite IE <comment> tags
 
         // TODO: When a start tag token is emitted with its self-closing flag set, if the flag is not acknowledged when it is processed by the tree construction stage, that is a parse error.
         // TODO: When an end tag token is emitted with attributes, that is a parse error.
@@ -10601,7 +10638,7 @@ StrictContextParser.prototype.walk = function(i, input, endsWithEOF) {
         case 6:                       /* match end tag token with start tag token's tag name */
             if(this.tagNames[0] === this.tagNames[1]) {
                 reconsume = 0;  /* see 12.2.4.13 - switch state for the following case, otherwise, reconsume. */
-                this.matchEndTagWithStartTag(ch);
+                this.matchEndTagWithStartTag(symbol);
             }
             break;
         case 8:  this.matchEscapedScriptTag(ch); break;
@@ -10658,7 +10695,65 @@ StrictContextParser.prototype.getCurrentState = function() {
 };
 
 
+var uriAttributeNames = {
+    // we generally do not differentiate whether these attribtues are tag specific during matching for simplicity
+    'href':1, 'src':1,                    // for a, link, img, area, iframe, frame, video, object, embed ...
+    'background':1,                       // for body, table, tbody, tr, td, th, etc?
+    'action':1, 'formaction':1,           // for form, input, button
+    'cite':1,                             // for blockquote, del, ins, q
+    'poster':1, 'usemap':1, 'longdesc':1, // for img, object, video, source
+    'folder':1,                           // for a
+    'manifest':1,                         // for html
+    'classid':1,                          // for object
+    'codebase':1,                         // for object, applet
+    'icon':1,                             // for command
+    'profile':1,                          // for head
+    'xmlns':1,                            // for svg, etc?
+    'xml:base':1, 'xlink:href':1,         // for xml-related
+    'data': {'object':1},
+    'value': {'param':1}
+};
 
+/**
+ * @function StrictContextParser#isURIAttribute
+ *
+ * @returns {boolean} true if the attribute is likely of URI type, false otherwise
+ *
+ * @description
+ * Check if the current attribute is likely of URI type. This might not be accurate since it could be agnostic to its tag name (e.g., <x href="">)
+ *
+ */
+StrictContextParser.prototype.isURIAttribute = function() {
+    // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
+
+    // here,  uriAttrTags === 1 is a tag agnostic matching
+    // while, uriAttrTags[tagName] === 1 matches only those attribute of the given tagName
+    var uriAttrTags = uriAttributeNames[this.attributeName];
+    return uriAttrTags && (uriAttrTags === 1 || uriAttrTags[this.tagNames[0]] === 1);
+};
+
+
+// <iframe srcdoc=""> is a scriptable attribute too
+// Reference: https://html.spec.whatwg.org/multipage/embedded-content.html#attr-iframe-srcdoc
+var scriptableTags = {
+    script:1,style:1,
+    svg:1,xml:1,math:1,
+    applet:1,object:1,embed:1,link:1,
+    scriptlet:1                  // IE-specific
+};
+
+/**
+ * @function StrictContextParser#isScriptableTag
+ *
+ * @returns {boolean} true if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ * @description
+ * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ */
+StrictContextParser.prototype.isScriptableTag = function() {
+    return scriptableTags[this.tagNames[0]] === 1;
+};
 
 
 
