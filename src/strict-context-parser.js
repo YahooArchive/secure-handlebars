@@ -110,25 +110,14 @@ function Canonicalize(state, i, endsWithEOF) {
     if (chr === '\x00' && statesRequiringNullReplacement[state]) {
         input[i] = '\uFFFD';
     }
-    // convert < to &lt; for unknown tagnames (not started with alpha)
-    else if (potentialState === htmlState.STATE_TAG_OPEN) {    // only from STATE_DATA
-        if (nextPotentialState === htmlState.STATE_DATA) {     // [<]3, where last char is non-alpha about to transit to data
-            // <3 must be interpreted as &lt;3 (don't turn it to a heart :)
-            // replace the current < with &lt; 
-            // potentialState will be changed from TAG_OPEN to DATA
-            input.splice(i, 1, '&', 'l', 't', ';');
-            this.inputLen += 3;
-        } 
-        /*
-        // found </>. convert it to <!--/-->
-        else if (nextPotentialState === htmlState.STATE_END_TAG_OPEN && input[i + 2] === '>') {  // [<]/>
-            // found </>, remove this ambigious block 
-            input.splice(i, 3);
-            this.inputLen -= 3;
-        */ 
-        else {
-            reCanonicalizeNeeded = false;
-        }
+    // encode < into &lt; for [<]* (* is non-alpha) in STATE_DATA, [<]% and [<]! in STATE_RCDATA and STATE_RAWTEXT
+    else if ((potentialState === htmlState.STATE_TAG_OPEN && nextPotentialState === htmlState.STATE_DATA) ||  // [<]*, where * is non-alpha
+             ((state === htmlState.STATE_RCDATA || state === htmlState.STATE_RAWTEXT) &&                            // in STATE_RCDATA and STATE_RAWTEXT
+            chr === '<' && (nextChr === '%' || nextChr === '!'))) {   // [<]% or [<]!
+        
+        // [<]*, [<]%, [<]!
+        input.splice(i, 1, '&', 'l', 't', ';');
+        this.inputLen += 3;
     }
     // enforce <!doctype html>
     // + convert bogus comment or unknown doctype to the standard html comment
@@ -344,6 +333,7 @@ function StrictContextParser(config, listeners) {
         !config.disableCanonicalization && this.on('preWalk', Canonicalize).on('reWalk', Canonicalize);
         // disable IE conditional comments
         !config.disableIEConditionalComments && this.on('preWalk', DisableIEConditionalComments);
+        // TODO: rewrite IE <comment> tags
 
         // TODO: When a start tag token is emitted with its self-closing flag set, if the flag is not acknowledged when it is processed by the tree construction stage, that is a parse error.
         // TODO: When an end tag token is emitted with attributes, that is a parse error.
@@ -621,7 +611,65 @@ StrictContextParser.prototype.getCurrentState = function() {
 };
 
 
+var uriAttributeNames = {
+    // we generally do not differentiate whether these attribtues are tag specific during matching for simplicity
+    'href':1, 'src':1,                    // for a, link, img, area, iframe, frame, video, object, embed ...
+    'background':1,                       // for body, table, tbody, tr, td, th, etc?
+    'action':1, 'formaction':1,           // for form, input, button
+    'cite':1,                             // for blockquote, del, ins, q
+    'poster':1, 'usemap':1, 'longdesc':1, // for img, object, video, source
+    'folder':1,                           // for a
+    'manifest':1,                         // for html
+    'classid':1,                          // for object
+    'codebase':1,                         // for object, applet
+    'icon':1,                             // for command
+    'profile':1,                          // for head
+    'xmlns':1,                            // for svg, etc?
+    'xml:base':1, 'xlink:href':1,         // for xml-related
+    'data': {'object':1},
+    'value': {'param':1}
+};
 
+/**
+ * @function StrictContextParser#isURIAttribute
+ *
+ * @returns {boolean} true if the attribute is likely of URI type, false otherwise
+ *
+ * @description
+ * Check if the current attribute is likely of URI type. This might not be accurate since it could be agnostic to its tag name (e.g., <x href="">)
+ *
+ */
+StrictContextParser.prototype.isURIAttribute = function() {
+    // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
+
+    // here,  uriAttrTags === 1 is a tag agnostic matching
+    // while, uriAttrTags[tagName] === 1 matches only those attribute of the given tagName
+    var uriAttrTags = uriAttributeNames[this.attributeName];
+    return uriAttrTags && (uriAttrTags === 1 || uriAttrTags[this.tagNames[0]] === 1);
+};
+
+
+// <iframe srcdoc=""> is a scriptable attribute too
+// Reference: https://html.spec.whatwg.org/multipage/embedded-content.html#attr-iframe-srcdoc
+var scriptableTags = {
+    script:1,style:1,
+    svg:1,xml:1,math:1,
+    applet:1,object:1,embed:1,link:1,
+    scriptlet:1                  // IE-specific
+};
+
+/**
+ * @function StrictContextParser#isScriptableTag
+ *
+ * @returns {boolean} true if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ * @description
+ * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ */
+StrictContextParser.prototype.isScriptableTag = function() {
+    return scriptableTags[this.tagNames[0]] === 1;
+};
 
 
 
