@@ -441,9 +441,13 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
     // if the two non-empty branches result in different states
     // TODO: check also the attributeName, attributeValue and tagName differences
     if (leftParser && rightParser && 
-            leftParser.state !== rightParser.state) {
+            (leftParser.state !== rightParser.state || 
+            leftParser.getAttributeNamesType() !== rightParser.getAttributeNamesType())
+            ) {
         // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
-        msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+leftParser.state+"/"+rightParser.state+")";
+        msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
+        msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
+        msg += "attributeNameType:("+leftParser.getAttributeNamesType()+"/"+rightParser.getAttributeNamesType()+")";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
@@ -554,7 +558,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED: // 39
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED: // 40
 
-                if (parser.isURIAttribute()) {
+                if (parser.getAttributeNamesType() === ContextParser.ATTRIBUTE_NAME_URI_TYPE) {
                     /* we don't support javascript parsing yet */
                     // TODO: this filtering rule cannot cover all cases.
                     if (handlebarsUtils.blacklistProtocol(attributeValue)) {
@@ -570,13 +574,13 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     }
                     filters.push(f);                    
                     
-                } else if (attributeName === "style") {  // CSS
+                } else if (parser.getAttributeNamesType() === ContextParser.ATTRIBUTE_NAME_CSS_TYPE) { // CSS
                     /* we don't support css parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
                     */
                     throw 'CSS style attribute';
-                } else if (attributeName.match(/^on/i)) { // Javascript
+                } else if (parser.getAttributeNamesType() === ContextParser.ATTRIBUTE_NAME_SCRIPTABLE_TYPE) { // JS
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.

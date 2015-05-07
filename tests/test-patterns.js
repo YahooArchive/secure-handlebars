@@ -1050,6 +1050,12 @@ var exceptionPatterns = [
         result: [ /Inconsistent HTML5 state/, /lineNo:5,charNo:387/ ],
     },
     {
+        title: './bin/handlebarspp html5 attribute name type inconsistent state test',
+        file: './tests/samples/bugs/007.state.attribute-name-comparison-001.hbs',
+        strictMode: false,
+        result: [ /Inconsistent HTML5 state/, /lineNo:9,charNo:202/ ],
+    },
+    {
         title: './bin/handlebarspp line no and char no reporting buildAst test',
         file: './tests/samples/bugs/005-2.line.report.hb',
         strictMode: false,
@@ -1129,6 +1135,11 @@ var reportedBugPatterns = [
         title: 'state (attribute name) propagation in branching template test',
         file: './tests/samples/bugs/006.state.attribute-name.hb',
         result: [ /{{{y styleoutput}}}/, /{{{yavd classoutput}}}/ ],
+    },
+    {
+        title: './bin/handlebarspp html5 attribute name type inconsistent state test',
+        file: './tests/samples/bugs/007.state.attribute-name-comparison-002.hbs',
+        result: [],
     },
 /* disable this test during the code refactoring
     {

@@ -15,6 +15,59 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         ContextParser = require("../../src/strict-context-parser.js"),
         contextParser = new ContextParser();
 
+    describe('Attribute Name Type Test', function(){
+
+        it('getAttributeNamesType test', function () {
+            var parser = contextParser;
+            [
+                [ '<a href=""            ',   ' ></a>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<a src=""             ',   ' ></a>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+
+                [ '<body background=""   ',   ' ></body>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<form action=""       ',   ' ></form>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<form formaction=""   ',   ' ></form>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<blockquote cite=""   ',   ' ></blockquote>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<img poster=""        ',   ' ></img>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<img usemap=""        ',   ' ></img>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<a longdesc=""        ',   ' ></a>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<a folder=""          ',   ' ></a>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<body manifest=""     ',   ' ></body>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<command icon=""      ',   ' ></command>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<head profile=""      ',   ' ></head>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+
+                [ '<meta http-equiv=refresh content=""      ',   ' ></meta>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+
+                [ '<doc xml:base=""      ',   ' ></doc>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<doc xmlns:xlink=""   ',   ' ></doc>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<link xlink:href=""   ',   ' ></link>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<svg xmlns=""         ',   ' ></svg>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+
+                [ '<div style=""         ',   ' ></div>',  ContextParser.ATTRIBUTE_NAME_CSS_TYPE ],
+
+                [ '<a class=""           ',   ' ></a>',    ContextParser.ATTRIBUTE_NAME_GENERAL_TYPE ],
+
+                [ '<object classid=""    ',   ' ></object>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<object codebase=""   ',   ' ></object>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<object data=""       ',   ' ></object>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+
+                [ '<a onclick=""         ',   ' ></a>',      ContextParser.ATTRIBUTE_NAME_SCRIPTABLE_TYPE ],
+                [ '<a onXXX=""           ',   ' ></a>',      ContextParser.ATTRIBUTE_NAME_SCRIPTABLE_TYPE ],
+
+                [ '<param value=""       ',   ' ></param>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<XXX value=""      ',   ' ></XXX>',    ContextParser.ATTRIBUTE_NAME_GENERAL_TYPE ],
+                [ '<link rel=""          ',   ' ><link>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<XXX rel=""        ',   ' ></XXX>',    ContextParser.ATTRIBUTE_NAME_GENERAL_TYPE ],
+
+                [ '<iframe srcdoc=""     ',   ' ></iframe>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+            ].forEach(function(testObj) {
+                parser.parsePartial(testObj[0]);
+                expect(parser.getAttributeNamesType()).to.equal(testObj[2]);
+                parser.parsePartial(testObj[1]);
+            });
+        });
+    });
+
+
     describe('Input Stream Pre-processing Test', function(){
         it('\\r\\n treatment', function () {
             expect(contextParser.parsePartial('\r\n')).to.equal('\n');
