@@ -169,7 +169,7 @@ function Canonicalize(state, i, endsWithEOF) {
     }
     // remove the unnecessary SOLIDUS
     else if (potentialState === htmlState.STATE_SELF_CLOSING_START_TAG &&             // <***[/]*
-            nextPotentialState === htmlState.STATE_BEFORE_ATTRIBUTE_NAME) {           // input[i+1] is ANYTHING_ELSE (i.e., not EOF nor >)
+            nextPotentialState === htmlState.STATE_BEFORE_ATTRTYPE) {           // input[i+1] is ANYTHING_ELSE (i.e., not EOF nor >)
         // if ([htmlState.STATE_TAG_NAME,                                             // <a[/]* replaced with <a[ ]*
         //     /* following is unknown to CP
         //     htmlState.STATE_RCDATA_END_TAG_NAME,
@@ -177,16 +177,16 @@ function Canonicalize(state, i, endsWithEOF) {
         //     htmlState.STATE_SCRIPT_DATA_END_TAG_NAME,
         //     htmlState.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME,
         //     */
-        //     htmlState.STATE_BEFORE_ATTRIBUTE_NAME,                                 // <a [/]* replaced with <a [ ]*
+        //     htmlState.STATE_BEFORE_ATTRTYPE,                                 // <a [/]* replaced with <a [ ]*
         //     htmlState.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED].indexOf(state) !== -1)   // <a abc=""[/]* replaced with <a abc=""[ ]*
         input[i] = ' ';
 
-        // given input[i] was    '/', nextPotentialState was htmlState.STATE_BEFORE_ATTRIBUTE_NAME
-        // given input[i] is now ' ', nextPotentialState becomes STATE_BEFORE_ATTRIBUTE_NAME if current state is STATE_ATTRIBUTE_NAME or STATE_AFTER_ATTRIBUTE_NAME
-        // to preserve state, remove future EQUAL SIGNs (=)s to force STATE_AFTER_ATTRIBUTE_NAME behave as if it is STATE_BEFORE_ATTRIBUTE_NAME
-        // this is okay since EQUAL SIGNs (=)s will be stripped anyway in the STATE_BEFORE_ATTRIBUTE_NAME cleanup handling 
-        if (state === htmlState.STATE_ATTRIBUTE_NAME ||                               // <a abc[/]=abc  replaced with <a abc[ ]*
-                state === htmlState.STATE_AFTER_ATTRIBUTE_NAME) {                     // <a abc [/]=abc replaced with <a abc [ ]*
+        // given input[i] was    '/', nextPotentialState was htmlState.STATE_BEFORE_ATTRTYPE
+        // given input[i] is now ' ', nextPotentialState becomes STATE_BEFORE_ATTRTYPE if current state is STATE_ATTRTYPE or STATE_AFTER_ATTRTYPE
+        // to preserve state, remove future EQUAL SIGNs (=)s to force STATE_AFTER_ATTRTYPE behave as if it is STATE_BEFORE_ATTRTYPE
+        // this is okay since EQUAL SIGNs (=)s will be stripped anyway in the STATE_BEFORE_ATTRTYPE cleanup handling 
+        if (state === htmlState.STATE_ATTRTYPE ||                               // <a abc[/]=abc  replaced with <a abc[ ]*
+                state === htmlState.STATE_AFTER_ATTRTYPE) {                     // <a abc [/]=abc replaced with <a abc [ ]*
             for (var j = i + 1; j < this.inputLen && input[j] === '='; j++) {
                 input.splice(j, 1);
                 this.inputLen--;
@@ -194,14 +194,14 @@ function Canonicalize(state, i, endsWithEOF) {
         }
     }
     // remove unnecessary equal signs, hence <input checked[=]> become <input checked[>], or <input checked [=]> become <input checked [>]
-    else if (potentialState === htmlState.STATE_BEFORE_ATTRIBUTE_VALUE &&   // only from STATE_ATTRIBUTE_NAME or STATE_AFTER_ATTRIBUTE_NAME
+    else if (potentialState === htmlState.STATE_BEFORE_ATTRIBUTE_VALUE &&   // only from STATE_ATTRTYPE or STATE_AFTER_ATTRTYPE
             nextPotentialState === htmlState.STATE_DATA) {                  // <a abc[=]> or <a abc [=]>
         input.splice(i, 1);
         this.inputLen--;
     }
     // insert a space for <a abc="***["]* or <a abc='***[']* after quoted attribute value (i.e., <a abc="***["] * or <a abc='***['] *)
     else if (potentialState === htmlState.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED &&        // <a abc=""[*] where * is not SPACE (\t,\n,\f,' ')
-            nextPotentialState === htmlState.STATE_BEFORE_ATTRIBUTE_NAME &&
+            nextPotentialState === htmlState.STATE_BEFORE_ATTRTYPE &&
             this._getSymbol(i + 1) !== stateMachine.Symbol.SPACE) {
         input.splice(i + 1, 0, ' ');
         this.inputLen++;
@@ -213,7 +213,7 @@ function Canonicalize(state, i, endsWithEOF) {
 
     // remove " ' < = from being treated as part of attribute name (not as the spec recommends though)
     switch (potentialState) {
-        case htmlState.STATE_BEFORE_ATTRIBUTE_NAME:     // remove ambigious symbols in <a [*]href where * is ", ', <, or = 
+        case htmlState.STATE_BEFORE_ATTRTYPE:     // remove ambigious symbols in <a [*]href where * is ", ', <, or = 
             if (nextChr === "=") {
                 input.splice(i + 1, 1);
                 this.inputLen--;
@@ -221,8 +221,8 @@ function Canonicalize(state, i, endsWithEOF) {
                 break;
             }
             /* falls through */
-        case htmlState.STATE_ATTRIBUTE_NAME:            // remove ambigious symbols in <a href[*] where * is ", ', or <
-        case htmlState.STATE_AFTER_ATTRIBUTE_NAME:      // remove ambigious symbols in <a href [*] where * is ", ', or <
+        case htmlState.STATE_ATTRTYPE:            // remove ambigious symbols in <a href[*] where * is ", ', or <
+        case htmlState.STATE_AFTER_ATTRTYPE:      // remove ambigious symbols in <a href [*] where * is ", ', or <
             if (nextChr === '"' || nextChr === "'" || nextChr === '<') {
                 input.splice(i + 1, 1);
                 this.inputLen--;
@@ -634,50 +634,50 @@ StrictContextParser.prototype.isScriptableTag = function() {
 };
 
 // Reference: http://www.w3.org/TR/html-markup/elements.html
-StrictContextParser.ATTRIBUTE_NAME_URI_TYPE  = 1,
-StrictContextParser.ATTRIBUTE_NAME_CSS_TYPE  = 2,
-StrictContextParser.ATTRIBUTE_NAME_SCRIPTABLE_TYPE = 3,
-StrictContextParser.ATTRIBUTE_NAME_MIME_TYPE = 4,
-StrictContextParser.ATTRIBUTE_NAME_GENERAL_TYPE = undefined;
+StrictContextParser.ATTRTYPE_URI = 1,
+StrictContextParser.ATTRTYPE_CSS = 2,
+StrictContextParser.ATTRTYPE_SCRIPTABLE = 3,
+StrictContextParser.ATTRTYPE_MIME = 4,
+StrictContextParser.ATTRTYPE_GENERAL = undefined;
 
 var attributeNamesType = {
     // we generally do not differentiate whether these attribtues are tag specific during matching for simplicity
-    'href'       :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for a, link, img, area, iframe, frame, video, object, embed ...
-    'src'        :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,
-    'background' :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for body, table, tbody, tr, td, th, etc? (obsolete)
-    'action'     :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for form, input, button
-    'formaction' :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     
-    'cite'       :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for blockquote, del, ins, q
-    'poster'     :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for img, object, video, source
-    'usemap'     :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for image
-    'longdesc'   :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,                         
-    'folder'     :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for a
-    'manifest'   :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for html
-    'classid'    :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for object
-    'codebase'   :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for object, applet
-    'icon'       :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for command
-    'profile'    :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for head
-    'content'    :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for meta http-equiv=refresh, kill more than need
+    'href'       :StrictContextParser.ATTRTYPE_URI,     // for a, link, img, area, iframe, frame, video, object, embed ...
+    'src'        :StrictContextParser.ATTRTYPE_URI,
+    'background' :StrictContextParser.ATTRTYPE_URI,     // for body, table, tbody, tr, td, th, etc? (obsolete)
+    'action'     :StrictContextParser.ATTRTYPE_URI,     // for form, input, button
+    'formaction' :StrictContextParser.ATTRTYPE_URI,     
+    'cite'       :StrictContextParser.ATTRTYPE_URI,     // for blockquote, del, ins, q
+    'poster'     :StrictContextParser.ATTRTYPE_URI,     // for img, object, video, source
+    'usemap'     :StrictContextParser.ATTRTYPE_URI,     // for image
+    'longdesc'   :StrictContextParser.ATTRTYPE_URI,                         
+    'folder'     :StrictContextParser.ATTRTYPE_URI,     // for a
+    'manifest'   :StrictContextParser.ATTRTYPE_URI,     // for html
+    'classid'    :StrictContextParser.ATTRTYPE_URI,     // for object
+    'codebase'   :StrictContextParser.ATTRTYPE_URI,     // for object, applet
+    'icon'       :StrictContextParser.ATTRTYPE_URI,     // for command
+    'profile'    :StrictContextParser.ATTRTYPE_URI,     // for head
+    'content'    :StrictContextParser.ATTRTYPE_URI,     // for meta http-equiv=refresh, kill more than need
 
     // http://www.w3.org/TR/xmlbase/#syntax
-    'xmlns'      :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for svg, etc?
-    'xml:base'   :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE, 
-    'xmlns:xlink':StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,
-    'xlink:href' :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for xml-related
+    'xmlns'      :StrictContextParser.ATTRTYPE_URI,     // for svg, etc?
+    'xml:base'   :StrictContextParser.ATTRTYPE_URI, 
+    'xmlns:xlink':StrictContextParser.ATTRTYPE_URI,
+    'xlink:href' :StrictContextParser.ATTRTYPE_URI,     // for xml-related
 
     // srcdoc is the STRING type, not URI
-    'srcdoc'     :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for iframe
+    'srcdoc'     :StrictContextParser.ATTRTYPE_URI,     // for iframe
 
-    'style'      :StrictContextParser.ATTRIBUTE_NAME_CSS_TYPE,     // for global attributes list
+    'style'      :StrictContextParser.ATTRTYPE_CSS,     // for global attributes list
 
     // pattern matching, handling it within the function getAttributeNamesType
-    // 'on*'     :StrictContextParser.ATTRIBUTE_NAME_SCRIPTABLE_TYPE,
+    // 'on*'     :StrictContextParser.ATTRTYPE_SCRIPTABLE,
 
-    'type'       :StrictContextParser.ATTRIBUTE_NAME_MIME_TYPE,    // TODO: any potential attack of the MIME type?
+    'type'       :StrictContextParser.ATTRTYPE_MIME,    // TODO: any potential attack of the MIME type?
 
-    'data'       :{'object'  :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE},
-    'rel'        :{'link'    :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE},
-    'value'      :{'param'   :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE},
+    'data'       :{'object'  :StrictContextParser.ATTRTYPE_URI},
+    'rel'        :{'link'    :StrictContextParser.ATTRTYPE_URI},
+    'value'      :{'param'   :StrictContextParser.ATTRTYPE_URI},
 };
 
 /**
@@ -690,14 +690,14 @@ var attributeNamesType = {
  *
  */
 StrictContextParser.prototype.getAttributeNamesType = function() {
-    if (this.attributeName.match(/^on/i)) { /* assuming it is from Strict Context Parser.
-                                               and o{{placeholder}}n* can bypass the check.
-                                               anyway, we are good to throw error in atttribute name state. */
-        return StrictContextParser.ATTRIBUTE_NAME_SCRIPTABLE_TYPE;
+    if (this.attributeName[0] === 'o' && this.attributeName[1] === 'n') { /* assuming it is from Strict Context Parser.
+                                                                             and o{{placeholder}}n* can bypass the check.
+                                                                             anyway, we are good to throw error in atttribute name state. */
+        return StrictContextParser.ATTRTYPE_SCRIPTABLE;
     } else {
         // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
 
-        // return StrictContextParser.ATTRIBUTE_NAME_GENERAL_TYPE for case without special handling
+        // return StrictContextParser.ATTRTYPE_GENERAL for case without special handling
         // here,  attrTags === [integer] is a tag agnostic matching
         // while, attrTags[tagName] === [integer] matches only those attribute of the given tagName
 

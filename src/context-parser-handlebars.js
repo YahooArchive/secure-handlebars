@@ -568,7 +568,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED: // 39
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED: // 40
 
-                if (parser.getAttributeNamesType() === ContextParser.ATTRIBUTE_NAME_URI_TYPE) {
+                if (parser.getAttributeNamesType() === ContextParser.ATTRTYPE_URI) {
                     /* we don't support javascript parsing yet */
                     // TODO: this filtering rule cannot cover all cases.
                     if (handlebarsUtils.blacklistProtocol(attributeValue)) {
@@ -584,13 +584,13 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     }
                     filters.push(f);                    
                     
-                } else if (parser.getAttributeNamesType() === ContextParser.ATTRIBUTE_NAME_CSS_TYPE) { // CSS
+                } else if (parser.getAttributeNamesType() === ContextParser.ATTRTYPE_CSS) { // CSS
                     /* we don't support css parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
                     */
                     throw 'CSS style attribute';
-                } else if (parser.getAttributeNamesType() === ContextParser.ATTRIBUTE_NAME_SCRIPTABLE_TYPE) { // JS
+                } else if (parser.getAttributeNamesType() === ContextParser.ATTRTYPE_SCRIPTABLE) { // JS
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.

@@ -20,46 +20,45 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         it('getAttributeNamesType test', function () {
             var parser = contextParser;
             [
-                [ '<a href=""            ',   ' ></a>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<a src=""             ',   ' ></a>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<a href=""            ',   ' ></a>',    ContextParser.ATTRTYPE_URI ],
+                [ '<a src=""             ',   ' ></a>',    ContextParser.ATTRTYPE_URI ],
 
-                [ '<body background=""   ',   ' ></body>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<form action=""       ',   ' ></form>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<form formaction=""   ',   ' ></form>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<blockquote cite=""   ',   ' ></blockquote>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<img poster=""        ',   ' ></img>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<img usemap=""        ',   ' ></img>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<a longdesc=""        ',   ' ></a>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<a folder=""          ',   ' ></a>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<body manifest=""     ',   ' ></body>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<command icon=""      ',   ' ></command>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<head profile=""      ',   ' ></head>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<body background=""   ',   ' ></body>', ContextParser.ATTRTYPE_URI ],
+                [ '<form action=""       ',   ' ></form>', ContextParser.ATTRTYPE_URI ],
+                [ '<form formaction=""   ',   ' ></form>', ContextParser.ATTRTYPE_URI ],
+                [ '<blockquote cite=""   ',   ' ></blockquote>', ContextParser.ATTRTYPE_URI ],
+                [ '<img poster=""        ',   ' ></img>',  ContextParser.ATTRTYPE_URI ],
+                [ '<img usemap=""        ',   ' ></img>',  ContextParser.ATTRTYPE_URI ],
+                [ '<a longdesc=""        ',   ' ></a>',    ContextParser.ATTRTYPE_URI ],
+                [ '<a folder=""          ',   ' ></a>',    ContextParser.ATTRTYPE_URI ],
+                [ '<body manifest=""     ',   ' ></body>', ContextParser.ATTRTYPE_URI ],
+                [ '<command icon=""      ',   ' ></command>', ContextParser.ATTRTYPE_URI ],
+                [ '<head profile=""      ',   ' ></head>',    ContextParser.ATTRTYPE_URI ],
 
-                [ '<meta http-equiv=refresh content=""      ',   ' ></meta>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<meta http-equiv=refresh content=""      ',   ' ></meta>', ContextParser.ATTRTYPE_URI ],
 
-                [ '<doc xml:base=""      ',   ' ></doc>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<doc xmlns:xlink=""   ',   ' ></doc>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<link xlink:href=""   ',   ' ></link>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<svg xmlns=""         ',   ' ></svg>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<doc xml:base=""      ',   ' ></doc>',  ContextParser.ATTRTYPE_URI ],
+                [ '<doc xmlns:xlink=""   ',   ' ></doc>',  ContextParser.ATTRTYPE_URI ],
+                [ '<link xlink:href=""   ',   ' ></link>', ContextParser.ATTRTYPE_URI ],
+                [ '<svg xmlns=""         ',   ' ></svg>',  ContextParser.ATTRTYPE_URI ],
 
-                [ '<div style=""         ',   ' ></div>',  ContextParser.ATTRIBUTE_NAME_CSS_TYPE ],
+                [ '<div style=""         ',   ' ></div>',  ContextParser.ATTRTYPE_CSS ],
 
-                [ '<a class=""           ',   ' ></a>',    ContextParser.ATTRIBUTE_NAME_GENERAL_TYPE ],
+                [ '<a class=""           ',   ' ></a>',    ContextParser.ATTRTYPE_GENERAL ],
 
-                [ '<object classid=""    ',   ' ></object>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<object codebase=""   ',   ' ></object>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<object data=""       ',   ' ></object>', ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<object classid=""    ',   ' ></object>', ContextParser.ATTRTYPE_URI ],
+                [ '<object codebase=""   ',   ' ></object>', ContextParser.ATTRTYPE_URI ],
+                [ '<object data=""       ',   ' ></object>', ContextParser.ATTRTYPE_URI ],
 
-                [ '<a onclick=""         ',   ' ></a>',      ContextParser.ATTRIBUTE_NAME_SCRIPTABLE_TYPE ],
-                [ '<a onXXX=""           ',   ' ></a>',      ContextParser.ATTRIBUTE_NAME_SCRIPTABLE_TYPE ],
+                [ '<a onclick=""         ',   ' ></a>',      ContextParser.ATTRTYPE_SCRIPTABLE ],
+                [ '<a onXXX=""           ',   ' ></a>',      ContextParser.ATTRTYPE_SCRIPTABLE ],
 
-                [ '<param value=""       ',   ' ></param>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<XXX value=""      ',   ' ></XXX>',    ContextParser.ATTRIBUTE_NAME_GENERAL_TYPE ],
-                [ '<link rel=""          ',   ' ><link>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<XXX rel=""        ',   ' ></XXX>',    ContextParser.ATTRIBUTE_NAME_GENERAL_TYPE ],
+                [ '<param value=""       ',   ' ></param>',  ContextParser.ATTRTYPE_URI ],
+                [ '<XXX value=""      ',   ' ></XXX>',    ContextParser.ATTRTYPE_GENERAL ],
+                [ '<link rel=""          ',   ' ><link>',    ContextParser.ATTRTYPE_URI ],
+                [ '<XXX rel=""        ',   ' ></XXX>',    ContextParser.ATTRTYPE_GENERAL ],
 
-                [ '<noembed src=""       ',   ' ></noembed>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
-                [ '<link rel=""          ',   ' ><link>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<iframe srcdoc=""       ',   ' ></iframe>',  ContextParser.ATTRTYPE_URI ],
 
             ].forEach(function(testObj) {
                 parser.parsePartial(testObj[0]);
