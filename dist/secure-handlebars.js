@@ -9088,6 +9088,13 @@ ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END;
 
+/* The states that we will check for attribute name type for state consistency */
+ContextParserHandlebars.statesToCheckForStateConsistency = [
+    stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED,
+    stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED,
+    stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED
+];
+
 /**
 * @function ContextParserHandlebars.clearBuffer
 *
@@ -9403,11 +9410,14 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
     rightParser = ast.right.length && consumeAstNode.call(this, ast.right, contextParser.fork());
 
     // if the two non-empty branches result in different states
-    // TODO: check also the attributeName, attributeValue and tagName differences
-    if (leftParser && rightParser && 
-            (leftParser.state !== rightParser.state || 
-            leftParser.getAttributeNamesType() !== rightParser.getAttributeNamesType())
-            ) {
+    if (leftParser && rightParser &&
+            (leftParser.state !== rightParser.state ||
+            // note: we compare the AttributeNameType while we are in the following states only.
+            (leftParser.state === rightParser.state &&  
+             ContextParserHandlebars.statesToCheckForStateConsistency.indexOf(leftParser.state)  !== -1 && 
+             ContextParserHandlebars.statesToCheckForStateConsistency.indexOf(rightParser.state) !== -1 &&
+             leftParser.getAttributeNamesType() !== rightParser.getAttributeNamesType())
+            )) {
         // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
         msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
         msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
@@ -10640,7 +10650,7 @@ StrictContextParser.prototype.walk = function(i, input, endsWithEOF) {
         case 6:                       /* match end tag token with start tag token's tag name */
             if(this.tagNames[0] === this.tagNames[1]) {
                 reconsume = 0;  /* see 12.2.4.13 - switch state for the following case, otherwise, reconsume. */
-                this.matchEndTagWithStartTag(ch);
+                this.matchEndTagWithStartTag(symbol);
             }
             break;
         case 8:  this.matchEscapedScriptTag(ch); break;
@@ -10741,7 +10751,6 @@ var attributeNamesType = {
     'manifest'   :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for html
     'classid'    :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for object
     'codebase'   :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for object, applet
-    'data'       :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for object
     'icon'       :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for command
     'profile'    :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for head
     'content'    :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for meta http-equiv=refresh, kill more than need
@@ -10762,6 +10771,7 @@ var attributeNamesType = {
 
     'type'       :StrictContextParser.ATTRIBUTE_NAME_MIME_TYPE,    // TODO: any potential attack of the MIME type?
 
+    'data'       :{'object'  :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE},
     'rel'        :{'link'    :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE},
     'value'      :{'param'   :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE},
 };

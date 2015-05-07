@@ -554,7 +554,7 @@ StrictContextParser.prototype.walk = function(i, input, endsWithEOF) {
         case 6:                       /* match end tag token with start tag token's tag name */
             if(this.tagNames[0] === this.tagNames[1]) {
                 reconsume = 0;  /* see 12.2.4.13 - switch state for the following case, otherwise, reconsume. */
-                this.matchEndTagWithStartTag(ch);
+                this.matchEndTagWithStartTag(symbol);
             }
             break;
         case 8:  this.matchEscapedScriptTag(ch); break;
@@ -655,7 +655,6 @@ var attributeNamesType = {
     'manifest'   :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for html
     'classid'    :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for object
     'codebase'   :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for object, applet
-    'data'       :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for object
     'icon'       :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for command
     'profile'    :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for head
     'content'    :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE,     // for meta http-equiv=refresh, kill more than need
@@ -676,6 +675,7 @@ var attributeNamesType = {
 
     'type'       :StrictContextParser.ATTRIBUTE_NAME_MIME_TYPE,    // TODO: any potential attack of the MIME type?
 
+    'data'       :{'object'  :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE},
     'rel'        :{'link'    :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE},
     'value'      :{'param'   :StrictContextParser.ATTRIBUTE_NAME_URI_TYPE},
 };

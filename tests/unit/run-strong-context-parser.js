@@ -58,7 +58,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 [ '<link rel=""          ',   ' ><link>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
                 [ '<XXX rel=""        ',   ' ></XXX>',    ContextParser.ATTRIBUTE_NAME_GENERAL_TYPE ],
 
-                [ '<iframe srcdoc=""     ',   ' ></iframe>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<noembed src=""       ',   ' ></noembed>',  ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+                [ '<link rel=""          ',   ' ><link>',    ContextParser.ATTRIBUTE_NAME_URI_TYPE ],
+
             ].forEach(function(testObj) {
                 parser.parsePartial(testObj[0]);
                 expect(parser.getAttributeNamesType()).to.equal(testObj[2]);

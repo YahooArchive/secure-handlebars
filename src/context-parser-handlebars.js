@@ -124,6 +124,13 @@ ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END;
 
+/* The states that we will check for attribute name type for state consistency */
+ContextParserHandlebars.statesToCheckForStateConsistency = [
+    stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED,
+    stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED,
+    stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED
+];
+
 /**
 * @function ContextParserHandlebars.clearBuffer
 *
@@ -439,11 +446,14 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
     rightParser = ast.right.length && consumeAstNode.call(this, ast.right, contextParser.fork());
 
     // if the two non-empty branches result in different states
-    // TODO: check also the attributeName, attributeValue and tagName differences
-    if (leftParser && rightParser && 
-            (leftParser.state !== rightParser.state || 
-            leftParser.getAttributeNamesType() !== rightParser.getAttributeNamesType())
-            ) {
+    if (leftParser && rightParser &&
+            (leftParser.state !== rightParser.state ||
+            // note: we compare the AttributeNameType while we are in the following states only.
+            (leftParser.state === rightParser.state &&  
+             ContextParserHandlebars.statesToCheckForStateConsistency.indexOf(leftParser.state)  !== -1 && 
+             ContextParserHandlebars.statesToCheckForStateConsistency.indexOf(rightParser.state) !== -1 &&
+             leftParser.getAttributeNamesType() !== rightParser.getAttributeNamesType())
+            )) {
         // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
         msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
         msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
