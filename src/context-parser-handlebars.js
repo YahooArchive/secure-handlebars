@@ -110,7 +110,7 @@ function ContextParserHandlebars(config) {
 * stateMachine.Symbol.ELSE is the symbol returns by Parser.lookupChar('{');
 */
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar = stateMachine.lookupStateFromSymbol[stateMachine.Symbol.ELSE].slice(0); // deep copy the array
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_TAG_OPEN]  = stateMachine.State.STATE_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_TAG_OPEN] = stateMachine.State.STATE_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_END_TAG_OPEN]  = stateMachine.State.STATE_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_RCDATA_END_TAG_OPEN] = stateMachine.State.STATE_RCDATA_END_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_RCDATA_END_TAG_NAME] = stateMachine.State.STATE_RCDATA_END_TAG_NAME;
@@ -123,6 +123,13 @@ ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME] = stateMachine.State.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END;
+
+/* The states that we will check for attribute name type for state consistency */
+ContextParserHandlebars.statesToCheckForStateConsistency = {
+    '38':1, // stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
+    '39':1, // stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
+    '40':1, // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED
+};
 
 /**
 * @function ContextParserHandlebars.clearBuffer
@@ -439,11 +446,18 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
     rightParser = ast.right.length && consumeAstNode.call(this, ast.right, contextParser.fork());
 
     // if the two non-empty branches result in different states
-    // TODO: check also the attributeName, attributeValue and tagName differences
-    if (leftParser && rightParser && 
-            leftParser.state !== rightParser.state) {
+    if (leftParser && rightParser &&
+            ( 
+            leftParser.state !== rightParser.state ||
+            // note: we compare the AttributeNameType while we are in the following states only.
+            (ContextParserHandlebars.statesToCheckForStateConsistency[leftParser.state] !== undefined &&
+             leftParser.getAttributeNameType() !== rightParser.getAttributeNameType())
+            )
+            ) {
         // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
-        msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+leftParser.state+"/"+rightParser.state+")";
+        msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
+        msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
+        msg += "attributeNameType:("+leftParser.getAttributeNameType()+"/"+rightParser.getAttributeNameType()+")";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
@@ -554,7 +568,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED: // 39
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED: // 40
 
-                if (parser.isURIAttribute()) {
+                if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_URI) {
                     /* we don't support javascript parsing yet */
                     // TODO: this filtering rule cannot cover all cases.
                     if (handlebarsUtils.blacklistProtocol(attributeValue)) {
@@ -570,13 +584,13 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     }
                     filters.push(f);                    
                     
-                } else if (attributeName === "style") {  // CSS
+                } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_CSS) { // CSS
                     /* we don't support css parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
                     */
                     throw 'CSS style attribute';
-                } else if (attributeName.match(/^on/i)) { // Javascript
+                } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_SCRIPTABLE) { // JS
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.

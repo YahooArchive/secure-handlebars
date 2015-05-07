@@ -611,44 +611,6 @@ StrictContextParser.prototype.getCurrentState = function() {
 };
 
 
-var uriAttributeNames = {
-    // we generally do not differentiate whether these attribtues are tag specific during matching for simplicity
-    'href':1, 'src':1,                    // for a, link, img, area, iframe, frame, video, object, embed ...
-    'background':1,                       // for body, table, tbody, tr, td, th, etc?
-    'action':1, 'formaction':1,           // for form, input, button
-    'cite':1,                             // for blockquote, del, ins, q
-    'poster':1, 'usemap':1, 'longdesc':1, // for img, object, video, source
-    'folder':1,                           // for a
-    'manifest':1,                         // for html
-    'classid':1,                          // for object
-    'codebase':1,                         // for object, applet
-    'icon':1,                             // for command
-    'profile':1,                          // for head
-    'xmlns':1,                            // for svg, etc?
-    'xml:base':1, 'xlink:href':1,         // for xml-related
-    'data': {'object':1},
-    'value': {'param':1}
-};
-
-/**
- * @function StrictContextParser#isURIAttribute
- *
- * @returns {boolean} true if the attribute is likely of URI type, false otherwise
- *
- * @description
- * Check if the current attribute is likely of URI type. This might not be accurate since it could be agnostic to its tag name (e.g., <x href="">)
- *
- */
-StrictContextParser.prototype.isURIAttribute = function() {
-    // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
-
-    // here,  uriAttrTags === 1 is a tag agnostic matching
-    // while, uriAttrTags[tagName] === 1 matches only those attribute of the given tagName
-    var uriAttrTags = uriAttributeNames[this.attributeName];
-    return uriAttrTags && (uriAttrTags === 1 || uriAttrTags[this.tagNames[0]] === 1);
-};
-
-
 // <iframe srcdoc=""> is a scriptable attribute too
 // Reference: https://html.spec.whatwg.org/multipage/embedded-content.html#attr-iframe-srcdoc
 var scriptableTags = {
@@ -671,13 +633,81 @@ StrictContextParser.prototype.isScriptableTag = function() {
     return scriptableTags[this.tagNames[0]] === 1;
 };
 
+// Reference: http://www.w3.org/TR/html-markup/elements.html
+StrictContextParser.ATTRTYPE_URI = 1,
+StrictContextParser.ATTRTYPE_CSS = 2,
+StrictContextParser.ATTRTYPE_SCRIPTABLE = 3,
+StrictContextParser.ATTRTYPE_MIME = 4,
+StrictContextParser.ATTRTYPE_GENERAL = undefined;
 
+var attributeNamesType = {
+    // we generally do not differentiate whether these attribtues are tag specific during matching for simplicity
+    'href'       :StrictContextParser.ATTRTYPE_URI,     // for a, link, img, area, iframe, frame, video, object, embed ...
+    'src'        :StrictContextParser.ATTRTYPE_URI,
+    'background' :StrictContextParser.ATTRTYPE_URI,     // for body, table, tbody, tr, td, th, etc? (obsolete)
+    'action'     :StrictContextParser.ATTRTYPE_URI,     // for form, input, button
+    'formaction' :StrictContextParser.ATTRTYPE_URI,     
+    'cite'       :StrictContextParser.ATTRTYPE_URI,     // for blockquote, del, ins, q
+    'poster'     :StrictContextParser.ATTRTYPE_URI,     // for img, object, video, source
+    'usemap'     :StrictContextParser.ATTRTYPE_URI,     // for image
+    'longdesc'   :StrictContextParser.ATTRTYPE_URI,                         
+    'folder'     :StrictContextParser.ATTRTYPE_URI,     // for a
+    'manifest'   :StrictContextParser.ATTRTYPE_URI,     // for html
+    'classid'    :StrictContextParser.ATTRTYPE_URI,     // for object
+    'codebase'   :StrictContextParser.ATTRTYPE_URI,     // for object, applet
+    'icon'       :StrictContextParser.ATTRTYPE_URI,     // for command
+    'profile'    :StrictContextParser.ATTRTYPE_URI,     // for head
+    /* TODO: we allow content before we implement the stack in CP for tracking attributeName
+    'content'    :StrictContextParser.ATTRTYPE_URI,     // for meta http-equiv=refresh
+    */
 
+    // http://www.w3.org/TR/xmlbase/#syntax
+    'xmlns'      :StrictContextParser.ATTRTYPE_URI,     // for svg, etc?
+    'xml:base'   :StrictContextParser.ATTRTYPE_URI, 
+    'xmlns:xlink':StrictContextParser.ATTRTYPE_URI,
+    'xlink:href' :StrictContextParser.ATTRTYPE_URI,     // for xml-related
 
+    // srcdoc is the STRING type, not URI
+    'srcdoc'     :StrictContextParser.ATTRTYPE_URI,     // for iframe
 
+    'style'      :StrictContextParser.ATTRTYPE_CSS,     // for global attributes list
 
+    // pattern matching, handling it within the function getAttributeNameType
+    // 'on*'     :StrictContextParser.ATTRTYPE_SCRIPTABLE,
 
+    'type'       :StrictContextParser.ATTRTYPE_MIME,    // TODO: any potential attack of the MIME type?
 
+    'data'       :{'object'  :StrictContextParser.ATTRTYPE_URI},
+    'rel'        :{'link'    :StrictContextParser.ATTRTYPE_URI},
+    'value'      :{'param'   :StrictContextParser.ATTRTYPE_URI},
+};
+
+/**
+ * @function StrictContextParser#getAttributeNameType
+ *
+ * @returns {integer} the attribute type defined for different handling
+ *
+ * @description
+ * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ */
+StrictContextParser.prototype.getAttributeNameType = function() {
+    if (this.attributeName[0] === 'o' && this.attributeName[1] === 'n') { /* assuming it is from Strict Context Parser.
+                                                                             and o{{placeholder}}n* can bypass the check.
+                                                                             anyway, we are good to throw error in atttribute name state. 
+                                                                             note: CP has lowerCase the attributeName */
+        return StrictContextParser.ATTRTYPE_SCRIPTABLE;
+    } else {
+        // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
+
+        // return StrictContextParser.ATTRTYPE_GENERAL for case without special handling
+        // here,  attrTags === [integer] is a tag agnostic matching
+        // while, attrTags[tagName] === [integer] matches only those attribute of the given tagName
+
+        var attrTags = attributeNamesType[this.attributeName];
+        return typeof attrTags === 'object'? attrTags[this.tagNames[0]] : attrTags;
+    }
+};
 
 /**
  * ==================

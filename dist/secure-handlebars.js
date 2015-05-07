@@ -373,6 +373,7 @@ module.exports = {
 };
 
 })();
+
 },{"./html5-state-machine.js":2}],2:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo! Inc. All rights reserved.
@@ -1446,16 +1447,15 @@ process.chdir = function (dir) {
 process.umask = function() { return 0; };
 
 },{}],9:[function(require,module,exports){
-(function (global){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
 
 exports.__esModule = true;
 
-var _Handlebars = require('./handlebars.runtime');
+var _runtime = require('./handlebars.runtime');
 
-var _Handlebars2 = _interopRequireWildcard(_Handlebars);
+var _runtime2 = _interopRequireWildcard(_runtime);
 
 // Compiler imports
 
@@ -1475,7 +1475,11 @@ var _Visitor = require('./handlebars/compiler/visitor');
 
 var _Visitor2 = _interopRequireWildcard(_Visitor);
 
-var _create = _Handlebars2['default'].create;
+var _noConflict = require('./handlebars/no-conflict');
+
+var _noConflict2 = _interopRequireWildcard(_noConflict);
+
+var _create = _runtime2['default'].create;
 function create() {
   var hb = _create();
 
@@ -1498,31 +1502,20 @@ function create() {
 var inst = create();
 inst.create = create;
 
-inst.Visitor = _Visitor2['default'];
+_noConflict2['default'](inst);
 
-/*jshint -W040 */
-/* istanbul ignore next */
-var $Handlebars = global.Handlebars;
-/* istanbul ignore next */
-inst.noConflict = function () {
-  if (global.Handlebars === inst) {
-    global.Handlebars = $Handlebars;
-  }
-};
+inst.Visitor = _Visitor2['default'];
 
 inst['default'] = inst;
 
 exports['default'] = inst;
 module.exports = exports['default'];
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./handlebars.runtime":10,"./handlebars/compiler/ast":12,"./handlebars/compiler/base":13,"./handlebars/compiler/compiler":15,"./handlebars/compiler/javascript-compiler":17,"./handlebars/compiler/visitor":20}],10:[function(require,module,exports){
-(function (global){
+},{"./handlebars.runtime":10,"./handlebars/compiler/ast":12,"./handlebars/compiler/base":13,"./handlebars/compiler/compiler":15,"./handlebars/compiler/javascript-compiler":17,"./handlebars/compiler/visitor":20,"./handlebars/no-conflict":23}],10:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
 
 exports.__esModule = true;
-/*global window */
 
 var _import = require('./handlebars/base');
 
@@ -1547,6 +1540,10 @@ var _import3 = require('./handlebars/runtime');
 
 var runtime = _interopRequireWildcard(_import3);
 
+var _noConflict = require('./handlebars/no-conflict');
+
+var _noConflict2 = _interopRequireWildcard(_noConflict);
+
 // For compatibility and usage outside of module systems, make the Handlebars object a namespace
 function create() {
   var hb = new base.HandlebarsEnvironment();
@@ -1565,26 +1562,16 @@ function create() {
   return hb;
 }
 
-var Handlebars = create();
-Handlebars.create = create;
+var inst = create();
+inst.create = create;
 
-/*jshint -W040 */
-/* istanbul ignore next */
-var root = typeof global !== 'undefined' ? global : window,
-    $Handlebars = root.Handlebars;
-/* istanbul ignore next */
-Handlebars.noConflict = function () {
-  if (root.Handlebars === Handlebars) {
-    root.Handlebars = $Handlebars;
-  }
-};
+_noConflict2['default'](inst);
 
-Handlebars['default'] = Handlebars;
+inst['default'] = inst;
 
-exports['default'] = Handlebars;
+exports['default'] = inst;
 module.exports = exports['default'];
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./handlebars/base":11,"./handlebars/exception":22,"./handlebars/runtime":23,"./handlebars/safe-string":24,"./handlebars/utils":25}],11:[function(require,module,exports){
+},{"./handlebars/base":11,"./handlebars/exception":22,"./handlebars/no-conflict":23,"./handlebars/runtime":24,"./handlebars/safe-string":25,"./handlebars/utils":26}],11:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -1858,7 +1845,7 @@ function createFrame(object) {
 }
 
 /* [args, ]options */
-},{"./exception":22,"./utils":25}],12:[function(require,module,exports){
+},{"./exception":22,"./utils":26}],12:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -2058,7 +2045,7 @@ function parse(input, options) {
   var strip = new _WhitespaceControl2['default']();
   return strip.accept(_parser2['default'].parse(input));
 }
-},{"../utils":25,"./ast":12,"./helpers":16,"./parser":18,"./whitespace-control":21}],14:[function(require,module,exports){
+},{"../utils":26,"./ast":12,"./helpers":16,"./parser":18,"./whitespace-control":21}],14:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -2223,7 +2210,7 @@ exports['default'] = CodeGen;
 module.exports = exports['default'];
 
 /* NOP */
-},{"../utils":25,"source-map":27}],15:[function(require,module,exports){
+},{"../utils":26,"source-map":28}],15:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2751,7 +2738,7 @@ function transformLiteralToPath(sexpr) {
     sexpr.path = new _AST2['default'].PathExpression(false, 0, [literal.original + ''], literal.original + '', literal.loc);
   }
 }
-},{"../exception":22,"../utils":25,"./ast":12}],16:[function(require,module,exports){
+},{"../exception":22,"../utils":26,"./ast":12}],16:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2802,7 +2789,6 @@ function stripComment(comment) {
 }
 
 function preparePath(data, parts, locInfo) {
-  /*jshint -W040 */
   locInfo = this.locInfo(locInfo);
 
   var original = data ? '@' : '',
@@ -2834,7 +2820,6 @@ function preparePath(data, parts, locInfo) {
 }
 
 function prepareMustache(path, params, hash, open, strip, locInfo) {
-  /*jshint -W040 */
   // Must use charAt to support IE pre-10
   var escapeFlag = open.charAt(3) || open.charAt(2),
       escaped = escapeFlag !== '{' && escapeFlag !== '&';
@@ -2843,7 +2828,6 @@ function prepareMustache(path, params, hash, open, strip, locInfo) {
 }
 
 function prepareRawBlock(openRawBlock, content, close, locInfo) {
-  /*jshint -W040 */
   if (openRawBlock.path.original !== close) {
     var errorNode = { loc: openRawBlock.path.loc };
 
@@ -2857,7 +2841,6 @@ function prepareRawBlock(openRawBlock, content, close, locInfo) {
 }
 
 function prepareBlock(openBlock, program, inverseAndProgram, close, inverted, locInfo) {
-  /*jshint -W040 */
   // When we are chaining inverse calls, we will not have a close path
   if (close && close.path && openBlock.path.original !== close.path.original) {
     var errorNode = { loc: openBlock.path.loc };
@@ -3325,7 +3308,6 @@ JavaScriptCompiler.prototype = {
   //
   // Push the data lookup operator
   lookupData: function lookupData(depth, parts) {
-    /*jshint -W083 */
     if (!depth) {
       this.pushStackLiteral('data');
     } else {
@@ -3338,7 +3320,6 @@ JavaScriptCompiler.prototype = {
   resolvePath: function resolvePath(type, parts, i, falsy) {
     var _this = this;
 
-    /*jshint -W083 */
     if (this.options.strict || this.options.assumeObjects) {
       this.push(strictLookup(this.options.strict, this, parts, type));
       return;
@@ -3952,11 +3933,10 @@ function strictLookup(requireTerminal, compiler, parts, type) {
 
 exports['default'] = JavaScriptCompiler;
 module.exports = exports['default'];
-},{"../base":11,"../exception":22,"../utils":25,"./code-gen":14}],18:[function(require,module,exports){
+},{"../base":11,"../exception":22,"../utils":26,"./code-gen":14}],18:[function(require,module,exports){
 "use strict";
 
 exports.__esModule = true;
-/* jshint ignore:start */
 /* istanbul ignore next */
 /* Jison generated parser */
 var handlebars = (function () {
@@ -4631,8 +4611,6 @@ var handlebars = (function () {
     }Parser.prototype = parser;parser.Parser = Parser;
     return new Parser();
 })();exports["default"] = handlebars;
-
-/* jshint ignore:end */
 module.exports = exports["default"];
 },{}],19:[function(require,module,exports){
 'use strict';
@@ -5186,6 +5164,27 @@ Exception.prototype = new Error();
 exports['default'] = Exception;
 module.exports = exports['default'];
 },{}],23:[function(require,module,exports){
+(function (global){
+'use strict';
+
+exports.__esModule = true;
+/*global window */
+
+exports['default'] = function (Handlebars) {
+  /* istanbul ignore next */
+  var root = typeof global !== 'undefined' ? global : window,
+      $Handlebars = root.Handlebars;
+  /* istanbul ignore next */
+  Handlebars.noConflict = function () {
+    if (root.Handlebars === Handlebars) {
+      root.Handlebars = $Handlebars;
+    }
+  };
+};
+
+module.exports = exports['default'];
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],24:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -5418,7 +5417,7 @@ function initData(context, data) {
   }
   return data;
 }
-},{"./base":11,"./exception":22,"./utils":25}],24:[function(require,module,exports){
+},{"./base":11,"./exception":22,"./utils":26}],25:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5433,7 +5432,7 @@ SafeString.prototype.toString = SafeString.prototype.toHTML = function () {
 
 exports['default'] = SafeString;
 module.exports = exports['default'];
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5445,7 +5444,6 @@ exports.escapeExpression = escapeExpression;
 exports.isEmpty = isEmpty;
 exports.blockParams = blockParams;
 exports.appendContextPath = appendContextPath;
-/*jshint -W004 */
 var escape = {
   '&': '&amp;',
   '<': '&lt;',
@@ -5549,7 +5547,7 @@ function blockParams(params, ids) {
 function appendContextPath(contextPath, id) {
   return (contextPath ? contextPath + '.' : '') + id;
 }
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 // USAGE:
 // var handlebars = require('handlebars');
 /* eslint-disable no-var */
@@ -5576,7 +5574,7 @@ if (typeof require !== 'undefined' && require.extensions) {
   require.extensions['.hbs'] = extension;
 }
 
-},{"../dist/cjs/handlebars":9,"../dist/cjs/handlebars/compiler/printer":19,"fs":6}],27:[function(require,module,exports){
+},{"../dist/cjs/handlebars":9,"../dist/cjs/handlebars/compiler/printer":19,"fs":6}],28:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -5586,7 +5584,7 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":33,"./source-map/source-map-generator":34,"./source-map/source-node":35}],28:[function(require,module,exports){
+},{"./source-map/source-map-consumer":34,"./source-map/source-map-generator":35,"./source-map/source-node":36}],29:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5685,7 +5683,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":36,"amdefine":37}],29:[function(require,module,exports){
+},{"./util":37,"amdefine":38}],30:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5829,7 +5827,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./base64":30,"amdefine":37}],30:[function(require,module,exports){
+},{"./base64":31,"amdefine":38}],31:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5873,7 +5871,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":37}],31:[function(require,module,exports){
+},{"amdefine":38}],32:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5955,7 +5953,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":37}],32:[function(require,module,exports){
+},{"amdefine":38}],33:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2014 Mozilla Foundation and contributors
@@ -6043,7 +6041,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":36,"amdefine":37}],33:[function(require,module,exports){
+},{"./util":37,"amdefine":38}],34:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6620,7 +6618,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":28,"./base64-vlq":29,"./binary-search":31,"./util":36,"amdefine":37}],34:[function(require,module,exports){
+},{"./array-set":29,"./base64-vlq":30,"./binary-search":32,"./util":37,"amdefine":38}],35:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7022,7 +7020,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":28,"./base64-vlq":29,"./mapping-list":32,"./util":36,"amdefine":37}],35:[function(require,module,exports){
+},{"./array-set":29,"./base64-vlq":30,"./mapping-list":33,"./util":37,"amdefine":38}],36:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7438,7 +7436,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./source-map-generator":34,"./util":36,"amdefine":37}],36:[function(require,module,exports){
+},{"./source-map-generator":35,"./util":37,"amdefine":38}],37:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7759,7 +7757,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":37}],37:[function(require,module,exports){
+},{"amdefine":38}],38:[function(require,module,exports){
 (function (process,__filename){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 0.1.0 Copyright (c) 2011, The Dojo Foundation All Rights Reserved.
@@ -8062,7 +8060,7 @@ function amdefine(module, requireFn) {
 module.exports = amdefine;
 
 }).call(this,require('_process'),"/node_modules/handlebars/node_modules/source-map/node_modules/amdefine/amdefine.js")
-},{"_process":8,"path":7}],38:[function(require,module,exports){
+},{"_process":8,"path":7}],39:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo! Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -8962,7 +8960,7 @@ exports.uriFragmentInHTMLData = exports.uriComponentInHTMLData;
 */
 exports.uriFragmentInHTMLComment = exports.uriComponentInHTMLComment;
 
-},{}],39:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 (function (process){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
@@ -9076,7 +9074,7 @@ function ContextParserHandlebars(config) {
 * stateMachine.Symbol.ELSE is the symbol returns by Parser.lookupChar('{');
 */
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar = stateMachine.lookupStateFromSymbol[stateMachine.Symbol.ELSE].slice(0); // deep copy the array
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_TAG_OPEN]  = stateMachine.State.STATE_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_TAG_OPEN] = stateMachine.State.STATE_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_END_TAG_OPEN]  = stateMachine.State.STATE_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_RCDATA_END_TAG_OPEN] = stateMachine.State.STATE_RCDATA_END_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_RCDATA_END_TAG_NAME] = stateMachine.State.STATE_RCDATA_END_TAG_NAME;
@@ -9089,6 +9087,13 @@ ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME] = stateMachine.State.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END;
+
+/* The states that we will check for attribute name type for state consistency */
+ContextParserHandlebars.statesToCheckForStateConsistency = {
+    '38':1, // stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
+    '39':1, // stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
+    '40':1, // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED
+};
 
 /**
 * @function ContextParserHandlebars.clearBuffer
@@ -9405,11 +9410,18 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
     rightParser = ast.right.length && consumeAstNode.call(this, ast.right, contextParser.fork());
 
     // if the two non-empty branches result in different states
-    // TODO: check also the attributeName, attributeValue and tagName differences
-    if (leftParser && rightParser && 
-            leftParser.state !== rightParser.state) {
+    if (leftParser && rightParser &&
+            ( 
+            leftParser.state !== rightParser.state ||
+            // note: we compare the AttributeNameType while we are in the following states only.
+            (ContextParserHandlebars.statesToCheckForStateConsistency[leftParser.state] !== undefined &&
+             leftParser.getAttributeNameType() !== rightParser.getAttributeNameType())
+            )
+            ) {
         // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
-        msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+leftParser.state+"/"+rightParser.state+")";
+        msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
+        msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
+        msg += "attributeNameType:("+leftParser.getAttributeNameType()+"/"+rightParser.getAttributeNameType()+")";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
@@ -9520,7 +9532,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED: // 39
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED: // 40
 
-                if (parser.isURIAttribute()) {
+                if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_URI) {
                     /* we don't support javascript parsing yet */
                     // TODO: this filtering rule cannot cover all cases.
                     if (handlebarsUtils.blacklistProtocol(attributeValue)) {
@@ -9536,13 +9548,13 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     }
                     filters.push(f);                    
                     
-                } else if (attributeName === "style") {  // CSS
+                } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_CSS) { // CSS
                     /* we don't support css parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
                     */
                     throw 'CSS style attribute';
-                } else if (attributeName.match(/^on/i)) { // Javascript
+                } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_SCRIPTABLE) { // JS
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
@@ -9780,7 +9792,7 @@ module.exports = ContextParserHandlebars;
 })();
 
 }).call(this,require('_process'))
-},{"./handlebars-utils.js":40,"./strict-context-parser.js":42,"_process":8,"context-parser":1,"debug":3}],40:[function(require,module,exports){
+},{"./handlebars-utils.js":41,"./strict-context-parser.js":43,"_process":8,"context-parser":1,"debug":3}],41:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -10004,7 +10016,7 @@ module.exports = HandlebarsUtils;
 
 })();
 
-},{"xss-filters":38}],41:[function(require,module,exports){
+},{"xss-filters":39}],42:[function(require,module,exports){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -10081,7 +10093,7 @@ module.exports.create = overrideHbsCreate;
 // the following is in addition to the original Handlbars prototype
 module.exports.ContextParserHandlebars = ContextParserHandlebars;
 
-},{"./context-parser-handlebars":39,"./handlebars-utils.js":40,"handlebars":26,"xss-filters":38}],42:[function(require,module,exports){
+},{"./context-parser-handlebars":40,"./handlebars-utils.js":41,"handlebars":27,"xss-filters":39}],43:[function(require,module,exports){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -10695,44 +10707,6 @@ StrictContextParser.prototype.getCurrentState = function() {
 };
 
 
-var uriAttributeNames = {
-    // we generally do not differentiate whether these attribtues are tag specific during matching for simplicity
-    'href':1, 'src':1,                    // for a, link, img, area, iframe, frame, video, object, embed ...
-    'background':1,                       // for body, table, tbody, tr, td, th, etc?
-    'action':1, 'formaction':1,           // for form, input, button
-    'cite':1,                             // for blockquote, del, ins, q
-    'poster':1, 'usemap':1, 'longdesc':1, // for img, object, video, source
-    'folder':1,                           // for a
-    'manifest':1,                         // for html
-    'classid':1,                          // for object
-    'codebase':1,                         // for object, applet
-    'icon':1,                             // for command
-    'profile':1,                          // for head
-    'xmlns':1,                            // for svg, etc?
-    'xml:base':1, 'xlink:href':1,         // for xml-related
-    'data': {'object':1},
-    'value': {'param':1}
-};
-
-/**
- * @function StrictContextParser#isURIAttribute
- *
- * @returns {boolean} true if the attribute is likely of URI type, false otherwise
- *
- * @description
- * Check if the current attribute is likely of URI type. This might not be accurate since it could be agnostic to its tag name (e.g., <x href="">)
- *
- */
-StrictContextParser.prototype.isURIAttribute = function() {
-    // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
-
-    // here,  uriAttrTags === 1 is a tag agnostic matching
-    // while, uriAttrTags[tagName] === 1 matches only those attribute of the given tagName
-    var uriAttrTags = uriAttributeNames[this.attributeName];
-    return uriAttrTags && (uriAttrTags === 1 || uriAttrTags[this.tagNames[0]] === 1);
-};
-
-
 // <iframe srcdoc=""> is a scriptable attribute too
 // Reference: https://html.spec.whatwg.org/multipage/embedded-content.html#attr-iframe-srcdoc
 var scriptableTags = {
@@ -10755,13 +10729,81 @@ StrictContextParser.prototype.isScriptableTag = function() {
     return scriptableTags[this.tagNames[0]] === 1;
 };
 
+// Reference: http://www.w3.org/TR/html-markup/elements.html
+StrictContextParser.ATTRTYPE_URI = 1,
+StrictContextParser.ATTRTYPE_CSS = 2,
+StrictContextParser.ATTRTYPE_SCRIPTABLE = 3,
+StrictContextParser.ATTRTYPE_MIME = 4,
+StrictContextParser.ATTRTYPE_GENERAL = undefined;
 
+var attributeNamesType = {
+    // we generally do not differentiate whether these attribtues are tag specific during matching for simplicity
+    'href'       :StrictContextParser.ATTRTYPE_URI,     // for a, link, img, area, iframe, frame, video, object, embed ...
+    'src'        :StrictContextParser.ATTRTYPE_URI,
+    'background' :StrictContextParser.ATTRTYPE_URI,     // for body, table, tbody, tr, td, th, etc? (obsolete)
+    'action'     :StrictContextParser.ATTRTYPE_URI,     // for form, input, button
+    'formaction' :StrictContextParser.ATTRTYPE_URI,     
+    'cite'       :StrictContextParser.ATTRTYPE_URI,     // for blockquote, del, ins, q
+    'poster'     :StrictContextParser.ATTRTYPE_URI,     // for img, object, video, source
+    'usemap'     :StrictContextParser.ATTRTYPE_URI,     // for image
+    'longdesc'   :StrictContextParser.ATTRTYPE_URI,                         
+    'folder'     :StrictContextParser.ATTRTYPE_URI,     // for a
+    'manifest'   :StrictContextParser.ATTRTYPE_URI,     // for html
+    'classid'    :StrictContextParser.ATTRTYPE_URI,     // for object
+    'codebase'   :StrictContextParser.ATTRTYPE_URI,     // for object, applet
+    'icon'       :StrictContextParser.ATTRTYPE_URI,     // for command
+    'profile'    :StrictContextParser.ATTRTYPE_URI,     // for head
+    /* TODO: we allow content before we implement the stack in CP for tracking attributeName
+    'content'    :StrictContextParser.ATTRTYPE_URI,     // for meta http-equiv=refresh
+    */
 
+    // http://www.w3.org/TR/xmlbase/#syntax
+    'xmlns'      :StrictContextParser.ATTRTYPE_URI,     // for svg, etc?
+    'xml:base'   :StrictContextParser.ATTRTYPE_URI, 
+    'xmlns:xlink':StrictContextParser.ATTRTYPE_URI,
+    'xlink:href' :StrictContextParser.ATTRTYPE_URI,     // for xml-related
 
+    // srcdoc is the STRING type, not URI
+    'srcdoc'     :StrictContextParser.ATTRTYPE_URI,     // for iframe
 
+    'style'      :StrictContextParser.ATTRTYPE_CSS,     // for global attributes list
 
+    // pattern matching, handling it within the function getAttributeNameType
+    // 'on*'     :StrictContextParser.ATTRTYPE_SCRIPTABLE,
 
+    'type'       :StrictContextParser.ATTRTYPE_MIME,    // TODO: any potential attack of the MIME type?
 
+    'data'       :{'object'  :StrictContextParser.ATTRTYPE_URI},
+    'rel'        :{'link'    :StrictContextParser.ATTRTYPE_URI},
+    'value'      :{'param'   :StrictContextParser.ATTRTYPE_URI},
+};
+
+/**
+ * @function StrictContextParser#getAttributeNameType
+ *
+ * @returns {integer} the attribute type defined for different handling
+ *
+ * @description
+ * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ */
+StrictContextParser.prototype.getAttributeNameType = function() {
+    if (this.attributeName[0] === 'o' && this.attributeName[1] === 'n') { /* assuming it is from Strict Context Parser.
+                                                                             and o{{placeholder}}n* can bypass the check.
+                                                                             anyway, we are good to throw error in atttribute name state. 
+                                                                             note: CP has lowerCase the attributeName */
+        return StrictContextParser.ATTRTYPE_SCRIPTABLE;
+    } else {
+        // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
+
+        // return StrictContextParser.ATTRTYPE_GENERAL for case without special handling
+        // here,  attrTags === [integer] is a tag agnostic matching
+        // while, attrTags[tagName] === [integer] matches only those attribute of the given tagName
+
+        var attrTags = attributeNamesType[this.attributeName];
+        return typeof attrTags === 'object'? attrTags[this.tagNames[0]] : attrTags;
+    }
+};
 
 /**
  * ==================
@@ -10879,5 +10921,5 @@ module.exports = StrictContextParser;
 
 })();
 
-},{"context-parser":1}]},{},[41])(41)
+},{"context-parser":1}]},{},[42])(42)
 });
