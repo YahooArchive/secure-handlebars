@@ -75,7 +75,7 @@ FastParser.prototype.walk = function(i, input) {
         case 6:                       /* match end tag token with start tag token's tag name */
             if(this.tagNames[0] === this.tagNames[1]) {
                 reconsume = 0;  /* see 12.2.4.13 - switch state for the following case, otherwise, reconsume. */
-                this.matchEndTagWithStartTag(ch);
+                this.matchEndTagWithStartTag(symbol);
             }
             break;
         case 8:  this.matchEscapedScriptTag(ch); break;
@@ -115,7 +115,7 @@ FastParser.prototype.resetEndTag = function (ch) {
     this.tagNames[1] = '';
 };
 
-FastParser.prototype.matchEndTagWithStartTag = function (ch) {
+FastParser.prototype.matchEndTagWithStartTag = function (symbol) {
         /* Extra Logic #6 :
         WHITESPACE: If the current end tag token is an appropriate end tag token, then switch to the before attribute name state.
                 Otherwise, treat it as per the 'anything else' entry below.
@@ -126,14 +126,14 @@ FastParser.prototype.matchEndTagWithStartTag = function (ch) {
         */
         this.tagNames[0] = '';
         this.tagNames[1] = '';
-        switch (ch) {
-            case ' ': /** Whitespaces */
+        switch (symbol) {
+            case stateMachine.Symbol.SPACE: /** Whitespaces */
                 this.state = stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME;
                 return ;
-            case '/': /** [/] */
+            case stateMachine.Symbol.SOLIDUS: /** [/] */
                 this.state = stateMachine.State.STATE_SELF_CLOSING_START_TAG;
                 return ;
-            case '>': /** [>] */
+            case stateMachine.Symbol.GREATER: /** [>] */
                 this.state = stateMachine.State.STATE_DATA;
                 return ; 
         }
@@ -1360,32 +1360,64 @@ var substr = 'ab'.substr(-1) === 'b'
 var process = module.exports = {};
 var queue = [];
 var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
 
 function drainQueue() {
     if (draining) {
         return;
     }
+    var timeout = setTimeout(cleanUpNextTick);
     draining = true;
-    var currentQueue;
+
     var len = queue.length;
     while(len) {
         currentQueue = queue;
         queue = [];
-        var i = -1;
-        while (++i < len) {
-            currentQueue[i]();
+        while (++queueIndex < len) {
+            currentQueue[queueIndex].run();
         }
+        queueIndex = -1;
         len = queue.length;
     }
+    currentQueue = null;
     draining = false;
+    clearTimeout(timeout);
 }
+
 process.nextTick = function (fun) {
-    queue.push(fun);
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
     if (!draining) {
         setTimeout(drainQueue, 0);
     }
 };
 
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
 process.title = 'browser';
 process.browser = true;
 process.env = {};
@@ -1415,16 +1447,15 @@ process.chdir = function (dir) {
 process.umask = function() { return 0; };
 
 },{}],9:[function(require,module,exports){
-(function (global){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
 
 exports.__esModule = true;
 
-var _Handlebars = require('./handlebars.runtime');
+var _runtime = require('./handlebars.runtime');
 
-var _Handlebars2 = _interopRequireWildcard(_Handlebars);
+var _runtime2 = _interopRequireWildcard(_runtime);
 
 // Compiler imports
 
@@ -1444,7 +1475,11 @@ var _Visitor = require('./handlebars/compiler/visitor');
 
 var _Visitor2 = _interopRequireWildcard(_Visitor);
 
-var _create = _Handlebars2['default'].create;
+var _noConflict = require('./handlebars/no-conflict');
+
+var _noConflict2 = _interopRequireWildcard(_noConflict);
+
+var _create = _runtime2['default'].create;
 function create() {
   var hb = _create();
 
@@ -1467,31 +1502,20 @@ function create() {
 var inst = create();
 inst.create = create;
 
-inst.Visitor = _Visitor2['default'];
+_noConflict2['default'](inst);
 
-/*jshint -W040 */
-/* istanbul ignore next */
-var $Handlebars = global.Handlebars;
-/* istanbul ignore next */
-inst.noConflict = function () {
-  if (global.Handlebars === inst) {
-    global.Handlebars = $Handlebars;
-  }
-};
+inst.Visitor = _Visitor2['default'];
 
 inst['default'] = inst;
 
 exports['default'] = inst;
 module.exports = exports['default'];
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./handlebars.runtime":10,"./handlebars/compiler/ast":12,"./handlebars/compiler/base":13,"./handlebars/compiler/compiler":15,"./handlebars/compiler/javascript-compiler":17,"./handlebars/compiler/visitor":20}],10:[function(require,module,exports){
-(function (global){
+},{"./handlebars.runtime":10,"./handlebars/compiler/ast":12,"./handlebars/compiler/base":13,"./handlebars/compiler/compiler":15,"./handlebars/compiler/javascript-compiler":17,"./handlebars/compiler/visitor":20,"./handlebars/no-conflict":23}],10:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
 
 exports.__esModule = true;
-/*global window */
 
 var _import = require('./handlebars/base');
 
@@ -1516,6 +1540,10 @@ var _import3 = require('./handlebars/runtime');
 
 var runtime = _interopRequireWildcard(_import3);
 
+var _noConflict = require('./handlebars/no-conflict');
+
+var _noConflict2 = _interopRequireWildcard(_noConflict);
+
 // For compatibility and usage outside of module systems, make the Handlebars object a namespace
 function create() {
   var hb = new base.HandlebarsEnvironment();
@@ -1534,26 +1562,16 @@ function create() {
   return hb;
 }
 
-var Handlebars = create();
-Handlebars.create = create;
+var inst = create();
+inst.create = create;
 
-/*jshint -W040 */
-/* istanbul ignore next */
-var root = typeof global !== 'undefined' ? global : window,
-    $Handlebars = root.Handlebars;
-/* istanbul ignore next */
-Handlebars.noConflict = function () {
-  if (root.Handlebars === Handlebars) {
-    root.Handlebars = $Handlebars;
-  }
-};
+_noConflict2['default'](inst);
 
-Handlebars['default'] = Handlebars;
+inst['default'] = inst;
 
-exports['default'] = Handlebars;
+exports['default'] = inst;
 module.exports = exports['default'];
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./handlebars/base":11,"./handlebars/exception":22,"./handlebars/runtime":23,"./handlebars/safe-string":24,"./handlebars/utils":25}],11:[function(require,module,exports){
+},{"./handlebars/base":11,"./handlebars/exception":22,"./handlebars/no-conflict":23,"./handlebars/runtime":24,"./handlebars/safe-string":25,"./handlebars/utils":26}],11:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -1827,7 +1845,7 @@ function createFrame(object) {
 }
 
 /* [args, ]options */
-},{"./exception":22,"./utils":25}],12:[function(require,module,exports){
+},{"./exception":22,"./utils":26}],12:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -2027,7 +2045,7 @@ function parse(input, options) {
   var strip = new _WhitespaceControl2['default']();
   return strip.accept(_parser2['default'].parse(input));
 }
-},{"../utils":25,"./ast":12,"./helpers":16,"./parser":18,"./whitespace-control":21}],14:[function(require,module,exports){
+},{"../utils":26,"./ast":12,"./helpers":16,"./parser":18,"./whitespace-control":21}],14:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -2192,7 +2210,7 @@ exports['default'] = CodeGen;
 module.exports = exports['default'];
 
 /* NOP */
-},{"../utils":25,"source-map":27}],15:[function(require,module,exports){
+},{"../utils":26,"source-map":28}],15:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2720,7 +2738,7 @@ function transformLiteralToPath(sexpr) {
     sexpr.path = new _AST2['default'].PathExpression(false, 0, [literal.original + ''], literal.original + '', literal.loc);
   }
 }
-},{"../exception":22,"../utils":25,"./ast":12}],16:[function(require,module,exports){
+},{"../exception":22,"../utils":26,"./ast":12}],16:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2771,7 +2789,6 @@ function stripComment(comment) {
 }
 
 function preparePath(data, parts, locInfo) {
-  /*jshint -W040 */
   locInfo = this.locInfo(locInfo);
 
   var original = data ? '@' : '',
@@ -2803,7 +2820,6 @@ function preparePath(data, parts, locInfo) {
 }
 
 function prepareMustache(path, params, hash, open, strip, locInfo) {
-  /*jshint -W040 */
   // Must use charAt to support IE pre-10
   var escapeFlag = open.charAt(3) || open.charAt(2),
       escaped = escapeFlag !== '{' && escapeFlag !== '&';
@@ -2812,7 +2828,6 @@ function prepareMustache(path, params, hash, open, strip, locInfo) {
 }
 
 function prepareRawBlock(openRawBlock, content, close, locInfo) {
-  /*jshint -W040 */
   if (openRawBlock.path.original !== close) {
     var errorNode = { loc: openRawBlock.path.loc };
 
@@ -2826,7 +2841,6 @@ function prepareRawBlock(openRawBlock, content, close, locInfo) {
 }
 
 function prepareBlock(openBlock, program, inverseAndProgram, close, inverted, locInfo) {
-  /*jshint -W040 */
   // When we are chaining inverse calls, we will not have a close path
   if (close && close.path && openBlock.path.original !== close.path.original) {
     var errorNode = { loc: openBlock.path.loc };
@@ -3294,7 +3308,6 @@ JavaScriptCompiler.prototype = {
   //
   // Push the data lookup operator
   lookupData: function lookupData(depth, parts) {
-    /*jshint -W083 */
     if (!depth) {
       this.pushStackLiteral('data');
     } else {
@@ -3307,7 +3320,6 @@ JavaScriptCompiler.prototype = {
   resolvePath: function resolvePath(type, parts, i, falsy) {
     var _this = this;
 
-    /*jshint -W083 */
     if (this.options.strict || this.options.assumeObjects) {
       this.push(strictLookup(this.options.strict, this, parts, type));
       return;
@@ -3921,11 +3933,10 @@ function strictLookup(requireTerminal, compiler, parts, type) {
 
 exports['default'] = JavaScriptCompiler;
 module.exports = exports['default'];
-},{"../base":11,"../exception":22,"../utils":25,"./code-gen":14}],18:[function(require,module,exports){
+},{"../base":11,"../exception":22,"../utils":26,"./code-gen":14}],18:[function(require,module,exports){
 "use strict";
 
 exports.__esModule = true;
-/* jshint ignore:start */
 /* istanbul ignore next */
 /* Jison generated parser */
 var handlebars = (function () {
@@ -4600,8 +4611,6 @@ var handlebars = (function () {
     }Parser.prototype = parser;parser.Parser = Parser;
     return new Parser();
 })();exports["default"] = handlebars;
-
-/* jshint ignore:end */
 module.exports = exports["default"];
 },{}],19:[function(require,module,exports){
 'use strict';
@@ -5155,6 +5164,27 @@ Exception.prototype = new Error();
 exports['default'] = Exception;
 module.exports = exports['default'];
 },{}],23:[function(require,module,exports){
+(function (global){
+'use strict';
+
+exports.__esModule = true;
+/*global window */
+
+exports['default'] = function (Handlebars) {
+  /* istanbul ignore next */
+  var root = typeof global !== 'undefined' ? global : window,
+      $Handlebars = root.Handlebars;
+  /* istanbul ignore next */
+  Handlebars.noConflict = function () {
+    if (root.Handlebars === Handlebars) {
+      root.Handlebars = $Handlebars;
+    }
+  };
+};
+
+module.exports = exports['default'];
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],24:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -5387,7 +5417,7 @@ function initData(context, data) {
   }
   return data;
 }
-},{"./base":11,"./exception":22,"./utils":25}],24:[function(require,module,exports){
+},{"./base":11,"./exception":22,"./utils":26}],25:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5402,7 +5432,7 @@ SafeString.prototype.toString = SafeString.prototype.toHTML = function () {
 
 exports['default'] = SafeString;
 module.exports = exports['default'];
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5414,7 +5444,6 @@ exports.escapeExpression = escapeExpression;
 exports.isEmpty = isEmpty;
 exports.blockParams = blockParams;
 exports.appendContextPath = appendContextPath;
-/*jshint -W004 */
 var escape = {
   '&': '&amp;',
   '<': '&lt;',
@@ -5518,7 +5547,7 @@ function blockParams(params, ids) {
 function appendContextPath(contextPath, id) {
   return (contextPath ? contextPath + '.' : '') + id;
 }
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 // USAGE:
 // var handlebars = require('handlebars');
 /* eslint-disable no-var */
@@ -5545,7 +5574,7 @@ if (typeof require !== 'undefined' && require.extensions) {
   require.extensions['.hbs'] = extension;
 }
 
-},{"../dist/cjs/handlebars":9,"../dist/cjs/handlebars/compiler/printer":19,"fs":6}],27:[function(require,module,exports){
+},{"../dist/cjs/handlebars":9,"../dist/cjs/handlebars/compiler/printer":19,"fs":6}],28:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -5555,7 +5584,7 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":33,"./source-map/source-map-generator":34,"./source-map/source-node":35}],28:[function(require,module,exports){
+},{"./source-map/source-map-consumer":34,"./source-map/source-map-generator":35,"./source-map/source-node":36}],29:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5654,7 +5683,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":36,"amdefine":37}],29:[function(require,module,exports){
+},{"./util":37,"amdefine":38}],30:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5798,7 +5827,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./base64":30,"amdefine":37}],30:[function(require,module,exports){
+},{"./base64":31,"amdefine":38}],31:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5842,7 +5871,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":37}],31:[function(require,module,exports){
+},{"amdefine":38}],32:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5924,7 +5953,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":37}],32:[function(require,module,exports){
+},{"amdefine":38}],33:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2014 Mozilla Foundation and contributors
@@ -6012,7 +6041,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":36,"amdefine":37}],33:[function(require,module,exports){
+},{"./util":37,"amdefine":38}],34:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6589,7 +6618,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":28,"./base64-vlq":29,"./binary-search":31,"./util":36,"amdefine":37}],34:[function(require,module,exports){
+},{"./array-set":29,"./base64-vlq":30,"./binary-search":32,"./util":37,"amdefine":38}],35:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6991,7 +7020,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":28,"./base64-vlq":29,"./mapping-list":32,"./util":36,"amdefine":37}],35:[function(require,module,exports){
+},{"./array-set":29,"./base64-vlq":30,"./mapping-list":33,"./util":37,"amdefine":38}],36:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7407,7 +7436,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./source-map-generator":34,"./util":36,"amdefine":37}],36:[function(require,module,exports){
+},{"./source-map-generator":35,"./util":37,"amdefine":38}],37:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7728,7 +7757,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":37}],37:[function(require,module,exports){
+},{"amdefine":38}],38:[function(require,module,exports){
 (function (process,__filename){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 0.1.0 Copyright (c) 2011, The Dojo Foundation All Rights Reserved.
@@ -8031,7 +8060,7 @@ function amdefine(module, requireFn) {
 module.exports = amdefine;
 
 }).call(this,require('_process'),"/node_modules/handlebars/node_modules/source-map/node_modules/amdefine/amdefine.js")
-},{"_process":8,"path":7}],38:[function(require,module,exports){
+},{"_process":8,"path":7}],39:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo! Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -8066,7 +8095,7 @@ exports._getPrivFilters = function () {
     // Reference: http://shazzer.co.uk/database/All/Characters-after-javascript-uri
     // Reference: https://html.spec.whatwg.org/multipage/syntax.html#consume-a-character-reference
     // Reference for named characters: https://html.spec.whatwg.org/multipage/entities.json
-    var URI_BLACKLIST_PROTOCOLS = ['javascript', 'data', 'vbscript', 'mhtml'],
+    var URI_BLACKLIST_PROTOCOLS = {'javascript':1, 'data':1, 'vbscript':1, 'mhtml':1},
         URI_PROTOCOL_COLON = /(?::|&#[xX]0*3[aA];?|&#0*58;?|&colon;)/,
         URI_PROTOCOL_HTML_ENTITIES = /&(?:#([xX][0-9A-Fa-f]+|\d+);?|Tab;|NewLine;)/g,
         URI_PROTOCOL_WHITESPACES = /(?:^[\x00-\x20]+|[\t\n\r\x00]+)/g,
@@ -8221,7 +8250,7 @@ exports._getPrivFilters = function () {
         // Notice that yubl MUST BE APPLIED LAST, and will not be used independently (expected output from encodeURI/encodeURIComponent and yavd/yavs/yavu)
         // This is used to disable JS execution capabilities by prefixing x- to ^javascript:, ^vbscript: or ^data: that possibly could trigger script execution in URI attribute context
         yubl: function (s) {
-            return URI_BLACKLIST_PROTOCOLS.indexOf(x.yup(s)) === -1 ? s : 'x-' + s;
+            return URI_BLACKLIST_PROTOCOLS[x.yup(s)] ? 'x-' + s : s;
         },
 
         // This is NOT a security-critical filter.
@@ -8931,7 +8960,7 @@ exports.uriFragmentInHTMLData = exports.uriComponentInHTMLData;
 */
 exports.uriFragmentInHTMLComment = exports.uriComponentInHTMLComment;
 
-},{}],39:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 (function (process){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
@@ -8986,7 +9015,6 @@ var filter = {
 ')*'].join('');
 */
 var reURIContextStartWhitespaces = /^(?:[\u0000-\u0020]|&#[xX]0*(?:1?[1-9a-fA-F]|10|20);?|&#0*(?:[1-9]|[1-2][0-9]|30|31|32);?|&Tab;|&NewLine;)*/;
-var uriAttributeNames = {'href':1, 'src':1, 'action':1, 'formaction':1, 'background':1, 'cite':1, 'longdesc':1, 'usemap':1, 'poster':1, 'xlink:href':1};
 var reEqualSign = /(?:=|&#0*61;?|&#[xX]0*3[dD];?|&equals;)/;
 
 /////////////////////////////////////////////////////
@@ -9046,7 +9074,7 @@ function ContextParserHandlebars(config) {
 * stateMachine.Symbol.ELSE is the symbol returns by Parser.lookupChar('{');
 */
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar = stateMachine.lookupStateFromSymbol[stateMachine.Symbol.ELSE].slice(0); // deep copy the array
-ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_TAG_OPEN]  = stateMachine.State.STATE_TAG_NAME;
+ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_TAG_OPEN] = stateMachine.State.STATE_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_END_TAG_OPEN]  = stateMachine.State.STATE_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_RCDATA_END_TAG_OPEN] = stateMachine.State.STATE_RCDATA_END_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_RCDATA_END_TAG_NAME] = stateMachine.State.STATE_RCDATA_END_TAG_NAME;
@@ -9059,6 +9087,13 @@ ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME] = stateMachine.State.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_START;
 ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END] = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPE_END;
+
+/* The states that we will check for attribute name type for state consistency */
+ContextParserHandlebars.statesToCheckForStateConsistency = {
+    '38':1, // stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
+    '39':1, // stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
+    '40':1, // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED
+};
 
 /**
 * @function ContextParserHandlebars.clearBuffer
@@ -9272,7 +9307,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
     } catch (exception) {
         if (typeof exception === 'string') {
             exceptionObj = new ContextParserHandlebarsException(
-                '[ERROR] ContextParserHandlebars: ' + exception,
+                '[ERROR] SecureHandlebars: ' + exception,
                 this.countNewLineChar(input.slice(0, j)), j);
             handlebarsUtils.handleError(exceptionObj, true);
         } else {
@@ -9375,11 +9410,18 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
     rightParser = ast.right.length && consumeAstNode.call(this, ast.right, contextParser.fork());
 
     // if the two non-empty branches result in different states
-    // TODO: check also the attributeName, attributeValue and tagName differences
-    if (leftParser && rightParser && 
-            leftParser.state !== rightParser.state) {
+    if (leftParser && rightParser &&
+            ( 
+            leftParser.state !== rightParser.state ||
+            // note: we compare the AttributeNameType while we are in the following states only.
+            (ContextParserHandlebars.statesToCheckForStateConsistency[leftParser.state] !== undefined &&
+             leftParser.getAttributeNameType() !== rightParser.getAttributeNameType())
+            )
+            ) {
         // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
-        msg = "[ERROR] ContextParserHandlebars: Inconsistent HTML5 state OR without close tag after conditional branches. Please fix your template! ("+leftParser.state+"/"+rightParser.state+")";
+        msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
+        msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
+        msg += "attributeNameType:("+leftParser.getAttributeNameType()+"/"+rightParser.getAttributeNameType()+")";
         exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
@@ -9444,7 +9486,7 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
     } catch (exception) {
         if (typeof exception === 'string') {
             exceptionObj = new ContextParserHandlebarsException(
-                '[ERROR] ContextParserHandlebars: ' + exception,
+                '[ERROR] SecureHandlebars: ' + exception,
                 this._lineNo, 
                 this._charNo);
             handlebarsUtils.handleError(exceptionObj, true);
@@ -9460,53 +9502,41 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
 * @description
 * Add the filters to the escape expression based on the state.
 */
-ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
+ContextParserHandlebars.prototype.addFilters = function(parser, input) {
 
     /* transitent var */
-    var isFullUri, f, filters, exceptionObj, msgPrefix,
-        attributeName = stateObj.attributeName,
-        attributeValue = stateObj.attributeValue;
+    var isFullUri = false, filters = [], f, exceptionObj, errorMessage,
+        state = parser.state,
+        tagName = parser.getStartTagName(),
+        attributeName = parser.attributeName,
+        attributeValue = parser.attributeValue;
 
     try {
-        switch(stateObj.state) {
+
+        switch(state) {
             case stateMachine.State.STATE_DATA: // 1
-                return [filter.FILTER_DATA];
             case stateMachine.State.STATE_RCDATA: // 3
                 return [filter.FILTER_DATA];
+
             case stateMachine.State.STATE_RAWTEXT:  // 5
-                /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                */
-                throw 'Unsafe output expression @ STATE_RAWTEXT state';
-            case stateMachine.State.STATE_SCRIPT_DATA: // 6
-                /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                */
-                throw 'Unsafe output expression @ STATE_SCRIPT_DATA state.';
-            case stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME: // 34
-                /* never fall into state 34 */
-                throw 'Unexpected output expression @ STATE_BEFORE_ATTRIBUTE_NAME state';
-            case stateMachine.State.STATE_ATTRIBUTE_NAME: // 35
-                /* we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                */
-                throw 'Unsafe output expression @ STATE_ATTRIBUTE_NAME state';
-            case stateMachine.State.STATE_AFTER_ATTRIBUTE_NAME: // 36
-                /* never fall into state 36 */
-                throw 'Unexpected output expression @ STATE_AFTER_ATTRIBUTE_NAME state';
-            case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
-                /* never fall into state 37 */
-                throw 'Unexpected output expression @ STATE_BEFORE_ATTRIBUTE_VALUE state';
+                // inside raw text state, HTML parser ignores any state change that looks like tag/attribute
+                // hence we apply the context-insensitive NOT_HANDLE filter that escapes '"`&<> without a warning/error
+                if (tagName === 'xmp' || tagName === 'noembed' || tagName === 'noframes') {
+                    return [filter.FILTER_NOT_HANDLE];
+                }
+                
+                // style, iframe, or other unknown/future ones are considered scriptable
+                throw 'scriptable tag';
+
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED: // 38
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED: // 39
             case stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED: // 40
-                filters = [];
-                // URI scheme
-                if (uriAttributeNames[attributeName]) {
+
+                if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_URI) {
                     /* we don't support javascript parsing yet */
                     // TODO: this filtering rule cannot cover all cases.
                     if (handlebarsUtils.blacklistProtocol(attributeValue)) {
-                        throw 'Unsafe output expression @ attribute URI Javascript context';
+                        throw 'scriptable URI attribute (e.g., after <a href="javascript: )';
                     }
 
                     /* add the correct uri filter */
@@ -9514,69 +9544,87 @@ ContextParserHandlebars.prototype.addFilters = function(stateObj, input) {
                         isFullUri = true;
                         f = filter.FILTER_FULL_URI;
                     } else {
-                        isFullUri = false;
                         f = reEqualSign.test(attributeValue) ? filter.FILTER_ENCODE_URI_COMPONENT : filter.FILTER_ENCODE_URI;
                     }
-                    filters.push(f);
-
-                    /* add the attribute value filter */
-                    switch(stateObj.state) {
-                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
-                            f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
-                            break;
-                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
-                            f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
-                            break;
-                        default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
-                            f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
-                    }
-                    filters.push(f);
-
-                    /* add blacklist filters at the end of filtering chain */
-                    if (isFullUri) {
-                        /* blacklist the URI scheme for full uri */
-                        filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
-                    }
-                    return filters;
-                } else if (attributeName === "style") {  // CSS
+                    filters.push(f);                    
+                    
+                } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_CSS) { // CSS
                     /* we don't support css parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
                     */
-                    throw 'Unsafe output expression @ attribute style CSS context';
-                } else if (attributeName.match(/^on/i)) { // Javascript
+                    throw 'CSS style attribute';
+                } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_SCRIPTABLE) { // JS
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
                     */
-                    throw 'Unsafe output expression @ attribute on* Javascript context';
-                } else {
-                    /* add the attribute value filter */
-                    switch(stateObj.state) {
-                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
-                            return [filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED];
-                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
-                            return [filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED];
-                        default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
-                            return [filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED];
-                    }
+                    throw attributeName + ' JavaScript event attribute';
                 }
-                break;
-            case stateMachine.State.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED: // 42
-                /* never fall into state 42 */
-                throw 'Unsafe output expression @ STATE_AFTER_ATTRIBUTE_VALUE_QUOTED state';
+
+
+                /* add the attribute value filter */
+                switch(state) {
+                    case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
+                        f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
+                        break;
+                    case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
+                        f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
+                        break;
+                    default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
+                        f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
+                }
+                filters.push(f);
+
+                /* add blacklist filters at the end of filtering chain */
+                if (isFullUri) {
+                    /* blacklist the URI scheme for full uri */
+                    filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
+                }
+                return filters;
+            
+
             case stateMachine.State.STATE_COMMENT: // 48
                 return [filter.FILTER_COMMENT];
+
+
+            /* the following are those unsafe contexts that we have no plans to support (yet?)
+             * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
+             * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
+             */
+            case stateMachine.State.STATE_TAG_NAME: // 10
+                throw 'being an tag name (i.e., TAG_NAME state)';
+            case stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME: // 34
+            case stateMachine.State.STATE_ATTRIBUTE_NAME: // 35
+            case stateMachine.State.STATE_AFTER_ATTRIBUTE_NAME: // 36
+            case stateMachine.State.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED: // 42
+                throw 'being an attribute name (state #: ' + state + ')';
+
+
+            // the following will be caught by parser.isScriptableTag() anyway
+            // case stateMachine.State.STATE_SCRIPT_DATA: // 6
+            //     throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
+            
+
+            // should not fall into the following states
+            case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
+                throw 'unexpectedly BEFORE_ATTRIBUTE_VALUE state';
+
             default:
-                throw 'Unsafe output expression @ NOT HANDLE state:'+stateObj.state;
+                throw 'unsupported position (i.e., state #: ' + state + ')';
         }
     } catch (exception) {
+
         if (typeof exception === 'string') {
-            msgPrefix = this._config._strictMode? '[ERROR] ContextParserHandlebars:' : '[WARNING] ContextParserHandlebars:';
-            exceptionObj = new ContextParserHandlebarsException(
-                msgPrefix + exception,
-                this._lineNo,
-                this._charNo);
+
+            errorMessage = (this._config._strictMode? '[ERROR]' : '[WARNING]') + ' SecureHandlebars: Unsafe output expression found at ';
+
+            // To be secure, scriptable tags when encountered will anyway throw an error/warning
+            // they require either special parsers of their own context (e.g., CSS/script parsers) 
+            //    or an application-specific whitelisted url check (e.g., <script src=""> with yubl-yavu-yufull is not enough)
+            errorMessage += parser.isScriptableTag() ? 'scriptable <' + tagName + '> tag' : exception;
+
+            exceptionObj = new ContextParserHandlebarsException(errorMessage, this._lineNo, this._charNo);
             handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
         } else {
             handlebarsUtils.handleError(exception, this._config._strictMode);
@@ -9634,7 +9682,7 @@ ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, s
         }
         saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
     }
-    throw "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter close brace of expression.";
+    throw "[ERROR] SecureHandlebars: Parsing error! Cannot encounter close brace of expression.";
 };
 
 /**
@@ -9688,7 +9736,7 @@ ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, le
             saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
-    msg = "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}' close brace of escape expression.";
+    msg = "[ERROR] SecureHandlebars: Parsing error! Cannot encounter '}}' close brace of escape expression.";
     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
     handlebarsUtils.handleError(exceptionObj, true);
 };
@@ -9716,10 +9764,10 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
         } else if (!isStartExpression && input[j] === '{' && j+4<len && input[j+1] === '{' && input[j+2] === '{' && input[j+3] === '{' && input[j+4] === '/') {
             re = handlebarsUtils.isValidExpression(input, j, handlebarsUtils.RAW_END_BLOCK);
             if (re.result === false) {
-                throw "[ERROR] ContextParserHandlebars: Parsing error! Invalid raw end block expression.";
+                throw "[ERROR] SecureHandlebars: Parsing error! Invalid raw end block expression.";
             }
             if (re.tag !== tag) {
-                throw "[ERROR] ContextParserHandlebars: Parsing error! start/end raw block name mismatch.";
+                throw "[ERROR] SecureHandlebars: Parsing error! start/end raw block name mismatch.";
             }
             for(var k=j;k<len;++k) {
                 if (input[k] === '}' && k+3<len && input[k+1] === '}' && input[k+2] === '}' && input[k+3] === '}') {
@@ -9735,7 +9783,7 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
             saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
-    throw "[ERROR] ContextParserHandlebars: Parsing error! Cannot encounter '}}}}' close brace of raw block.";
+    throw "[ERROR] SecureHandlebars: Parsing error! Cannot encounter '}}}}' close brace of raw block.";
 };
 
 /* exposing it */
@@ -9744,7 +9792,7 @@ module.exports = ContextParserHandlebars;
 })();
 
 }).call(this,require('_process'))
-},{"./handlebars-utils.js":40,"./strict-context-parser.js":42,"_process":8,"context-parser":1,"debug":3}],40:[function(require,module,exports){
+},{"./handlebars-utils.js":41,"./strict-context-parser.js":43,"_process":8,"context-parser":1,"debug":3}],41:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -9968,7 +10016,7 @@ module.exports = HandlebarsUtils;
 
 })();
 
-},{"xss-filters":38}],41:[function(require,module,exports){
+},{"xss-filters":39}],42:[function(require,module,exports){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -10045,7 +10093,7 @@ module.exports.create = overrideHbsCreate;
 // the following is in addition to the original Handlbars prototype
 module.exports.ContextParserHandlebars = ContextParserHandlebars;
 
-},{"./context-parser-handlebars":39,"./handlebars-utils.js":40,"handlebars":26,"xss-filters":38}],42:[function(require,module,exports){
+},{"./context-parser-handlebars":40,"./handlebars-utils.js":41,"handlebars":27,"xss-filters":39}],43:[function(require,module,exports){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -10381,6 +10429,7 @@ function StrictContextParser(config, listeners) {
         !config.disableCanonicalization && this.on('preWalk', Canonicalize).on('reWalk', Canonicalize);
         // disable IE conditional comments
         !config.disableIEConditionalComments && this.on('preWalk', DisableIEConditionalComments);
+        // TODO: rewrite IE <comment> tags
 
         // TODO: When a start tag token is emitted with its self-closing flag set, if the flag is not acknowledged when it is processed by the tree construction stage, that is a parse error.
         // TODO: When an end tag token is emitted with attributes, that is a parse error.
@@ -10601,7 +10650,7 @@ StrictContextParser.prototype.walk = function(i, input, endsWithEOF) {
         case 6:                       /* match end tag token with start tag token's tag name */
             if(this.tagNames[0] === this.tagNames[1]) {
                 reconsume = 0;  /* see 12.2.4.13 - switch state for the following case, otherwise, reconsume. */
-                this.matchEndTagWithStartTag(ch);
+                this.matchEndTagWithStartTag(symbol);
             }
             break;
         case 8:  this.matchEscapedScriptTag(ch); break;
@@ -10658,15 +10707,103 @@ StrictContextParser.prototype.getCurrentState = function() {
 };
 
 
+// <iframe srcdoc=""> is a scriptable attribute too
+// Reference: https://html.spec.whatwg.org/multipage/embedded-content.html#attr-iframe-srcdoc
+var scriptableTags = {
+    script:1,style:1,
+    svg:1,xml:1,math:1,
+    applet:1,object:1,embed:1,link:1,
+    scriptlet:1                  // IE-specific
+};
 
+/**
+ * @function StrictContextParser#isScriptableTag
+ *
+ * @returns {boolean} true if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ * @description
+ * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ */
+StrictContextParser.prototype.isScriptableTag = function() {
+    return scriptableTags[this.tagNames[0]] === 1;
+};
 
+// Reference: http://www.w3.org/TR/html-markup/elements.html
+StrictContextParser.ATTRTYPE_URI = 1,
+StrictContextParser.ATTRTYPE_CSS = 2,
+StrictContextParser.ATTRTYPE_SCRIPTABLE = 3,
+StrictContextParser.ATTRTYPE_MIME = 4,
+StrictContextParser.ATTRTYPE_GENERAL = undefined;
 
+var attributeNamesType = {
+    // we generally do not differentiate whether these attribtues are tag specific during matching for simplicity
+    'href'       :StrictContextParser.ATTRTYPE_URI,     // for a, link, img, area, iframe, frame, video, object, embed ...
+    'src'        :StrictContextParser.ATTRTYPE_URI,
+    'background' :StrictContextParser.ATTRTYPE_URI,     // for body, table, tbody, tr, td, th, etc? (obsolete)
+    'action'     :StrictContextParser.ATTRTYPE_URI,     // for form, input, button
+    'formaction' :StrictContextParser.ATTRTYPE_URI,     
+    'cite'       :StrictContextParser.ATTRTYPE_URI,     // for blockquote, del, ins, q
+    'poster'     :StrictContextParser.ATTRTYPE_URI,     // for img, object, video, source
+    'usemap'     :StrictContextParser.ATTRTYPE_URI,     // for image
+    'longdesc'   :StrictContextParser.ATTRTYPE_URI,                         
+    'folder'     :StrictContextParser.ATTRTYPE_URI,     // for a
+    'manifest'   :StrictContextParser.ATTRTYPE_URI,     // for html
+    'classid'    :StrictContextParser.ATTRTYPE_URI,     // for object
+    'codebase'   :StrictContextParser.ATTRTYPE_URI,     // for object, applet
+    'icon'       :StrictContextParser.ATTRTYPE_URI,     // for command
+    'profile'    :StrictContextParser.ATTRTYPE_URI,     // for head
+    /* TODO: we allow content before we implement the stack in CP for tracking attributeName
+    'content'    :StrictContextParser.ATTRTYPE_URI,     // for meta http-equiv=refresh
+    */
 
+    // http://www.w3.org/TR/xmlbase/#syntax
+    'xmlns'      :StrictContextParser.ATTRTYPE_URI,     // for svg, etc?
+    'xml:base'   :StrictContextParser.ATTRTYPE_URI, 
+    'xmlns:xlink':StrictContextParser.ATTRTYPE_URI,
+    'xlink:href' :StrictContextParser.ATTRTYPE_URI,     // for xml-related
 
+    // srcdoc is the STRING type, not URI
+    'srcdoc'     :StrictContextParser.ATTRTYPE_URI,     // for iframe
 
+    'style'      :StrictContextParser.ATTRTYPE_CSS,     // for global attributes list
 
+    // pattern matching, handling it within the function getAttributeNameType
+    // 'on*'     :StrictContextParser.ATTRTYPE_SCRIPTABLE,
 
+    'type'       :StrictContextParser.ATTRTYPE_MIME,    // TODO: any potential attack of the MIME type?
 
+    'data'       :{'object'  :StrictContextParser.ATTRTYPE_URI},
+    'rel'        :{'link'    :StrictContextParser.ATTRTYPE_URI},
+    'value'      :{'param'   :StrictContextParser.ATTRTYPE_URI},
+};
+
+/**
+ * @function StrictContextParser#getAttributeNameType
+ *
+ * @returns {integer} the attribute type defined for different handling
+ *
+ * @description
+ * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ */
+StrictContextParser.prototype.getAttributeNameType = function() {
+    if (this.attributeName[0] === 'o' && this.attributeName[1] === 'n') { /* assuming it is from Strict Context Parser.
+                                                                             and o{{placeholder}}n* can bypass the check.
+                                                                             anyway, we are good to throw error in atttribute name state. 
+                                                                             note: CP has lowerCase the attributeName */
+        return StrictContextParser.ATTRTYPE_SCRIPTABLE;
+    } else {
+        // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
+
+        // return StrictContextParser.ATTRTYPE_GENERAL for case without special handling
+        // here,  attrTags === [integer] is a tag agnostic matching
+        // while, attrTags[tagName] === [integer] matches only those attribute of the given tagName
+
+        var attrTags = attributeNamesType[this.attributeName];
+        return typeof attrTags === 'object'? attrTags[this.tagNames[0]] : attrTags;
+    }
+};
 
 /**
  * ==================
@@ -10784,5 +10921,5 @@ module.exports = StrictContextParser;
 
 })();
 
-},{"context-parser":1}]},{},[41])(41)
+},{"context-parser":1}]},{},[42])(42)
 });

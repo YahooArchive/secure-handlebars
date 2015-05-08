@@ -783,10 +783,13 @@ var filterTemplatePatterns = [
             /{{{yubl \(yavd \(yufull url10\)\)}}}/, /{{{yubl \(yavd \(yufull url11\)\)}}}/, /{{{yubl \(yavd \(yufull url12\)\)}}}/,
             /{{{yubl \(yavd \(yufull url13\)\)}}}/, /{{{yubl \(yavd \(yufull url14\)\)}}}/, /{{{yubl \(yavd \(yufull url15\)\)}}}/,
             /{{{yubl \(yavd \(yufull url16\)\)}}}/, /{{{yubl \(yavd \(yufull url17\)\)}}}/, /{{{yubl \(yavd \(yufull url18\)\)}}}/,
+            /{{{yubl \(yavd \(yufull url19\)\)}}}/, /{{{yubl \(yavd \(yufull url20\)\)}}}/,
 
             // only add url filters to tag specific attribute
             /{{{yubl \(yavd \(yufull url90\)\)}}}/, /{{{yubl \(yavd \(yufull url91\)\)}}}/, 
-            /{{{yavd url92}}}/, /{{{yavd url93}}}/
+            /{{{yavd url92}}}/, /{{{yavd url93}}}/,
+            /{{{yubl \(yavd \(yufull url94\)\)}}}/,
+            /{{{yavd url95}}}/,
         ]
     },
     {
@@ -1050,6 +1053,12 @@ var exceptionPatterns = [
         result: [ /Inconsistent HTML5 state/, /lineNo:5,charNo:387/ ],
     },
     {
+        title: './bin/handlebarspp html5 attribute name type inconsistent state test',
+        file: './tests/samples/bugs/007.state.attribute-name-comparison-001.hbs',
+        strictMode: false,
+        result: [ /Inconsistent HTML5 state/, /lineNo:9,charNo:202/ ],
+    },
+    {
         title: './bin/handlebarspp line no and char no reporting buildAst test',
         file: './tests/samples/bugs/005-2.line.report.hb',
         strictMode: false,
@@ -1129,6 +1138,11 @@ var reportedBugPatterns = [
         title: 'state (attribute name) propagation in branching template test',
         file: './tests/samples/bugs/006.state.attribute-name.hb',
         result: [ /{{{y styleoutput}}}/, /{{{yavd classoutput}}}/ ],
+    },
+    {
+        title: './bin/handlebarspp html5 attribute name type inconsistent state test',
+        file: './tests/samples/bugs/007.state.attribute-name-comparison-002.hbs',
+        result: [],
     },
 /* disable this test during the code refactoring
     {
