@@ -43,11 +43,20 @@ declarations
       var l = $4.length;
       l>0? $$.value = $4[l-1].value : '';
 
+      /* TODO: we can refine the following logic by revising the grammar with 
+         START_STRING and START_URI pattern (either unquoted,single or double quoted),
+         however, I prefer of not having too much change in the grammar with the 
+         original one to save the effort of maintenance
+      */
+
       /* if the last expr is BAD_URI, then we test for the following pattern */
       if ($4[l-1].type !== undefined && $4[l-1].type === 'BAD_URI') {
         $4[l-1].value.match(/^(url\([\s]*)$/i)? $$.type = 1 : '';
 
       /* if the last expr is BAD_STRING pattern, then we test
+         (1) the string is ended with single/double quote, then it is 5/6.
+         (2) the second last expr is BAD_URI, then if it is ended with single/double quote, then it is 2/3.
+         if the last expr is SPACE_EMPTY pattern, then it is 4
       */
       } else if ($4[l-1].type !== undefined && ($4[l-1].type === 'BAD_STRING' || $4[l-1].type === 'SPACE_EMPTY')) {
         $4[l-1].value === ''? $$.type = 4 : '';
