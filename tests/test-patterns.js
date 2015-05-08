@@ -799,25 +799,77 @@ var filterTemplatePatterns = [
         file: './tests/samples/files/handlebarsjs_filter_attr_value_style_001.hbs',
         result: [
                   // double quoted
-                  /{{{y color11}}}/, /{{{y color12}}}/, /{{{y bgcolor1}}}/, /{{{y color41}}}/,
-                  /{{{y color5}}}/, /{{{y bgcolor5}}}/,
+                  /{{{yavd \(yceu color11\)}}}/, /{{{yavd \(yceu color12\)}}}/, /{{{yavd \(yceu bgcolor1\)}}}/,
+                  /{{{yavd \(yceu color5\)}}}/, /{{{yavd \(yceu bgcolor5\)}}}/,
+                  // double quoted with css single quoted
+                  /{{{yavd \(yces color41\)}}}/,
+
                   // single quoted
-                  /{{{y color21}}}/, /{{{y color22}}}/, /{{{y bgcolor2}}}/, /{{{y color42}}}/,
-                  /{{{y color6}}}/, /{{{y bgcolor6}}}/,
+                  /{{{yavs \(yceu color21\)}}}/, /{{{yavs \(yceu color22\)}}}/, /{{{yavs \(yceu bgcolor2\)}}}/,
+                  /{{{yavs \(yceu color6\)}}}/, /{{{yavs \(yceu bgcolor6\)}}}/,
+                  // single quoted with css double quoted
+                  /{{{yavs \(yced color42\)}}}/,
+
                   // unquoted
-                  /{{{y color31}}}/, /{{{y color32}}}/, /{{{y bgcolor3}}}/, /{{{y color43}}}/,
-                  /{{{y color7}}}/, /{{{y bgcolor7}}}/
+                  /{{{yavu \(yceu color31\)}}}/, /{{{yavu \(yceu color32\)}}}/, /{{{yavu \(yceu bgcolor3\)}}}/,
+                  /{{{yavu \(yceu color7\)}}}/,
+
+                  // url
+                  /{{{yubl \(yavd \(yceuu url4\)\)}}}/,
+                  /{{{yubl \(yavd \(yceus url5\)\)}}}/,
+                  /{{{yubl \(yavs \(yceud url6\)\)}}}/,
+                  /{{{yubl \(yavd \(yceuu url7\)\)}}}/,
+                  /{{{yubl \(yavd \(yceus url8\)\)}}}/,
+                  /{{{yubl \(yavs \(yceud url9\)\)}}}/,
+
+                  // attribute name
+                  /{{{y bgcolor7}}}/, /{{{y color43}}}/, /{{{y color44}}}/,
+
+                  // invalid
+                  /{{{y invalid1}}}/, /{{{y invalid2}}}/, /{{{y invalid3}}}/, /{{{y invalid4}}}/, /{{{y invalid5}}}/,
+                  /{{{y invalid6}}}/, /{{{y invalid7}}}/,
+                  /{{{y url1}}}/, /{{{y url2}}}/, /{{{y url3}}}/,
         ],
     },
     {
         title: './bin/handlebarspp attribute value / CSS state (full string) template filter test',
         file: './tests/samples/files/handlebarsjs_filter_attr_value_style_002.hbs',
         result: [ // double quoted
-                  /{{{y style1}}}/, /{{{y style4}}}/,
+                  /{{{y style1}}}/, /{{{y style4}}}/, /{{{y style7}}}/,
                   // single quoted
-                  /{{{y style2}}}/, /{{{y style5}}}/,
+                  /{{{y style2}}}/, /{{{y style5}}}/, /{{{y style8}}}/,
                   // unquoted
-                  /{{{y style3}}}/, /{{{y style6}}}/
+                  /{{{y style3}}}/, /{{{y style6}}}/, /{{{y style9}}}/,
+        ],
+    },
+    {
+        title: './bin/handlebarspp attribute value / CSS state branching template filter test',
+        file: './tests/samples/files/handlebarsjs_filter_attr_value_style_003.hbs',
+        result: [ // double quoted
+                  /{{{yavd \(yceu color1\)}}}/,
+                  /{{{yavd \(yceu color2\)}}}/,
+                  /{{{yavd \(yces color5\)}}}/,
+                  /{{{yavd \(yces color6\)}}}/,
+                  // single quoted
+                  /{{{yavs \(yceu color3\)}}}/,
+                  /{{{yavs \(yceu color4\)}}}/,
+                  /{{{yavs \(yced color7\)}}}/,
+                  /{{{yavs \(yced color8\)}}}/,
+                  // unquoted
+                  /{{{yavu \(yceu color9\)}}}/,
+                  /{{{yavu \(yceu color10\)}}}/,
+
+                  // invalid
+                  /{{{y color0}}}/,
+                  /{{{y invalid1}}}/, /{{{y invalid2}}}/, /{{{y invalid3}}}/, /{{{y invalid4}}}/,
+
+                  // TODO: need double check on this pattern
+/* enable it when we have the html decoder
+                  /{{{yavu \(yced invalid5\)}}}/,
+                  /{{{yavu \(yced invalid6\)}}}/,
+                  /{{{yavu \(yces invalid7\)}}}/,
+                  /{{{yavu \(yces invalid8\)}}}/,
+*/
         ],
     },
     {
@@ -1108,7 +1160,7 @@ var exceptionPatterns = [
         title: './bin/handlebarspp attribute style CSS context strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_006.hbs',
         strictMode: true,
-        result: [ /ERROR/, /CSS style attribute/ ],
+        result: [ /ERROR/, /attribute style CSS context/ ],
     },
     {
         title: './bin/handlebarspp attribute on* Javascript context strict mode test',
