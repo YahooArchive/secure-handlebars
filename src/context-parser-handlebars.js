@@ -96,6 +96,7 @@ function ContextParserHandlebars(config) {
     this._charNo = 0;
     this._lineNo = 1;
 
+    // TODO: enforce the strict CP by overridding the config object.
     /* context parser for HTML5 parsing */
     this.contextParser = new ContextParser(config);
 }
@@ -183,6 +184,7 @@ ContextParserHandlebars.prototype.analyzeContext = function(input) {
 * @description
 * Build the AST tree of the Handlebars template language.
 */
+// TODO: using flex syntax to build the AST.
 ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
 
     /* init the data structure */
@@ -481,10 +483,6 @@ ContextParserHandlebars.prototype.countNewLineChar = function(str) {
 *
 * @description
 * Handle the Handlebars template. (Handlebars Template Context)
-*
-* TODO: the function handleTemplate does not need to handle other expressions
-* except RAW_EXPRESSION and ESCAPE_EXPRESSION anymore, we can safely remove it
-* when the code is stable.
 */
 ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) {
 
@@ -570,7 +568,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
 
                 if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_URI) {
                     /* we don't support javascript parsing yet */
-                    // TODO: this filtering rule cannot cover all cases.
+                    // TODO: should use yup() instead
                     if (handlebarsUtils.blacklistProtocol(attributeValue)) {
                         throw 'scriptable URI attribute (e.g., after <a href="javascript: )';
                     }
@@ -637,6 +635,9 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                 throw 'being an attribute name (state #: ' + state + ')';
 
 
+            // TODO: need tagname tracing in Context Parser such that we can have 
+            // ability to capture the case of putting output expression within dangerous tag.
+            // like svg etc.
             // the following will be caught by parser.isScriptableTag() anyway
             // case stateMachine.State.STATE_SCRIPT_DATA: // 6
             //     throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
