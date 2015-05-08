@@ -5,7 +5,9 @@ See the accompanying LICENSE file for terms.
 */
 (function() {
 
-var handlebarsUtils = require('../src/handlebars-utils');
+var handlebarsUtils = require('../src/handlebars-utils'),
+    cssParser = require('../src/css-parser'),
+    cssParserUtils = require('../src/css-utils');
 
 // for handlebars-3.0-spec test only
 var expressionTestPatterns = [
@@ -1155,5 +1157,227 @@ var reportedBugPatterns = [
 */
 ];
 exports.reportedBugPatterns = reportedBugPatterns;
+
+var cssStyleAttributeValuePatterns1 = [
+    { css: '', result: '' },
+    { css: '&#058&#058;&#x03a&#x03A;&colon;',               result: ':::::' },
+    { css: '&#059&#059;&#x03b&#x03B;&semi;',                result: ';;;;;' },
+    { css: '&#040&#040;&#x028&#x028;&lpar;',                result: '(((((' },
+    { css: '&#041&#041;&#x029&#x029;&rpar;',                result: ')))))' },
+    { css: '&#034&#034;&#x022&#x022;&quot;&QUOT;',          result: '\"\"\"\"\"\"' },
+    { css: '&#039&#039;&#x027&#x027;&apos;',                result: '\'\'\'\'\''   },
+    { css: '&#047&#047;&#x02f&#x02F;&sol;',                 result: '\/\/\/\/\/'   },
+    { css: '&#044&#044;&#x02c&#x02C;&comma;',               result: ',,,,,' },
+    { css: '&#043&#043;&#x02b&#x02B;&plus;',                result: '+++++' },
+    { css: '&#045&#045;&#x02d&#x02D;',                      result: '----'  },
+    { css: '&#037&#037;&#x025&#x025;&percnt;',              result: '%%%%%' },
+    { css: '&#035&#035;&#x023&#x023;&num;',                 result: '#####' },
+    { css: '&#033&#033;&#x021&#x021;&excl;',                result: '!!!!!' },
+    { css: '&#095&#095;&#x05f&#x05F;&lowbar;&UnderBar;',    result: '______' },
+    { css: '&#092&#092;&#x05c&#x05C;&bsol;',                result: '\\\\\\\\\\'    },
+    { css: '&#042&#042;&#x02a&#x02A;&ast;&midast;',         result: '******' },
+    { css: '&#032&#032;&#x020&#x020;&#9&#9;&Tab;&#010;&#010&#x0a&#x0A;&NewLine;&#012&#012;&#x0c&#x0C;&#013&#013;&#x0d&#x0D;\t\r\n\f',
+        result: '                        ' },
+];
+exports.cssStyleAttributeValuePatterns1 = cssStyleAttributeValuePatterns1;
+
+var cssStyleAttributeValuePatterns2 = [
+    // property parsing error
+    { css: '"   :', result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+
+    // <div style="color:{{xxx}}">
+    // SPACE_EMPTY
+    { css: 'color: ',              result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'color', value: ''} ] },
+    { css: 'color:  ',             result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'color', value: ''} ] },
+    { css: 'color:     ',          result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'color', value: ''} ] },
+
+    // <div style="color:'{{xxx}}'">
+    // <div style='color:"{{xxx}}"'>
+    // BAD_STRING
+    { css: "color:'",      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED, key: 'color', value: "'" } ] },
+    { css: 'color:"',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED, key: 'color', value: '"' } ] },
+    { css: "color: '",     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED, key: 'color', value: "'" } ] },
+    { css: 'color: "',     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED, key: 'color', value: '"' } ] },
+    { css: "color: '   ",  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED, key: 'color', value: "'   " } ] },
+    { css: 'color: "   ',  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED, key: 'color', value: '"   ' } ] },
+
+    // <div style="font:italic bold {{xxx}}px">
+    // GOOD_STRING
+    { css: 'font: italic bold',     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'font', value: 'bold' } ] },
+    { css: 'font: italic bold ',    result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'font', value: 'bold ' } ] },
+    { css: 'font: italic   bold   ',result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'font', value: 'bold ' } ] },
+
+    // <div style="font:italic bold string">
+    // BAD_STRING
+    { css: "font: italic bold'",    result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED, key: 'font', value: "'" } ] },
+    { css: 'font: italic bold"',    result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED, key: 'font', value: '"' } ] },
+    // BAD_STRING
+    { css: "font: italic bold '",   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED, key: 'font', value: "'" } ] },
+    { css: 'font: italic bold "',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED, key: 'font', value: '"' } ] },
+    { css: "font: italic bold '  ", result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED, key: 'font', value: "'  " } ] },
+    { css: 'font: italic bold "  ', result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED, key: 'font', value: '"  ' } ] },
+
+    // <div style='font-family: Times, "{{xxx}}"'>
+    // SPACE_EMPTY
+    { css: 'font-family: Times,',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'font-family', value: '' } ] },
+    { css: 'font-family: Times,   ',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'font-family', value: '' } ] },
+    // BAD_STRING
+    { css: "font-family: Times,  '",   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED, key: 'font-family', value: "'" } ] },
+    { css: 'font-family: Times,  "',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED, key: 'font-family', value: '"' } ] },
+    { css: "font-family: Times,'  ",   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED, key: 'font-family', value: "'  " } ] },
+    { css: 'font-family: Times,"  ',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED, key: 'font-family', value: '"  ' } ] },
+    { css: "font-family: Times, ' ",   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED, key: 'font-family', value: "' " } ] },
+    { css: 'font-family: Times, " ',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED, key: 'font-family', value: '" ' } ] },
+
+    // <div style='background: url({{xxx}})'>
+    // BAD_URI
+    { css: 'background: url(',        result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED, key: 'background', value: 'url(' } ] },
+    { css: 'background: UrL(',        result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED, key: 'background', value: 'UrL(' } ] },
+    { css: 'background: url(    ',    result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED, key: 'background', value: 'url(    ' } ] },
+    // BAD_URI + BAD_STRING
+    { css: "background: url('",       result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED, key: 'background', value: "url('" } ] },
+    { css: 'background: url("',       result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED, key: 'background', value: 'url("' } ] },
+    { css: "background: url(  '",     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED, key: 'background', value: "url(  '" } ] },
+    { css: 'background: url(  "',     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED, key: 'background', value: 'url(  "' } ] },
+    { css: "background: url(  '  ",   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED, key: 'background', value: "url(  '  " } ] },
+    { css: 'background: url(  "  ',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED, key: 'background', value: 'url(  "  ' } ] },
+
+    // <div style='background: red url({{xxx}})'>
+    // BAD_URI
+    { css: 'background: red url(',    result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED, key: 'background', value: 'url(' } ] },
+    { css: 'background: red url(  ',  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED, key: 'background', value: 'url(  ' } ] },
+    // BAD_URI + BAD_STRING
+    { css: "background: red url('",   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED, key: 'background', value: "url('" } ] },
+    { css: 'background: red url("',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED, key: 'background', value: 'url("' } ] },
+    { css: "background: red url(  '", result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED, key: 'background', value: "url(  '" } ] },
+    { css: 'background: red url(  "', result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED, key: 'background', value: 'url(  "' } ] },
+    { css: "background: red url(  ' ",result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED, key: 'background', value: "url(  ' " } ] },
+    { css: 'background: red url(  " ',result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED, key: 'background', value: 'url(  " ' } ] },
+
+    // 2 delcarations
+    // SPACE_EMPTY
+    { css: 'color: xxx; background: ',   result: [
+       { key: 'color', value: 'xxx', type: cssParserUtils.STYLE_ATTRIBUTE_ERROR },
+       { key: '', value: ';', type: cssParserUtils.SEMICOLON },
+       { key: 'background', value: '', type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED }
+    ] },
+    // BAD_STRING
+    { css: "color: xxx; background: '",  result: [
+       { key: 'color', value: 'xxx', type: cssParserUtils.STYLE_ATTRIBUTE_ERROR },
+       { key: '', value: ';', type: cssParserUtils.SEMICOLON },
+       { key: 'background', value: "'", type: cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED }
+    ] },
+    { css: 'color: xxx; background: "',  result: [
+       { key: 'color', value: 'xxx', type: cssParserUtils.STYLE_ATTRIBUTE_ERROR },
+       { key: '', value: ';', type: cssParserUtils.SEMICOLON },
+       { key: 'background', value: '"', type: cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED }
+    ] },
+    // BAD_URI
+    { css: 'color: xxx; background: url(',   result: [
+       { key: 'color', value: 'xxx', type: cssParserUtils.STYLE_ATTRIBUTE_ERROR },
+       { key: '', value: ';', type: cssParserUtils.SEMICOLON },
+       { key: 'background', value: 'url(', type: cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED }
+    ] },
+    // BAD_URI + BAD_STRING
+    { css: "color: xxx; background: url('",   result: [
+       { key: 'color', value: 'xxx', type: cssParserUtils.STYLE_ATTRIBUTE_ERROR },
+       { key: '', value: ';', type: cssParserUtils.SEMICOLON },
+       { key: 'background', value: "url('", type: cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED }
+    ] },
+    { css: 'color: xxx; background: url("',   result: [
+       { key: 'color', value: 'xxx', type: cssParserUtils.STYLE_ATTRIBUTE_ERROR },
+       { key: '', value: ';', type: cssParserUtils.SEMICOLON },
+       { key: 'background', value: 'url("', type: cssParserUtils.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED }
+    ] },
+
+    // GOOD_STRING
+    { css: 'background: "red    "  ',     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'background', value: '"red    " ' } ] },
+    { css: "background: 'red    '  ",     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'background', value: "'red    ' " } ] },
+    // BAD_STRING
+    { css: "background: 'red    ' '",     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED, key: 'background', value: "'" } ] },
+    { css: 'background: "red    " "',     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED, key: 'background', value: '"' } ] },
+    // BAD_URI
+    { css: 'background: "red    "  url(',     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED, key: 'background', value: 'url(' } ] },
+    // BAD_URI + BAD_STRING
+    { css: "background: 'red    '  url('",    result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED, key: 'background', value: "url('" } ] },
+    { css: 'background: "red    "  url("',    result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED, key: 'background', value: 'url("' } ] },
+    // GOOD_STRING
+    { css: 'background: url(http://www.evil.com)    ',  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'background', value: 'url(http://www.evil.com) ' } ] },
+    { css: 'background: url("http://www.evil.com")  ',  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'background', value: 'url("http://www.evil.com") ' } ] },
+    { css: "background: url('http://www.evil.com')  ",  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'background', value: "url('http://www.evil.com') " } ] },
+
+    // GOOD_STRING
+    { css: 'background: "re"d   ',     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'background', value: 'd ' } ] },
+    // BAD_STRING
+    { css: 'background: "re\'d  ',     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'background', value: '"re\'d  ' } ] },
+    // BAD_URI
+    { css: 'background: "re"d   url(', result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED, key: 'background', value: 'url(' } ] },
+    // BAD_STRING
+    { css: 'background: "red    ',     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'background', value: '"red    ' } ] },
+    { css: "background: 'red    ",     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'background', value: "'red    " } ] },
+
+    // PARSING ERROR
+    { css: ':',            result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: '    :',        result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: '    :     ',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: ':;',           result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: ':   ;',        result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: ':   ;     ',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: 'color::;  ',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: 'xxx',          result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: 'color:red; color ', result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'color', value: 'red' } ] },
+
+    // GOOD_STRING
+    { css: 'color:""',     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'color', value: '""' } ] },
+    { css: "color:''",     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'color', value: "''" } ] },
+    { css: 'color:" "',    result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'color', value: '" "' } ] },
+    { css: "color:' '",    result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'color', value: "' '" } ] },
+    { css: 'color:""   ',  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'color', value: '"" ' } ] },
+    { css: "color:''   ",  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'color', value: "'' " } ] },
+
+    // BAD_URI + BAD_STRING
+    { css: "background: url('     ",  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED, key: 'background', value: "url('     " } ] },
+    { css: "background: url( '    ",  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED, key: 'background', value: "url( '    " } ] },
+
+    // BAD_URI + GOOD_STRING
+    { css: "background: url( ' '  ",  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'background', value: "url( ' ' " } ] },
+    { css: 'background: url( " "  ',  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'background', value: 'url( " " ' } ] },
+
+    // GOOD FUNCTION
+    { css: "background: url()",        result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'background', value: 'url()' } ] },
+    { css: "background: url(  )",      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'background', value: 'url(  )' } ] },
+    { css: "background: url()      ",  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'background', value: 'url() ' } ] },
+    { css: "background: url(' ')   ",  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'background', value: "url(' ') " } ] },
+    { css: "background: url( ' ')  ",  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'background', value: "url( ' ') " } ] },
+    { css: "background: url( ' ' )",   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'background', value: "url( ' ' )" } ] },
+    { css: "background: url( ' ' ) ",  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'background', value: "url( ' ' ) " } ] },
+
+    // GOOD_STRING
+    { css: 'color:";"',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'color', value: '";"' } ] },
+    { css: 'color:";" ',  result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'color', value: '";" ' } ] },
+
+    // BAD_STRING
+    { css: 'color:";" "', result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED, key: 'color', value: '"' } ] },
+    { css: "color:';' '", result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED, key: 'color', value: "'" } ] },
+
+    // Parse nothing
+    { css: '',    result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: '   ', result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+
+    // End with semicolon
+    { css: 'color:red;  ',      result: [ { key: 'color', type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, value: 'red' },
+                                          { type: cssParserUtils.SEMICOLON, key: '', value: ';' } ] },
+    { css: 'color:red ; ',      result: [ { key: 'color', type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, value: 'red ' },
+                                          { type: cssParserUtils.SEMICOLON, key: '', value: ';' } ] },
+    { css: 'color:red;; ',      result: [ { key: 'color', type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, value: 'red' },
+                                          { type: cssParserUtils.SEMICOLON, key: '', value: ';' },
+                                          { type: cssParserUtils.SEMICOLON, key: '', value: ';' } ] },
+    { css: 'color:;     ',      result: [ { key: 'color', type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, value: '' },
+                                          { type: cssParserUtils.SEMICOLON, key: '', value: ';' } ] },
+    { css: 'color:;;    ',      result: [ { key: 'color', type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, value: '' },
+                                          { type: cssParserUtils.SEMICOLON, key: '', value: ';' },
+                                          { type: cssParserUtils.SEMICOLON, key: '', value: ';' } ] },
+];
+exports.cssStyleAttributeValuePatterns2 = cssStyleAttributeValuePatterns2;
 
 })();

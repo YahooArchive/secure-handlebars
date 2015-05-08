@@ -7,8 +7,20 @@ module.exports = function(grunt) {
 
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
+    execute: {
+      cssparser: {
+        options: {
+          args: ['src/css-parser.21.attr.partial.y', 'src/css.21.l', '--outfile', 'src/css-parser.js']
+        },
+        src: ['node_modules/jison/lib/cli.js']
+      },
+    },
     jshint: {
-      files: ['src/*.js'],
+      files: [ 'src/css-util.js', 
+               'src/handlebars-utils.js', 
+               'src/polyfill.js', 
+               'src/secure-handlebars.js', 
+               'src/strict-context-parser.js' ],
       options: {
         scripturl: true,
         camelcase: true
@@ -91,8 +103,9 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-clean');
   grunt.loadNpmTasks('grunt-contrib-uglify');
+  grunt.loadNpmTasks('grunt-execute');
 
-  grunt.registerTask('test', ['clean:buildResidues', 'jshint', 'dist', 'karma', 'mocha_istanbul']);
+  grunt.registerTask('test', ['clean:buildResidues', 'jshint', 'execute', 'dist', 'karma', 'mocha_istanbul']);
   grunt.registerTask('dist', ['browserify', 'uglify']);
   grunt.registerTask('default', ['test']);
 
