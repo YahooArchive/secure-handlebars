@@ -864,12 +864,10 @@ var filterTemplatePatterns = [
                   /{{{y invalid1}}}/, /{{{y invalid2}}}/, /{{{y invalid3}}}/, /{{{y invalid4}}}/,
 
                   // TODO: need double check on this pattern
-/* enable it when we have the html decoder
                   /{{{yavu \(yced invalid5\)}}}/,
                   /{{{yavu \(yced invalid6\)}}}/,
                   /{{{yavu \(yces invalid7\)}}}/,
                   /{{{yavu \(yces invalid8\)}}}/,
-*/
         ],
     },
     {

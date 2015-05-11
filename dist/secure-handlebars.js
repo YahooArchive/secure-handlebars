@@ -9553,11 +9553,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     
                 } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_CSS) { // CSS
 
-                    // TODO: introduce a new html decoder
-                    /*
                     attributeValue = cssParserUtils.htmlStyleAttributeValueEntitiesDecode(attributeValue);
-                    */
-
                     var r = cssParserUtils.parseStyleAttributeValue(attributeValue);
                     switch(r.code) {
                         case cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED:
