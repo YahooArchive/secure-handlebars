@@ -1429,7 +1429,67 @@ var cssStyleAttributeValuePatterns2 = [
     { css: 'color:;;    ',      result: [ { key: 'color', type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, value: '' },
                                           { type: cssParserUtils.SEMICOLON, key: '', value: ';' },
                                           { type: cssParserUtils.SEMICOLON, key: '', value: ';' } ] },
+
+    // Parsing error for both case with and without decoding.
+    { css: 'color: \u24B62',     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: 'color: &#x24B62;',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
 ];
 exports.cssStyleAttributeValuePatterns2 = cssStyleAttributeValuePatterns2;
+
+var cssHtmlEntitiesPattern = [
+    { html: '', result: '' },
+
+    // reference: http://unicode.org/charts/
+    { html: '&#9;',        result: '\t' },
+    { html: '&#9',         result: '\t' },
+    { html: '&#00009;',    result: '\t' },
+    { html: '&#x9;',       result: '\t' },
+
+    { html: '&#a;',        result: '&#a;'  },
+    { html: '&#xa;',       result: '\n'    },
+    { html: '&#xa',        result: '\n'    },
+    { html: '&#x0000a;',   result: '\n',   },
+
+    { html: '&#aZ;',       result: '&#aZ;'  },
+    { html: '&#xaf;',      result: '¯' },
+    { html: '&#xaf',       result: '¯' },
+    { html: '&#x0000af;',  result: '¯' },
+
+    { html: '&#d;',        result: '&#d;'  },
+    { html: '&#xd;',       result: '\r'    },
+    { html: '&#xd',        result: '\r'    },
+    { html: '&#x0000d;',   result: '\r'    },
+
+    { html: '&#d7ff;',     result: '&#d7ff;'  },
+    { html: '&#xd7ff;',    result: '퟿'     },
+    { html: '&#xd7ff',     result: '퟿'     },
+    { html: '&#x000d7ff;', result: '퟿'     },
+
+    { html: '&#d800;',     result: '&#d800;'  },
+    { html: '&#xd800;',    result: '\ud800'   },
+    { html: '&#xd800',     result: '\ud800'   },
+    { html: '&#x000d800;', result: '\ud800'   },
+
+    { html: '&#dfff;',     result: '&#dfff;'  },
+    { html: '&#xdfff;',    result: '\udfff'   },
+    { html: '&#xdfff;',    result: '\udfff'   },
+    { html: '&#x000dfff;', result: '\udfff'   },
+
+    { html: '&#e000;',     result: '&#e000;'  },
+    { html: '&#xe000;',    result: '\ue000'   },
+    { html: '&#xe000',     result: '\ue000'   },
+    { html: '&#x000e000;', result: '\ue000'   },
+
+    { html: '&#24B62;',    result: '\u0018B62;'},
+    { html: '&#x24B62;',   result: '&#x24B62;' },
+    { html: '&#x24B62',    result: '&#x24B62;' },
+    { html: '&#x0024B62;', result: '&#x24B62;' },
+
+    { html: '&#65536;',    result: '&#65536;'  },
+    { html: '&#x65536;',   result: '&#x65536;' },
+    { html: '&#x65536',    result: '&#x65536;' },
+    { html: '&#x0065536;', result: '&#x65536;' },
+];
+exports.cssHtmlEntitiesPattern = cssHtmlEntitiesPattern;
 
 })();

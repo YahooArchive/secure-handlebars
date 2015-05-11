@@ -18,6 +18,13 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
     describe("CSS Parser test suite", function() {
 
         it("CSS Style Value Attribute HTML entities decode test", function() {
+            testPatterns.cssHtmlEntitiesPattern.forEach(function(testObj) {
+                var r = cssParserUtils.htmlDecode(testObj.html);
+                expect(testObj.result).to.equal(r);
+            });
+        });
+
+        it("CSS Style Value Attribute HTML entities decode test", function() {
             testPatterns.cssStyleAttributeValuePatterns1.forEach(function(testObj) {
                 var r = cssParserUtils.htmlStyleAttributeValueEntitiesDecode(testObj.css);
                 expect(testObj.result).to.equal(r);
