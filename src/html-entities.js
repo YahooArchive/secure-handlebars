@@ -79,42 +79,36 @@ HTMLEntities.prototype.encode = function(str) {
 * @description
 * HTML decode the character
 */
-HTMLEntities.prototype.reNumericCharReferenceDecode = /&#([xX]?)0*([a-fA-F0-9]+);?/g;
-HTMLEntities.prototype.reNamedCharReferenceDecode = /&([a-zA-Z0-9]+)(;)?/g;
+HTMLEntities.prototype.reCharReferenceDecode = /&(#?)([xX]?)0*([a-zA-Z0-9]+)(;)?/g;
 HTMLEntities.prototype.fromCodePoint = String.fromCodePoint;
 HTMLEntities.prototype.decode = function(str) {
     /* decode all numeric dec/hex character reference */
     var htmlDecoder = this;
 
-    str = str.replace(this.reNumericCharReferenceDecode, function(m, isHex, p) {
-        var radix = 16;
-        if (isHex !== 'x' && isHex !== 'X') {
-            radix = 10;
-            if (p.match(/[a-zA-Z]/)) {
-                return '&#'+p+';'; // not html entities
+    str = str.replace(this.reCharReferenceDecode, function(m, isNamed, isHex, p1, p2) {
+        var s = p2 === undefined? p1 : p1 + p2;
+
+        if (isNamed !== '#') {
+            var obj = htmlDecoder._findString(s);
+            /* NOTE: != return true for undefined and null */
+            if (obj != null) {
+                return obj.characters;
+            }
+            return '&'+s;
+        } else {
+            var radix = (isHex !== 'x' && isHex !== 'X')? 10:16;
+            var i = parseInt(p1, radix);
+            // 0-55295, 57344-65535, 65536-1114111
+            if ((i>=0 && i<=0xD7FF) || (i>=0xE000 && i<=0xFFFF) || (i>=0x10000 && i<=0x10FFFF)) {
+                return htmlDecoder.fromCodePoint(i);
+            } else {
+               if (isNaN(i)) {
+                   return '&#'+s; // not html entities
+               } else {
+                   return '\uFFFD'; // handling the RangeError
+               }
             }
         }
-
-        var i = parseInt(p, radix);
-        // 0-55295, 57344-65535, 65536-1114111
-        if ((i>=0 && i<=0xD7FF) || (i>=0xE000 && i<=0xFFFF) || (i>=0x10000 && i<=0x10FFFF)) {
-            return htmlDecoder.fromCodePoint(i);
-        } else {
-            return '\uFFFD'; // handling the RangeError
-        }
-    });
-
-    /* decode all named character reference 
-       NOTE: MUST did the reNumericCharReferenceDecode first.
-    */
-    str = str.replace(this.reNamedCharReferenceDecode, function(m, p1, p2) {
-        var s = p2 === undefined? p1 : p1 + p2;
-        var obj = htmlDecoder._findString(s);
-        /* NOTE: != return true for undefined and null */
-        if (obj != null) {
-            return obj.characters;
-        }
-        return '&'+s;
     });
 
     return str;

@@ -1257,6 +1257,8 @@ var htmlEntitiesDecode = [
 
     { str: 'abcdefg&NewLine;hijklmnop',      result: 'abcdefg\u000Ahijklmnop' },
     { str: 'abcdefg&NewLinehijklmnop',       result: 'abcdefg&NewLinehijklmnop' },
+
+    { str: '&#xGGGG;',        result: '&#GGGG;' },
 ];
 exports.htmlEntitiesDecode = htmlEntitiesDecode;
 
