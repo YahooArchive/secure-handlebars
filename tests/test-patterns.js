@@ -1159,6 +1159,7 @@ exports.reportedBugPatterns = reportedBugPatterns;
 var htmlEntities = [
     /*
     | 0 |
+    > 0 <
     | 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 |
     > A B C D E F G H I J  K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z  <
     | 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 |
@@ -1168,9 +1169,22 @@ var htmlEntities = [
     | 63 |
     > ;  <
     */
-                                                                          // defining which depth is defined.
-    { o: { "&Aacute;": { "codepoints": [193], "characters": "\u00C1" } }, result: { 1: [1, ], 2: [27, ], 3: [29, ], 4: [47, ], 5: [46, ], 6: [31. ], 7: [63, ] } },
+
+    { o: { "&A;":      { "codepoints": [0], "characters": "" } }, result: { paths: [ [1,] ], codepoints: [ [0] ], exist: undefined } },
+    { o: { "&Aa;":     { "codepoints": [0], "characters": "" } }, result: { paths: [ [1,27] ], codepoints: [ [0] ], exist: undefined } },
+    { o: { "&Aa;":     { "codepoints": [0], "characters": "" } }, result: { paths: [ [1], [1,27] ], codepoints: [ [0], [0] ], exist: [0] } },
+    { o: { "&Aacute;": { "codepoints": [193], "characters": "\u00C1" } }, result: { paths: [ [1,27,29,47,46,31,63,0] ], codepoints: [ [193] ], exist: undefined } },
+    { o: { "&Aacute":  { "codepoints": [193], "characters": "\u00C1" } }, result: { paths: [ [1,27,29,47,46,31,0] ], codepoints: [ [193] ], exist: undefined } },
+    { o: { "&acE;":    { "codepoints": [8766, 819], "characters": "\u223E\u0333" } }, result: { paths: [ [27,29,5,63,0] ], codepoints: [ [8766, 819] ], exist: undefined } },
 ];
 exports.htmlEntities = htmlEntities;
+
+/* for the pattern cannot be found */
+var htmlEntitiesFindString = [
+    { str: '&SmallCircle;', result: { codepoints: [8728] } },
+    { str: '&SmallCircle',  result: { codepoints: undefined } },
+    { str: '&XXX',  result: { codepoints: undefined } },
+];
+exports.htmlEntitiesFindString = htmlEntitiesFindString;
 
 })();

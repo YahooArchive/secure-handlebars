@@ -17,27 +17,115 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     describe("HTML Entities Decoder test suite", function() {
 
-        var htmlEntities = new htmlEntitiesDecoder();
+        var inspectTrie = function(trie, arr, codepoint, depth, currDepth) {
+            /* expect the current depth node is defined */
+            expect(trie[arr[currDepth]]).to.not.equal(undefined);
+            if (arr[currDepth] === 0) {
+                // test for codepoints
+                expect(trie[arr[currDepth]]).to.deep.equal(codepoint);
+            } 
+            if(currDepth < depth) {
+                inspectTrie(trie[arr[currDepth]], arr, codepoint, depth, currDepth+1);
+            }
+        }
 
-        it("html-entities# full test", function() {
-            var f = "./data/entities.json";
-            var d = fs.readFileSync(f, "utf8");
-            var o = JSON.parse(d);
-            // htmlEntities.buildNamedCharReferenceTrie(o);
-        });
+        it("html-entities# buildNamedCharReferenceTrie/findStringWithCodePoint test", function() {
+            var htmlEntities = new htmlEntitiesDecoder();
 
-        it("html-entities# add string test", function() {
             testPatterns.htmlEntities.forEach(function(testObj) {
-                htmlEntities.buildNamedCharReferenceTrie(testObj.o);
                 var trie = htmlEntities.namedCharReferenceTrie;
 
-                for (var depth in testObj.result) {
-                    if (testObj.result.hasOwnProperty(depth)) {
-                        var nodes = testObj.result[depth];
-                    }
+                // test for existence before build
+                for (var key in testObj.o) {
+                    expect(htmlEntities._findStringWithCodePoint(trie, key, 0)).to.deep.equal(testObj.result.exist);
+                }
+
+                // build and test for the data structure
+                htmlEntities.buildNamedCharReferenceTrie(testObj.o);
+                for (var i=0;i<testObj.result.paths.length;++i) {
+                    inspectTrie(trie, testObj.result.paths[i], 
+                        testObj.result.codepoints[i],
+                        testObj.result.paths[i].length-1, 0);
                 }
             });
+
+            // test for existence after build
+            testPatterns.htmlEntities.forEach(function(testObj) {
+                var trie = htmlEntities.namedCharReferenceTrie;
+                for (var key in testObj.o) {
+                    expect(htmlEntities._findStringWithCodePoint(trie, key, 0)).to.not.equal(undefined);
+                }
+            });
+
+            delete htmlEntities;
         });
 
+        it("html-entities# html5 full entities test", function() {
+            var f = "./data/entities.json",
+                d = fs.readFileSync(f, "utf8"),
+                o = JSON.parse(d),
+                htmlEntities = new htmlEntitiesDecoder();
+
+            // build the tree
+            htmlEntities.buildNamedCharReferenceTrie(o);
+
+            for (var str in o) {
+                if (o.hasOwnProperty(str)) {
+                    var info = o[str];
+                    var r = htmlEntities.findString(str);
+                    expect(r).to.deep.equal(info.codepoints);
+                }
+            }
+
+            testPatterns.htmlEntitiesFindString.forEach(function(testObj) {
+                var r = htmlEntities.findString(testObj.str);
+                expect(r).to.deep.equal(testObj.result.codepoints);
+            });
+
+            delete htmlEntities;
+        });
+
+        it("html-entities# saveNamedCharReferenceTrie entities test", function() {
+            var f = "./data/entities.json",
+                d = fs.readFileSync(f, "utf8"),
+                o = JSON.parse(d),
+                htmlEntities = new htmlEntitiesDecoder();
+
+            // build the tree
+            htmlEntities.buildNamedCharReferenceTrie(o);
+            
+            var saveFile = "./data/entities.json.test";
+            if (fs.existsSync(saveFile))
+                fs.unlinkSync(saveFile);
+            htmlEntities.saveNamedCharReferenceTrie(saveFile);
+            expect(fs.existsSync(saveFile)).to.equal(true);
+
+            delete htmlEntities;
+        });
+
+        it("html-entities# loadNamedCharReferenceTrie entities test", function() {
+            var saveFile = "./data/entities.json.test",
+                htmlEntities = new htmlEntitiesDecoder();
+
+            var f = "./data/entities.json",
+                d = fs.readFileSync(f, "utf8"),
+                o = JSON.parse(d);
+
+            expect(fs.existsSync(f)).to.equal(true);
+            expect(fs.existsSync(saveFile)).to.equal(true);
+            htmlEntities.loadNamedCharReferenceTrie(saveFile);
+
+            for (var str in o) {
+                if (o.hasOwnProperty(str)) {
+                    var info = o[str];
+                    var r = htmlEntities.findString(str);
+                    expect(r).to.deep.equal(info.codepoints);
+                }
+            }
+
+            if (fs.existsSync(saveFile))
+                fs.unlinkSync(saveFile);
+            delete htmlEntities;
+        });
     });
 }());
