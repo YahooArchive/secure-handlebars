@@ -7,20 +7,38 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
          Albert Yu <albertyu@yahoo-inc.com>
          Adonis Fung <adon@yahoo-inc.com>
 */
+/*jshint -W030 */
+/*jshint eqnull:true */
 (function () {
 "use strict";
 
 var fs = require('fs');
+/* polyfill for codePointAt, fromCodePoint */
+require('./polyfill.js');
 
 /////////////////////////////////////////////////////
 //
 // @module HTMLEntities
 // 
 /////////////////////////////////////////////////////
-function HTMLEntities() {
+function HTMLEntities(config) {
+    config || (config = {});
+    var load = config.load === undefined? true: config.load;
+
     this.namedCharReferenceTrie = [];
 
-    /* TODO: load the serialized trie here */
+    if (load) {
+        var saveFile = "./data/entities.json.save",
+            jsonFile = "./data/entities.json";
+
+        if (fs.existsSync(saveFile)) {
+            this.loadNamedCharReferenceTrie(saveFile);
+        } else if (fs.existsSync(jsonFile)) {
+            var d = fs.readFileSync(jsonFile, "utf8"),
+                o = JSON.parse(d);
+            this.buildNamedCharReferenceTrie(o);
+        }
+    }
 }
 
 /////////////////////////////////////////////////////
@@ -30,13 +48,75 @@ function HTMLEntities() {
 /////////////////////////////////////////////////////
 
 /**
-* @function HTMLEntities#findString
+* @function HTMLEntities#encode
 *
 * @description
-* Find whether the string is defined in the trie.
+* HTML encode the character
 */
-HTMLEntities.prototype.findString = function(str) {
-    return this._findStringWithCodePoint(this.namedCharReferenceTrie, str, 0);
+HTMLEntities.prototype.encode = function(str) {
+    var l = str.length,
+        c, r = '';
+    for(var i=0;i<l;++i) {
+        c = str.charCodeAt(i);
+        // 55296-57343
+        if (c>=0xD800 && c<=0xDFFF) {
+            if (i+1<l) {
+                c = str.codePointAt(i);
+            }
+            if (i+1>=l) {
+                continue; // skip the malformat char
+            }
+            i++; // skip the char
+        }
+        r += "&#"+c+";";
+    }
+    return r;
+};
+
+/**
+* @function HTMLEntities#decode
+*
+* @description
+* HTML decode the character
+*/
+HTMLEntities.prototype.reNumericCharReferenceDecode = /&#([xX]?)0*([a-fA-F0-9]+);?/g;
+HTMLEntities.prototype.reNamedCharReferenceDecode = /&([a-zA-Z0-9]+)(;)?/g;
+HTMLEntities.prototype.fromCodePoint = String.fromCodePoint;
+HTMLEntities.prototype.decode = function(str) {
+    /* decode all numeric dec/hex character reference */
+    var htmlDecoder = this;
+    str = str.replace(this.reNumericCharReferenceDecode, function(m, isHex, p) {
+        var radix = 16;
+        if (isHex !== 'x' && isHex !== 'X') {
+            radix = 10;
+            if (p.match(/[a-zA-Z]/)) {
+                return '&#'+p+';'; // not html entities
+            }
+        }
+
+        var i = parseInt(p, radix);
+        // 0-55295, 57344-65535, 65536-1114111
+        if ((i>=0 && i<=0xD7FF) || (i>=0xE000 && i<=0xFFFF) || (i>=0x10000 && i<=0x10FFFF)) {
+            return htmlDecoder.fromCodePoint(i);
+        } else {
+            return '\uFFFD'; // handling the RangeError
+        }
+    });
+
+    /* decode all named character reference 
+       NOTE: MUST did the reNumericCharReferenceDecode first.
+    */
+    str = str.replace(this.reNamedCharReferenceDecode, function(m, p1, p2) {
+        var s = p2 === undefined? p1 : p1 + p2;
+        var obj = htmlDecoder._findString(s);
+        /* NOTE: != return true for undefined and null */
+        if (obj != null) {
+            return obj.characters;
+        }
+        return '&'+s;
+    });
+
+    return str;
 };
 
 /**
@@ -48,7 +128,7 @@ HTMLEntities.prototype.buildNamedCharReferenceTrie = function(obj) {
     for (var key in obj) {
         if (obj.hasOwnProperty(key)) {
             var info = obj[key];
-            if (this._findStringWithCodePoint(this.namedCharReferenceTrie, key, 0) === undefined) {
+            if (this._findStringWithCodePoint(this.namedCharReferenceTrie, key, 0) == null) {
                 this._addStringToTrie(this.namedCharReferenceTrie, key, info);
             }
         }
@@ -78,6 +158,7 @@ HTMLEntities.prototype.loadNamedCharReferenceTrie = function(file) {
 * Save the trie in json format.
 */
 HTMLEntities.prototype.saveNamedCharReferenceTrie = function(file) {
+    /* NOTE: JSON.stringify convert undefined to null */
     var json = JSON.stringify(this.namedCharReferenceTrie);
     if (!fs.existsSync(file)) {
         fs.writeFileSync(file, json);
@@ -96,6 +177,7 @@ HTMLEntities.prototype.saveNamedCharReferenceTrie = function(file) {
 @description
 This is the index structure of the array for holding the trie.
 We don't use the object prop lookup to improve the performance.
+And we pack the array to save space for chars that are not defined.
 
 0       - the code point.
 1-26    - the captial letter A-Z.
@@ -110,10 +192,12 @@ a-z     - 97 to 122
 ';'     - 59
 '&'     - 38
 
+| index |
+> char  <
 | 0 |
-> 0 <
-| 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 |
-> A B C D E F G H I J  K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z  <
+> info <
+| 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 |
+> A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z  <
 | 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 |
 > a  b  c  d  e  f  g  h  i  j  k  l  m  n  o  p  q  r  s  t  u  v  w  x  y  z  <
 | 53 54 55 56 57 58 59 60 61 62 |
@@ -137,6 +221,7 @@ HTMLEntities.prototype.lastIndex = SEMICOLON_INDEX;
 * @function HTMLEntites#_mapToIndex
 *
 * @description
+* This function pack the space of the array for consideration of storage.
 */
 HTMLEntities.prototype._mapToIndex = function(char) {
     var c = char.charCodeAt(0);
@@ -159,6 +244,18 @@ HTMLEntities.prototype._mapToIndex = function(char) {
 };
 
 /**
+* @function HTMLEntities#_findString
+*
+* @description
+* Find whether the string is defined in the trie.
+*
+* Benchmark .... 10000 lookup randomly in 6 milliseconds!
+*/
+HTMLEntities.prototype._findString = function(str) {
+    return this._findStringWithCodePoint(this.namedCharReferenceTrie, str, 0);
+};
+
+/**
 * @function HTMLEntities#_findStringWithCodePoint
 *
 * @description
@@ -169,12 +266,12 @@ HTMLEntities.prototype._findStringWithCodePoint = function(trie, str, pos) {
         return this._findStringWithCodePoint(trie, str, pos+1);
 
     var index = this._mapToIndex(str[pos]);
-    if (trie[index] === undefined) {
+    if (trie[index] == null) {
         return undefined;
     } else {
         if (pos+1 === str.length) {
             // check for codepoints
-            return trie[index][0] === undefined? undefined:trie[index][0];
+            return trie[index][0] == null? undefined:trie[index][0];
         } else {
             return this._findStringWithCodePoint(trie[index], str, pos+1);
         }
@@ -207,11 +304,12 @@ HTMLEntities.prototype._addStringToTrie = function(trie, str, info) {
 */
 HTMLEntities.prototype._addCharToTrie = function(trie, c, info, isLastElement) {
     var index = this._mapToIndex(c);
-    if (trie[index] === undefined) {
+    if (trie[index] == null) {
         trie[index] = [];
     }
     if (isLastElement)
-        trie[index][0] = info.codepoints;
+        // trie[index][0] = info.codepoints;
+        trie[index][0] = info;
     return trie[index];
 };
 

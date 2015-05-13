@@ -45,7 +45,7 @@ This utility generate the html entites saved json object.
             stime = Date.now();
             for (i=0;i<t;++i) {
                 r = Math.floor(Math.random()*max);
-                if (htmlEntities.findString(benchMarkArr[r]) === undefined) {
+                if (htmlEntities._findString(benchMarkArr[r]) === undefined) {
                     throw "[ERROR] fail to look up the "+benchMarkArr[r];
                 }
             }

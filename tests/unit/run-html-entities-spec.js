@@ -22,7 +22,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(trie[arr[currDepth]]).to.not.equal(undefined);
             if (arr[currDepth] === 0) {
                 // test for codepoints
-                expect(trie[arr[currDepth]]).to.deep.equal(codepoint);
+                expect(trie[arr[currDepth]].codepoints).to.deep.equal(codepoint);
             } 
             if(currDepth < depth) {
                 inspectTrie(trie[arr[currDepth]], arr, codepoint, depth, currDepth+1);
@@ -30,14 +30,20 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         }
 
         it("html-entities# buildNamedCharReferenceTrie/findStringWithCodePoint test", function() {
-            var htmlEntities = new htmlEntitiesDecoder();
+            var htmlEntities = new htmlEntitiesDecoder({load:false});
 
             testPatterns.htmlEntities.forEach(function(testObj) {
                 var trie = htmlEntities.namedCharReferenceTrie;
 
                 // test for existence before build
                 for (var key in testObj.o) {
-                    expect(htmlEntities._findStringWithCodePoint(trie, key, 0)).to.deep.equal(testObj.result.exist);
+                    var r = htmlEntities._findStringWithCodePoint(trie, key, 0);
+                    // TODO: enhance this code segment.
+                    if (r === undefined) {
+                        expect(r).to.deep.equal(testObj.result.exist);
+                    } else {
+                        expect(r.codepoints).to.deep.equal(testObj.result.exist);
+                    }
                 }
 
                 // build and test for the data structure
@@ -64,7 +70,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var f = "./data/entities.json",
                 d = fs.readFileSync(f, "utf8"),
                 o = JSON.parse(d),
-                htmlEntities = new htmlEntitiesDecoder();
+                htmlEntities = new htmlEntitiesDecoder({load:false});
 
             // build the tree
             htmlEntities.buildNamedCharReferenceTrie(o);
@@ -72,14 +78,18 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             for (var str in o) {
                 if (o.hasOwnProperty(str)) {
                     var info = o[str];
-                    var r = htmlEntities.findString(str);
-                    expect(r).to.deep.equal(info.codepoints);
+                    var r = htmlEntities._findString(str);
+                    expect(r.codepoints).to.deep.equal(info.codepoints);
                 }
             }
 
             testPatterns.htmlEntitiesFindString.forEach(function(testObj) {
-                var r = htmlEntities.findString(testObj.str);
-                expect(r).to.deep.equal(testObj.result.codepoints);
+                var r = htmlEntities._findString(testObj.str);
+                if (r === undefined) {
+                    expect(r).to.deep.equal(testObj.result.codepoints);
+                } else {
+                    expect(r.codepoints).to.deep.equal(testObj.result.codepoints);
+                }
             });
 
             delete htmlEntities;
@@ -89,7 +99,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             var f = "./data/entities.json",
                 d = fs.readFileSync(f, "utf8"),
                 o = JSON.parse(d),
-                htmlEntities = new htmlEntitiesDecoder();
+                htmlEntities = new htmlEntitiesDecoder({load:false});
 
             // build the tree
             htmlEntities.buildNamedCharReferenceTrie(o);
@@ -105,7 +115,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         it("html-entities# loadNamedCharReferenceTrie entities test", function() {
             var saveFile = "./data/entities.json.test",
-                htmlEntities = new htmlEntitiesDecoder();
+                htmlEntities = new htmlEntitiesDecoder({load:false});
 
             var f = "./data/entities.json",
                 d = fs.readFileSync(f, "utf8"),
@@ -118,13 +128,31 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             for (var str in o) {
                 if (o.hasOwnProperty(str)) {
                     var info = o[str];
-                    var r = htmlEntities.findString(str);
-                    expect(r).to.deep.equal(info.codepoints);
+                    var r = htmlEntities._findString(str);
+                    expect(r).to.deep.equal(info);
                 }
             }
 
             if (fs.existsSync(saveFile))
                 fs.unlinkSync(saveFile);
+            delete htmlEntities;
+        });
+
+        it("html-entities# encoding test", function() {
+            var htmlEntities = new htmlEntitiesDecoder();
+            testPatterns.htmlEntitiesEncode.forEach(function(testObj) {
+                var r = htmlEntities.encode(testObj.str);
+                expect(r).to.equal(testObj.result);
+            });
+            delete htmlEntities;
+        });
+
+        it("html-entities# decoding test", function() {
+            var htmlEntities = new htmlEntitiesDecoder();
+            testPatterns.htmlEntitiesDecode.forEach(function(testObj) {
+                var r = htmlEntities.decode(testObj.str);
+                expect(r).to.equal(testObj.result);
+            });
             delete htmlEntities;
         });
     });
