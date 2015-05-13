@@ -28,8 +28,9 @@ function HTMLEntities(config) {
     this.namedCharReferenceTrie = [];
 
     if (load) {
-        var saveFile = "./data/entities.json.save",
-            jsonFile = "./data/entities.json";
+        var path = module.filename.replace("\/src\/html-entities\.js", "");
+        var saveFile = path+"/data/entities.json.save",
+            jsonFile = path+"/data/entities.json";
 
         if (fs.existsSync(saveFile)) {
             this.loadNamedCharReferenceTrie(saveFile);
