@@ -85,6 +85,7 @@ HTMLEntities.prototype.fromCodePoint = String.fromCodePoint;
 HTMLEntities.prototype.decode = function(str) {
     /* decode all numeric dec/hex character reference */
     var htmlDecoder = this;
+
     str = str.replace(this.reNumericCharReferenceDecode, function(m, isHex, p) {
         var radix = 16;
         if (isHex !== 'x' && isHex !== 'X') {
@@ -160,11 +161,7 @@ HTMLEntities.prototype.loadNamedCharReferenceTrie = function(file) {
 HTMLEntities.prototype.saveNamedCharReferenceTrie = function(file) {
     /* NOTE: JSON.stringify convert undefined to null */
     var json = JSON.stringify(this.namedCharReferenceTrie);
-    if (!fs.existsSync(file)) {
-        fs.writeFileSync(file, json);
-    } else {
-        throw '[ERROR] HTMLEntities: Fail to save the file as it is existed!';
-    }
+    fs.writeFileSync(file, json);
 };
 
 /////////////////////////////////////////////////////

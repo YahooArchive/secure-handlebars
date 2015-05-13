@@ -33,25 +33,6 @@ This utility generate the html entites saved json object.
             etime = Date.now();
             console.log("Building.... the trie! Completed in " + (etime-stime) + " milliseconds!");
 
-            var benchMarkArr = [],
-                r, max, i;
-            console.log("Benchmarking .... look up "+t+" times!");
-            for (var key in o) {
-                if (o.hasOwnProperty(key)) {
-                    benchMarkArr.push(key);
-                }
-            }
-            max = benchMarkArr.length;
-            stime = Date.now();
-            for (i=0;i<t;++i) {
-                r = Math.floor(Math.random()*max);
-                if (htmlEntities._findString(benchMarkArr[r]) === undefined) {
-                    throw "[ERROR] fail to look up the "+benchMarkArr[r];
-                }
-            }
-            etime = Date.now();
-            console.log("Benchmarking .... look up "+i+" times in " + (etime-stime) + " milliseconds!");
-
             console.log("Saving the json to disk!");
             stime = Date.now();
             htmlEntities.saveNamedCharReferenceTrie(file+".save");
