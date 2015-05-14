@@ -1172,7 +1172,7 @@ var htmlEntities = [
 
     { o: { "&A;":      { "codepoints": [0], "characters": "" } }, result: { paths: [ [1,] ], codepoints: [ [0] ], exist: undefined } },
     { o: { "&Aa;":     { "codepoints": [0], "characters": "" } }, result: { paths: [ [1,27] ], codepoints: [ [0] ], exist: undefined } },
-    { o: { "&Aa;":     { "codepoints": [0], "characters": "" } }, result: { paths: [ [1], [1,27] ], codepoints: [ [0], [0] ], exist: [0] } },
+    { o: { "&Aa;":     { "codepoints": [0], "characters": "" } }, result: { paths: [ [1], [1,27] ], codepoints: [ [0], [0] ], exist: { codepoints: [ 0 ], characters: '' } } },
     { o: { "&Aacute;": { "codepoints": [193], "characters": "\u00C1" } }, result: { paths: [ [1,27,29,47,46,31,63,0] ], codepoints: [ [193] ], exist: undefined } },
     { o: { "&Aacute":  { "codepoints": [193], "characters": "\u00C1" } }, result: { paths: [ [1,27,29,47,46,31,0] ], codepoints: [ [193] ], exist: undefined } },
     { o: { "&acE;":    { "codepoints": [8766, 819], "characters": "\u223E\u0333" } }, result: { paths: [ [27,29,5,63,0] ], codepoints: [ [8766, 819] ], exist: undefined } },
@@ -1181,12 +1181,12 @@ exports.htmlEntities = htmlEntities;
 
 /* for the pattern cannot be found */
 var htmlEntitiesFindString = [
-    { str: '&SmallCircle;', result: { codepoints: [8728] } },
-    { str: '&SmallCircle',  result: { codepoints: undefined } },
-    { str: '&XXX',          result: { codepoints: undefined } },
+    { str: '&SmallCircle;', result: { codepoints: [ 8728 ], characters: '∘' } },
+    { str: '&SmallCircle',  result: undefined },
+    { str: '&XXX',          result: undefined },
 
     /* throw error as expected
-    { str: '&\ufffd',       result: { codepoints: undefined } },
+    { str: '&\ufffd',       result: undefined },
     */
 ];
 exports.htmlEntitiesFindString = htmlEntitiesFindString;

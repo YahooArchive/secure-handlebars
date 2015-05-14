@@ -38,12 +38,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 // test for existence before build
                 for (var key in testObj.o) {
                     var r = htmlEntities._findStringWithCodePoint(trie, key, 0);
-                    // TODO: enhance this code segment.
-                    if (r === undefined) {
-                        expect(r).to.deep.equal(testObj.result.exist);
-                    } else {
-                        expect(r.codepoints).to.deep.equal(testObj.result.exist);
-                    }
+                    expect(r).to.deep.equal(testObj.result.exist);
                 }
 
                 // build and test for the data structure
@@ -67,7 +62,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         it("html-entities# html5 full entities test", function() {
-            var f = "./data/entities.json",
+            var f = __dirname+"/../../data/entities.json",
                 d = fs.readFileSync(f, "utf8"),
                 o = JSON.parse(d),
                 htmlEntities = new htmlEntitiesDecoder({load:false});
@@ -85,18 +80,14 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
             testPatterns.htmlEntitiesFindString.forEach(function(testObj) {
                 var r = htmlEntities._findString(testObj.str);
-                if (r === undefined) {
-                    expect(r).to.deep.equal(testObj.result.codepoints);
-                } else {
-                    expect(r.codepoints).to.deep.equal(testObj.result.codepoints);
-                }
+                expect(r).to.deep.equal(testObj.result);
             });
 
             delete htmlEntities;
         });
 
         it("html-entities# saveNamedCharReferenceTrie entities test", function() {
-            var f = "./data/entities.json",
+            var f = __dirname+"/../../data/entities.json",
                 d = fs.readFileSync(f, "utf8"),
                 o = JSON.parse(d),
                 htmlEntities = new htmlEntitiesDecoder({load:false});
@@ -104,7 +95,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             // build the tree
             htmlEntities.buildNamedCharReferenceTrie(o);
             
-            var saveFile = "./data/entities.json.test";
+            var saveFile = __dirname+"/../../data/entities.json.test";
             if (fs.existsSync(saveFile))
                 fs.unlinkSync(saveFile);
             htmlEntities.saveNamedCharReferenceTrie(saveFile);
@@ -114,10 +105,10 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         });
 
         it("html-entities# loadNamedCharReferenceTrie entities test", function() {
-            var saveFile = "./data/entities.json.test",
+            var saveFile = __dirname+"/../../data/entities.json.test",
                 htmlEntities = new htmlEntitiesDecoder({load:false});
 
-            var f = "./data/entities.json",
+            var f = __dirname+"/../../data/entities.json",
                 d = fs.readFileSync(f, "utf8"),
                 o = JSON.parse(d);
 

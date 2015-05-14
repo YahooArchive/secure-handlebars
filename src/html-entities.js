@@ -28,7 +28,7 @@ function HTMLEntities(config) {
     this.namedCharReferenceTrie = [];
 
     if (load) {
-        var path = module.filename.replace("\/src\/html-entities\.js", "");
+        var path = __dirname+"/..";
         var saveFile = path+"/data/entities.json.save",
             jsonFile = path+"/data/entities.json";
 
