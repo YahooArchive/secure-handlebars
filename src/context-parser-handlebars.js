@@ -651,7 +651,6 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     throw attributeName + ' JavaScript event attribute';
                 }
 
-
                 /* add the attribute value filter */
                 switch(state) {
                     case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:

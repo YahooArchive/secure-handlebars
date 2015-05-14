@@ -13,6 +13,7 @@ This utility parses the handlebars template file and adds the context-sensitive 
 */
 (function() {
 
+    require('../src/polyfill.js');
     var fs = require('fs'),
         ContextParserHandlebars = require("../src/context-parser-handlebars.js"),
         noOfArgs = process.argv.length, 

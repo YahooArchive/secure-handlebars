@@ -1415,22 +1415,35 @@ var cssStyleAttributeValuePatterns2 = [
     { css: '   ', result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
 
     // End with semicolon
-    { css: 'color:red;  ',      result: [ { key: 'color', type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, value: 'red' },
+    { css: 'color:red;  ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'color', value: 'red' },
                                           { type: cssParserUtils.SEMICOLON, key: '', value: ';' } ] },
-    { css: 'color:red ; ',      result: [ { key: 'color', type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, value: 'red ' },
+    { css: 'color:red ; ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'color', value: 'red ' },
                                           { type: cssParserUtils.SEMICOLON, key: '', value: ';' } ] },
-    { css: 'color:red;; ',      result: [ { key: 'color', type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, value: 'red' },
+    { css: 'color:red;; ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: 'color', value: 'red' },
                                           { type: cssParserUtils.SEMICOLON, key: '', value: ';' },
                                           { type: cssParserUtils.SEMICOLON, key: '', value: ';' } ] },
-    { css: 'color:;     ',      result: [ { key: 'color', type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, value: '' },
+    { css: 'color:;     ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'color', value: '' },
                                           { type: cssParserUtils.SEMICOLON, key: '', value: ';' } ] },
-    { css: 'color:;;    ',      result: [ { key: 'color', type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, value: '' },
+    { css: 'color:;;    ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'color', value: '' },
                                           { type: cssParserUtils.SEMICOLON, key: '', value: ';' },
                                           { type: cssParserUtils.SEMICOLON, key: '', value: ';' } ] },
 
     // Parsing error for both case with and without decoding.
     { css: 'color: \u24B62',     result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
     { css: 'color: &#x24B62;',   result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+
+    // after the html decode, if there are still some delimitar in the string, it should cause Parsing error!
+    { css: '&background : red   ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: 'back&ground : red   ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: 'background& : red   ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: ';',                         result: [ { type: cssParserUtils.SEMICOLON, key: '', value: ';' } ] },
+    { css: ';background : red   ',      result: [ { type: cssParserUtils.SEMICOLON, key: '', value: ';' },
+                                                  { type: cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED, key: 'background', value: 'red ' } ] },
+    { css: 'back;ground : red   ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: 'background; : red   ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: 'background  : &red  ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: 'background  : r&ed  ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: 'background  : r&ed; ',      result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
 ];
 exports.cssStyleAttributeValuePatterns2 = cssStyleAttributeValuePatterns2;
 
@@ -1438,15 +1451,15 @@ var cssHtmlEntitiesPattern = [
     { html: '', result: '' },
 
     // reference: http://unicode.org/charts/
-    { html: '&#9;',        result: '\t' },
-    { html: '&#9',         result: '\t' },
-    { html: '&#00009;',    result: '\t' },
-    { html: '&#x9;',       result: '\t' },
+    { html: '&#9;',        result: ' ' },
+    { html: '&#9',         result: ' ' },
+    { html: '&#00009;',    result: ' ' },
+    { html: '&#x9;',       result: ' ' },
 
     { html: '&#a;',        result: '&#a;'  },
-    { html: '&#xa;',       result: '\n'    },
-    { html: '&#xa',        result: '\n'    },
-    { html: '&#x0000a;',   result: '\n',   },
+    { html: '&#xa;',       result: ' '    },
+    { html: '&#xa',        result: ' '    },
+    { html: '&#x0000a;',   result: ' ',   },
 
     { html: '&#aZ;',       result: '&#aZ;'  },
     { html: '&#xaf;',      result: '¯' },
@@ -1454,9 +1467,9 @@ var cssHtmlEntitiesPattern = [
     { html: '&#x0000af;',  result: '¯' },
 
     { html: '&#d;',        result: '&#d;'  },
-    { html: '&#xd;',       result: '\r'    },
-    { html: '&#xd',        result: '\r'    },
-    { html: '&#x0000d;',   result: '\r'    },
+    { html: '&#xd;',       result: ' '    },
+    { html: '&#xd',        result: ' '    },
+    { html: '&#x0000d;',   result: ' '    },
 
     { html: '&#d7ff;',     result: '&#d7ff;'  },
     { html: '&#xd7ff;',    result: '퟿'     },
@@ -1464,14 +1477,14 @@ var cssHtmlEntitiesPattern = [
     { html: '&#x000d7ff;', result: '퟿'     },
 
     { html: '&#d800;',     result: '&#d800;'  },
-    { html: '&#xd800;',    result: '\ud800'   },
-    { html: '&#xd800',     result: '\ud800'   },
-    { html: '&#x000d800;', result: '\ud800'   },
+    { html: '&#xd800;',    result: '\ufffd'   },
+    { html: '&#xd800',     result: '\ufffd'   },
+    { html: '&#x000d800;', result: '\ufffd'   },
 
     { html: '&#dfff;',     result: '&#dfff;'  },
-    { html: '&#xdfff;',    result: '\udfff'   },
-    { html: '&#xdfff;',    result: '\udfff'   },
-    { html: '&#x000dfff;', result: '\udfff'   },
+    { html: '&#xdfff;',    result: '\ufffd'   },
+    { html: '&#xdfff;',    result: '\ufffd'   },
+    { html: '&#x000dfff;', result: '\ufffd'   },
 
     { html: '&#e000;',     result: '&#e000;'  },
     { html: '&#xe000;',    result: '\ue000'   },
@@ -1479,14 +1492,14 @@ var cssHtmlEntitiesPattern = [
     { html: '&#x000e000;', result: '\ue000'   },
 
     { html: '&#24B62;',    result: '\u0018B62;'},
-    { html: '&#x24B62;',   result: '&#x24B62;' },
-    { html: '&#x24B62',    result: '&#x24B62;' },
-    { html: '&#x0024B62;', result: '&#x24B62;' },
+    { html: '&#x24B62;',   result: '\ud852\udf62' },
+    { html: '&#x24B62',    result: '\ud852\udf62' },
+    { html: '&#x0024B62',  result: '\ud852\udf62' },
 
-    { html: '&#65536;',    result: '&#65536;'  },
-    { html: '&#x65536;',   result: '&#x65536;' },
-    { html: '&#x65536',    result: '&#x65536;' },
-    { html: '&#x0065536;', result: '&#x65536;' },
+    { html: '&#65536;',    result: '\ud800\udc00' },
+    { html: '&#x65536;',   result: '\ud955\udd36' },
+    { html: '&#x65536',    result: '\ud955\udd36' },
+    { html: '&#x0065536;', result: '\ud955\udd36' },
 ];
 exports.cssHtmlEntitiesPattern = cssHtmlEntitiesPattern;
 

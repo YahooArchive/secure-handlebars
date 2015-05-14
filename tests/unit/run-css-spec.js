@@ -10,6 +10,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 (function () {
 
     require("mocha");
+    require("../../src/polyfill.js");
     var expect = require('chai').expect,
         testPatterns = require("../test-patterns.js"),
         cssParser = require("../../src/css-parser/css-parser.js"),
@@ -19,12 +20,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         it("CSS Style Value Attribute HTML entities decode test", function() {
             testPatterns.cssHtmlEntitiesPattern.forEach(function(testObj) {
-                var r = cssParserUtils.htmlDecode(testObj.html);
+                var r = cssParserUtils.htmlStyleAttributeValueEntitiesDecode(testObj.html);
                 expect(testObj.result).to.equal(r);
             });
-        });
-
-        it("CSS Style Value Attribute HTML entities decode test", function() {
             testPatterns.cssStyleAttributeValuePatterns1.forEach(function(testObj) {
                 var r = cssParserUtils.htmlStyleAttributeValueEntitiesDecode(testObj.css);
                 expect(testObj.result).to.equal(r);
@@ -61,5 +59,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 }
             });
         });
+
     });
 }());

@@ -38,37 +38,32 @@ var CSSParserUtils = {};
 '&#0*42;?|&#[xX]0*2[aA];?|&ast;|&midast;'		// *
 '&#0*32;?|&#[xX]0*20;?|&#0*9;?|&#[xX]0*9;?|&Tab;|&#0*10;?|&#[xX]0*[aA];?|&NewLine;|&#0*12;?|&#[xX]0*[cC];?|&#0*13;?|&#[xX]0*[dD];?|\t|\r|\n|\f'; // space,\t,\r,\n,\f
 
-note: the decoding order is important, as we are using regExp not real parsing. 
-for example, we need to replace \ before space, as &#0*92 needs to be checked before &#0*9.
-the correct decoding order is to match as greedy as possible first, that is matching N digit before N-1 digit.
-
+// no need to consider the char below as our parser will complain parse error.
+'&#0*64;?|&#[xX]0*40;?|&commat;'		 	// @
+'&#0*46;?|&#[xX]0*2[eE];?|&period;'		 	// .
+'&#0*123;?|&#[xX]0*7[bB];?|&lcub;|&lbrace;'	        // {
+'&#0*125;?|&#[xX]0*7[dD];?|&rcub;|&rbrace;'	        // }
 */
-CSSParserUtils.cssReplaceChar = [ '\\', '_', ':', ';', '(', ')', '"', '\'', '\/', ',', '+', '%', '#', '!', '*', ' ' ];
-CSSParserUtils.reCss = [
-    /&bsol;/g,
-    /&lowbar;|&UnderBar;/g,
-    /&colon;/g,
-    /&semi;/g,
-    /&lpar;/g,
-    /&rpar;/g,
-    /&quot;|&QUOT;/g,
-    /&apos;/g,
-    /&sol;/g,
-    /&comma;/g,
-    /&plus;/g,
-    /&percnt;/g,
-    /&num;/g,
-    /&excl;/g,
-    /&ast;|&midast;/g,
-    /&Tab;|&NewLine;|\t|\r|\n|\f/g,
-];
 
-// https://html.spec.whatwg.org/multipage/syntax.html#character-references
-// these pattern is mutually exclusive.
-CSSParserUtils.reHtmlDecEntities = /&#0*([0-9]+);?/g;
-CSSParserUtils.reHtmlHexEntities = /&#(?:[xX])0*([a-fA-F0-9]+);?/g;
-// fromCodePoint has limitation, please check the TODO in the htmlDecode function below
-var codePointConvertor = String.fromCodePoint || String.fromCharCode;
+CSSParserUtils.reHtmlDecode = /(&bsol;|&lowbar;|&UnderBar;|&colon;|&semi;|&lpar;|&rpar;|&quot;|&QUOT;|&apos;|&sol;|&comma;|&plus;|&percnt;|&num;|&excl;|&ast;|&midast;|&Tab;|&NewLine;|\t|\r|\n|\f)/g;
+CSSParserUtils.HtmlDecodeReplacement = {
+    '&bsol;'     : '\\',
+    '&lowbar;'   : '_', '&UnderBar;' : '_',
+    '&colon;'    : ':',
+    '&semi;'     : ';',
+    '&lpar;'     : '(',
+    '&rpar;'     : ')',
+    '&quot;'     : '"', '&QUOT;'     : '"',
+    '&apos;'     : '\'',
+    '&sol;'      : '\/',
+    '&comma;'    : ',',
+    '&plus;'     : '+',
+    '&percnt;'   : '%',
+    '&num;'      : '#',
+    '&excl;'     : '!',
+    '&ast;'      : '*', '&midast;'   : '*',
+    '&Tab;'      : ' ', '&NewLine;'  : ' ', '\t'         : ' ', '\r'         : ' ', '\n'         : ' ', '\f'         : ' ',
+};
 
 /* emum type of parseStyleAttributeValue */
 CSSParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED      = 1;
@@ -100,42 +95,28 @@ CSSParserUtils.SEMICOLON                                 = -2;
 * http://www.w3.org/TR/css-style-attr/
 *
 */
+CSSParserUtils.reCharReferenceDecode = /&([a-z]{2,};?)|&#0*(x[a-f0-9]+|[0-9]+);?/ig;
 CSSParserUtils.htmlStyleAttributeValueEntitiesDecode = function(str) {
     /* html decode the str before CSS parsing,
        we follow the parsing order of the browser */
      
-    // numeric char reference decoding
-    str = this.htmlDecode(str);
+    // TODO: combine the following code with the html entities branch later.
+    // and we did slightly more than html decoding, we replace \r\n\f\t with space for
+    // secure-handlebars for filter judgement without considering those chars.
+    var fromCodePoint = String.fromCodePoint;
+    str = str.replace(CSSParserUtils.reCharReferenceDecode, function(m, named, number) {
+        if (named) {
+            return m;
+        }
 
-    // named char reference decoding
-    var len = CSSParserUtils.reCss.length;
-    for (var j=0;j<len;++j) {
-        str = str.replace(CSSParserUtils.reCss[j], CSSParserUtils.cssReplaceChar[j]);
-    }
+        var i = parseInt(number[0] <= '9' ? number : '0' + number);  // parseInt('0xA0') is equiv to parseInt('A0', 16)
+        return ((i>=0 && i<=0xD7FF) || (i>=0xE000 && i<=0xFFFF) || (i>=0x10000 && i<=0x10FFFF)) ? fromCodePoint(i) : '\uFFFD';
+    });
+    str = str.replace(CSSParserUtils.reHtmlDecode, function(m, p) {
+        return CSSParserUtils.HtmlDecodeReplacement[p];
+    });
+
     return str;
-};
-
-/**
-* @function CSSParserUtils.htmlDecode
-*/
-CSSParserUtils.htmlDecode = function(str) {
-    //
-    // We are ok of not decoding the utf-16 string with 2 bytes,
-    // with the assumption that any 2 bytes char does not represent as 
-    // any CSS grammar delimiter.
-
-    // TODO: add the polyfil of fromCharCode
-    // TODO: double confirm some high chars representing any delimiter, especially IE.
-    //
-    var s = str.replace(CSSParserUtils.reHtmlDecEntities, function(m, p) {
-        // \uffff = 65535
-        var c = parseInt(p) <= 65535? codePointConvertor(p) : '&#'+p+';';
-        return c;
-    });
-    return s.replace(CSSParserUtils.reHtmlHexEntities, function(m, p) {
-        var c = p.length <= 4? codePointConvertor('0x'+p) : '&#x'+p+';';
-        return c;
-    });
 };
 
 /**
