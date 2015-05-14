@@ -81,8 +81,8 @@ module.exports = function(grunt) {
         options: {
           coverage:true,
           check: {
-            lines: 80,
-            statements: 80
+            lines: 75,
+            statements: 75 
           }
         }
       }
