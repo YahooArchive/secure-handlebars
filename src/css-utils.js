@@ -95,6 +95,7 @@ CSSParserUtils.SEMICOLON                                 = -2;
 * http://www.w3.org/TR/css-style-attr/
 *
 */
+// TODO: use client side for html decode in dist/*.js version
 CSSParserUtils.reCharReferenceDecode = /&([a-z]{2,};?)|&#0*(x[a-f0-9]+|[0-9]+);?/ig;
 CSSParserUtils.htmlStyleAttributeValueEntitiesDecode = function(str) {
     /* html decode the str before CSS parsing,
