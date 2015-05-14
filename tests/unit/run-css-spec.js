@@ -12,7 +12,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
     require("mocha");
     var expect = require('chai').expect,
         testPatterns = require("../test-patterns.js"),
-        cssParser = require("../../src/css-parser.js"),
+        cssParser = require("../../src/css-parser/css-parser.js"),
         cssParserUtils = require("../../src/css-utils.js");
 
     describe("CSS Parser test suite", function() {

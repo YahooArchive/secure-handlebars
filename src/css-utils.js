@@ -10,7 +10,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 (function () {
 "use strict";
 
-var cssParser = require("./css-parser.js");
+var cssParser = require("./css-parser/css-parser.js");
 
 /////////////////////////////////////////////////////
 //

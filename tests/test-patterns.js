@@ -6,7 +6,7 @@ See the accompanying LICENSE file for terms.
 (function() {
 
 var handlebarsUtils = require('../src/handlebars-utils'),
-    cssParser = require('../src/css-parser'),
+    cssParser = require('../src/css-parser/css-parser'),
     cssParserUtils = require('../src/css-utils');
 
 // for handlebars-3.0-spec test only

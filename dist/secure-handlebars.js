@@ -10672,7 +10672,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 (function () {
 "use strict";
 
-var cssParser = require("./css-parser.js");
+var cssParser = require("./css-parser/css-parser.js");
 
 /////////////////////////////////////////////////////
 //
@@ -10822,7 +10822,7 @@ module.exports = CSSParserUtils;
 
 })();
 
-},{"./css-parser.js":41}],43:[function(require,module,exports){
+},{"./css-parser/css-parser.js":41}],43:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.

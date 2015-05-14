@@ -10,17 +10,13 @@ module.exports = function(grunt) {
     execute: {
       cssparser: {
         options: {
-          args: ['src/css-parser.21.attr.partial.y', 'src/css.21.l', '--outfile', 'src/css-parser.js']
+          args: ['src/css-parser/css-parser.21.attr.partial.y', 'src/css-parser/css.21.l', '--outfile', 'src/css-parser/css-parser.js']
         },
         src: ['node_modules/jison/lib/cli.js']
       },
     },
     jshint: {
-      files: [ 'src/css-util.js', 
-               'src/handlebars-utils.js', 
-               'src/polyfill.js', 
-               'src/secure-handlebars.js', 
-               'src/strict-context-parser.js' ],
+      files: [ 'src/*.js' ],
       options: {
         scripturl: true,
         camelcase: true
