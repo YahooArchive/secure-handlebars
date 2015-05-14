@@ -637,17 +637,10 @@ exports.formatArgs = formatArgs;
 exports.save = save;
 exports.load = load;
 exports.useColors = useColors;
-
-/**
- * Use chrome.storage.local if we are in an app
- */
-
-var storage;
-
-if (typeof chrome !== 'undefined' && typeof chrome.storage !== 'undefined')
-  storage = chrome.storage.local;
-else
-  storage = localstorage();
+exports.storage = 'undefined' != typeof chrome
+               && 'undefined' != typeof chrome.storage
+                  ? chrome.storage.local
+                  : localstorage();
 
 /**
  * Colors.
@@ -755,9 +748,9 @@ function log() {
 function save(namespaces) {
   try {
     if (null == namespaces) {
-      storage.removeItem('debug');
+      exports.storage.removeItem('debug');
     } else {
-      storage.debug = namespaces;
+      exports.storage.debug = namespaces;
     }
   } catch(e) {}
 }
@@ -772,7 +765,7 @@ function save(namespaces) {
 function load() {
   var r;
   try {
-    r = storage.debug;
+    r = exports.storage.debug;
   } catch(e) {}
   return r;
 }
@@ -1040,6 +1033,8 @@ module.exports = function(val, options){
  */
 
 function parse(str) {
+  str = '' + str;
+  if (str.length > 10000) return;
   var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(str);
   if (!match) return;
   var n = parseFloat(match[1]);
@@ -9060,6 +9055,7 @@ function ContextParserHandlebars(config) {
     this._charNo = 0;
     this._lineNo = 1;
 
+    // TODO: enforce the strict CP by overridding the config object.
     /* context parser for HTML5 parsing */
     this.contextParser = new ContextParser(config);
 }
@@ -9147,6 +9143,7 @@ ContextParserHandlebars.prototype.analyzeContext = function(input) {
 * @description
 * Build the AST tree of the Handlebars template language.
 */
+// TODO: using flex syntax to build the AST.
 ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
 
     /* init the data structure */
@@ -9445,10 +9442,6 @@ ContextParserHandlebars.prototype.countNewLineChar = function(str) {
 *
 * @description
 * Handle the Handlebars template. (Handlebars Template Context)
-*
-* TODO: the function handleTemplate does not need to handle other expressions
-* except RAW_EXPRESSION and ESCAPE_EXPRESSION anymore, we can safely remove it
-* when the code is stable.
 */
 ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) {
 
@@ -9534,7 +9527,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
 
                 if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_URI) {
                     /* we don't support javascript parsing yet */
-                    // TODO: this filtering rule cannot cover all cases.
+                    // TODO: should use yup() instead
                     if (handlebarsUtils.blacklistProtocol(attributeValue)) {
                         throw 'scriptable URI attribute (e.g., after <a href="javascript: )';
                     }
@@ -9601,6 +9594,9 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                 throw 'being an attribute name (state #: ' + state + ')';
 
 
+            // TODO: need tagname tracing in Context Parser such that we can have 
+            // ability to capture the case of putting output expression within dangerous tag.
+            // like svg etc.
             // the following will be caught by parser.isScriptableTag() anyway
             // case stateMachine.State.STATE_SCRIPT_DATA: // 6
             //     throw 'inside <script> tag (i.e., SCRIPT_DATA state)';

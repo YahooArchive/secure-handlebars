@@ -1047,7 +1047,7 @@ var exceptionPatterns = [
         result: [ /raw block name mismatch/, /lineNo:2,charNo:52/ ],
     },
     {
-        title: '/bin/handlebarspp html5 inconsistent state (42/34) test',
+        title: './bin/handlebarspp html5 inconsistent state (42/34) test',
         file: './tests/samples/bugs/003.html5.inconsitent.hb',
         strictMode: false,
         result: [ /Inconsistent HTML5 state/, /lineNo:5,charNo:387/ ],
@@ -1155,5 +1155,112 @@ var reportedBugPatterns = [
 */
 ];
 exports.reportedBugPatterns = reportedBugPatterns;
+
+var htmlEntities = [
+    /*
+    | 0 |
+    > 0 <
+    | 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 |
+    > A B C D E F G H I J  K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z  <
+    | 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 |
+    > a  b  c  d  e  f  g  h  i  j  k  l  m  n  o  p  q  r  s  t  u  v  w  x  y  z  <
+    | 53 54 55 56 57 58 59 60 61 62 |
+    > 0  1  2  3  4  5  6  7  8  9  <
+    | 63 |
+    > ;  <
+    */
+
+    { o: { "&A;":      { "codepoints": [0], "characters": "" } }, result: { paths: [ [1,] ], codepoints: [ [0] ], exist: undefined } },
+    { o: { "&Aa;":     { "codepoints": [0], "characters": "" } }, result: { paths: [ [1,27] ], codepoints: [ [0] ], exist: undefined } },
+    { o: { "&Aa;":     { "codepoints": [0], "characters": "" } }, result: { paths: [ [1], [1,27] ], codepoints: [ [0], [0] ], exist: { codepoints: [ 0 ], characters: '' } } },
+    { o: { "&Aacute;": { "codepoints": [193], "characters": "\u00C1" } }, result: { paths: [ [1,27,29,47,46,31,63,0] ], codepoints: [ [193] ], exist: undefined } },
+    { o: { "&Aacute":  { "codepoints": [193], "characters": "\u00C1" } }, result: { paths: [ [1,27,29,47,46,31,0] ], codepoints: [ [193] ], exist: undefined } },
+    { o: { "&acE;":    { "codepoints": [8766, 819], "characters": "\u223E\u0333" } }, result: { paths: [ [27,29,5,63,0] ], codepoints: [ [8766, 819] ], exist: undefined } },
+];
+exports.htmlEntities = htmlEntities;
+
+/* for the pattern cannot be found */
+var htmlEntitiesFindString = [
+    { str: '&SmallCircle;', result: { codepoints: [ 8728 ], characters: '∘' } },
+    { str: '&SmallCircle',  result: undefined },
+    { str: '&XXX',          result: undefined },
+
+    /* throw error as expected
+    { str: '&\ufffd',       result: undefined },
+    */
+];
+exports.htmlEntitiesFindString = htmlEntitiesFindString;
+
+var htmlEntitiesEncode = [
+    { str: 'abcdefghijklmnop', result: '&#97;&#98;&#99;&#100;&#101;&#102;&#103;&#104;&#105;&#106;&#107;&#108;&#109;&#110;&#111;&#112;' },
+    { str: 'ABCDEFGHIJKLMNOP', result: '&#65;&#66;&#67;&#68;&#69;&#70;&#71;&#72;&#73;&#74;&#75;&#76;&#77;&#78;&#79;&#80;' },
+    { str: '0123456789',       result: '&#48;&#49;&#50;&#51;&#52;&#53;&#54;&#55;&#56;&#57;' },
+    { str: '\u0024',           result: '&#36;' },
+    { str: '\u20ac',           result: '&#8364;' },
+    { str: '\u10437',          result: '&#4163;&#55;' },
+    { str: '\u24B62',          result: '&#9398;&#50;' },
+
+    { str: '\uD852\uDF62',     result: '&#150370;' },
+    { str: '\uD801\uDC37',     result: '&#66615;' },
+    { str: '\uDBFF\uDC00',     result: '&#1113088;' },
+
+    { str: '\uFFFF\uDC00',     result: '&#65535;&#56320;' },
+    { str: '\uD800\uDC00',     result: '&#65536;' },
+
+    /* out of range, skip one char */
+    { str: '\uDC00\uDC00',     result: '&#56320;&#56320;' },
+    { str: '\uDFFF\uDC00',     result: '&#57343;&#56320;' },
+];
+exports.htmlEntitiesEncode = htmlEntitiesEncode;
+
+var htmlEntitiesDecode = [
+    { str: '&#97;&#98;&#99;&#100;&#101;&#102;&#103;&#104;&#105;&#106;&#107;&#108;&#109;&#110;&#111;&#112;',       result: 'abcdefghijklmnop' },
+    { str: '&#65;&#66;&#67;&#68;&#69;&#70;&#71;&#72;&#73;&#74;&#75;&#76;&#77;&#78;&#79;&#80;',                    result: 'ABCDEFGHIJKLMNOP' },
+    { str: '&#48;&#49;&#50;&#51;&#52;&#53;&#54;&#55;&#56;&#57;',                                                  result: '0123456789'       },
+    { str: '&#x61;&#x62;&#x63;&#x64;&#x65;&#x66;&#x67;&#x68;&#x69;&#x6a;&#x6b;&#x6c;&#x6d;&#x6e;&#x6f;&#x70;',    result: 'abcdefghijklmnop' },
+    { str: '&#x41;&#x42;&#x43;&#x44;&#x45;&#x46;&#x47;&#x48;&#x49;&#x4a;&#x4b;&#x4c;&#x4d;&#x4e;&#x4f;&#x50;',    result: 'ABCDEFGHIJKLMNOP' },
+    { str: '&#x30;&#x31;&#x32;&#x33;&#x34;&#x35;&#x36;&#x37;&#x38;&#x39;',                                        result: '0123456789'       },
+
+    { str: '&#150370;',       result: '\uD852\uDF62' }, 
+    { str: '&#66615;',        result: '\uD801\uDC37' }, 
+    { str: '&#1113088;',      result: '\uDBFF\uDC00' },
+    { str: '&#65535;',        result: '\uFFFF' },
+    { str: '&#65536;',        result: '\uD800\uDC00' },
+
+    { str: '&#000065536;',    result: '\uD800\uDC00' },
+    { str: '&#65536',         result: '\uD800\uDC00' },
+
+    { str: '&#x24B62;',       result: '\uD852\uDF62' }, 
+    { str: '&#x10437;',       result: '\uD801\uDC37' }, 
+    { str: '&#x10FC00;',      result: '\uDBFF\uDC00' },
+    { str: '&#xFFFF;',        result: '\uFFFF' },
+    { str: '&#x10000;',       result: '\uD800\uDC00' },
+
+    { str: '&#x000010000;',   result: '\uD800\uDC00' },
+    { str: '&#x010000',       result: '\uD800\uDC00' },
+
+    /* out of range */
+    { str: '&#56320;',        result: '\uFFFD' },
+    { str: '&#57343;',        result: '\uFFFD' },
+
+    // named character reference
+    { str: '&aelig;',         result: '\u00E6' },
+    { str: '&Afr;',           result: '\uD835\uDD04' },
+    { str: '&NewLine;',       result: '\u000A' },
+    { str: '&bne;',           result: '\u003D\u20E5' },
+    { str: '&CounterClockwiseContourIntegral;',           result: '\u2233' },
+
+    { str: '&Uuml;',          result: '\u00DC' },
+    { str: '&Uuml',           result: '\u00DC' },
+
+    { str: '&NewLine',        result: '&NewLine'  },
+    { str: '&newLine;',       result: '&newLine;' },
+
+    { str: 'abcdefg&NewLine;hijklmnop',      result: 'abcdefg\u000Ahijklmnop' },
+    { str: 'abcdefg&NewLinehijklmnop',       result: 'abcdefg&NewLinehijklmnop' },
+
+    { str: '&#xGGGG;',        result: '&#GGGG;' },
+];
+exports.htmlEntitiesDecode = htmlEntitiesDecode;
 
 })();

@@ -1,0 +1,69 @@
+#!/usr/bin/env node
+/* 
+Copyright (c) 2015, Yahoo Inc. All rights reserved.
+Copyrights licensed under the New BSD License.
+See the accompanying LICENSE file for terms.
+
+Authors: Nera Liu <neraliu@yahoo-inc.com>
+         Albert Yu <albertyu@yahoo-inc.com>
+         Adonis Fung <adon@yahoo-inc.com>
+*/
+/**
+This utility generate the html entites saved json object.
+*/
+(function() {
+
+    var fs = require('fs'),
+        htmlEntitiesDecoder = require("../src/html-entities.js"),
+        Entities = require('html-entities').XmlEntities,
+        noOfArgs = process.argv.length, 
+        file;
+        
+    if (noOfArgs === 3) {
+        file = process.argv[2];
+        if (fs.existsSync(file)) {
+            var d = fs.readFileSync(file, "utf8"),
+                o = JSON.parse(d),
+                htmlEntities = new htmlEntitiesDecoder();
+            
+            var stime = Date.now(),
+                etime, t=10000;
+
+            var benchMarkArr = [],
+                r, max, i;
+            console.log("Benchmarking .... look up "+t+" times!");
+            for (var key in o) {
+                if (o.hasOwnProperty(key)) {
+                    benchMarkArr.push(key);
+                }
+            }
+            max = benchMarkArr.length;
+            stime = Date.now();
+            for (i=0;i<t;++i) {
+                r = Math.floor(Math.random()*max);
+                htmlEntities.decode(benchMarkArr[r]);
+            }
+            etime = Date.now();
+            console.log("Benchmarking .... look up "+i+" times in " + (etime-stime) + " milliseconds!");
+
+            console.log("Benchmarking .... look up "+t+" times!");
+            entities = new Entities();
+            stime = Date.now();
+            for (i=0;i<t;++i) {
+                r = Math.floor(Math.random()*max);
+                entities.decode(benchMarkArr[r]);
+            }
+            etime = Date.now();
+            console.log("Benchmarking .... look up "+i+" times in " + (etime-stime) + " milliseconds!");
+
+        } else {
+            console.log("[ERROR] "+file+" does not exist");
+            process.exit(1);
+        }
+    } else {
+        console.log("Usage: benchmark_htmlentities <html entities json file>");
+        console.log("Please download from <a href='https://html.spec.whatwg.org/multipage/entities.json'>here</a>");
+        process.exit(1);
+    }
+
+}).call(this);
