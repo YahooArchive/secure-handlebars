@@ -56,20 +56,19 @@ function HTMLEntities(config) {
 */
 HTMLEntities.prototype.encode = function(str) {
     var l = str.length,
-        c, r = '';
+        c1, c2, r = '';
+
     for(var i=0;i<l;++i) {
-        c = str.charCodeAt(i);
+        c1 = str.charCodeAt(i);
         // 55296-57343
-        if (c>=0xD800 && c<=0xDFFF) {
-            if (i+1<l) {
-                c = str.codePointAt(i);
+        if (c1>=0xD800 && c1<=0xDFFF) {
+            c2 = str.codePointAt(i);
+            if (c1 !== c2) {
+                i++; // consume one more char if c1 !== c2 and i+1<l
+                c1 = c2;
             }
-            if (i+1>=l) {
-                continue; // skip the malformat char
-            }
-            i++; // skip the char
         }
-        r += "&#"+c+";";
+        r += "&#"+c1+";";
     }
     return r;
 };
@@ -300,7 +299,6 @@ HTMLEntities.prototype._addCharToTrie = function(trie, c, info, isLastElement) {
         trie[index] = [];
     }
     if (isLastElement)
-        // trie[index][0] = info.codepoints;
         trie[index][0] = info;
     return trie[index];
 };

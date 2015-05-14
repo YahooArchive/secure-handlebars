@@ -1203,12 +1203,13 @@ var htmlEntitiesEncode = [
     { str: '\uD852\uDF62',     result: '&#150370;' },
     { str: '\uD801\uDC37',     result: '&#66615;' },
     { str: '\uDBFF\uDC00',     result: '&#1113088;' },
-    { str: '\uFFFF\uDC00',     result: '&#65535;' },
+
+    { str: '\uFFFF\uDC00',     result: '&#65535;&#56320;' },
     { str: '\uD800\uDC00',     result: '&#65536;' },
 
     /* out of range, skip one char */
-    { str: '\uDC00\uDC00',     result: '&#56320;' },
-    { str: '\uDFFF\uDC00',     result: '&#57343;' },
+    { str: '\uDC00\uDC00',     result: '&#56320;&#56320;' },
+    { str: '\uDFFF\uDC00',     result: '&#57343;&#56320;' },
 ];
 exports.htmlEntitiesEncode = htmlEntitiesEncode;
 
