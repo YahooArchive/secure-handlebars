@@ -10,6 +10,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 (function () {
 "use strict";
 
+require('./polyfill.js');
 var cssParser = require("./css-parser/css-parser.js");
 
 /////////////////////////////////////////////////////

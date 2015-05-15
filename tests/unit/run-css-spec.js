@@ -10,7 +10,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 (function () {
 
     require("mocha");
-    require("../../src/polyfill.js");
     var expect = require('chai').expect,
         testPatterns = require("../test-patterns.js"),
         cssParser = require("../../src/css-parser/css-parser.js"),
