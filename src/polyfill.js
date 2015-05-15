@@ -21,8 +21,7 @@ if (!String.prototype.codePointAt) {
   (function() {
     'use strict'; // needed to support `apply`/`call` with `undefined`/`null`
     var codePointAt = function(position) {
-      /*jshint eqnull:true */
-      if (this == null) {
+      if (this === null || this === undefined) {
         throw new TypeError();
       }
       var string = String(this);
@@ -134,8 +133,8 @@ if (!Array.prototype.forEach) {
 
     var T, k;
 
-    if (this == null) {
-      throw new TypeError(' this is null or not defined');
+    if (this === null || this === undefined) {
+      throw new TypeError('this is null or not defined');
     }
 
     // 1. Let O be the result of calling ToObject passing the |this| value as the argument.

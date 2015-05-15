@@ -81,15 +81,15 @@ module.exports = function(grunt) {
         options: {
           coverage:true,
           check: {
-            lines: 75,
-            statements: 75 
+            lines: 70,
+            statements: 70 
           }
         }
       }
     },
     clean: {
-      all: ['xunit.xml', 'artifacts', 'coverage', 'tests/samples/files/*.precompiled', 'tests/samples/files/*.js', 'node_modules'],
-      buildResidues: ['xunit.xml', 'artifacts', 'coverage', 'tests/samples/files/*.precompiled', 'tests/samples/files/*.js']
+      all: ['xunit.xml', 'artifacts', 'coverage', 'node_modules'],
+      buildResidues: ['xunit.xml', 'artifacts', 'coverage']
     }
   });
 
