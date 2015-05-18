@@ -79,7 +79,11 @@ module.exports = function(grunt) {
       target: {
         src: 'tests/unit',
         options: {
-          excludes: ['src/css-parser/css-parser.js'],
+          excludes: [
+            'src/css-parser/css-parser.js', 
+            'src/polyfills/browser.js',
+            'src/polyfills/minimal.js'
+          ],
           coverage: true,
           check: {
             lines: 80,
