@@ -7,8 +7,16 @@ module.exports = function(grunt) {
 
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
+    execute: {
+      cssparser: {
+        options: {
+          args: ['src/css-parser/css-parser.21.attr.partial.y', 'src/css-parser/css.21.l', '--outfile', 'src/css-parser/css-parser.js']
+        },
+        src: ['node_modules/jison/lib/cli.js']
+      },
+    },
     jshint: {
-      files: ['src/*.js'],
+      files: [ 'src/*.js' ],
       options: {
         scripturl: true,
         camelcase: true
@@ -41,7 +49,7 @@ module.exports = function(grunt) {
         }
       },
       buildMin: {
-        src: ['src/polyfill.js', 'dist/<%= pkg.name %>.js'],
+        src: ['src/polyfills/*.js', 'dist/<%= pkg.name %>.js'],
         dest: 'dist/<%= pkg.name %>.min.js'
       }
     },
@@ -73,15 +81,15 @@ module.exports = function(grunt) {
         options: {
           coverage:true,
           check: {
-            lines: 80,
-            statements: 80
+            lines: 70,
+            statements: 70 
           }
         }
       }
     },
     clean: {
-      all: ['xunit.xml', 'artifacts', 'coverage', 'tests/samples/files/*.precompiled', 'tests/samples/files/*.js', 'node_modules'],
-      buildResidues: ['xunit.xml', 'artifacts', 'coverage', 'tests/samples/files/*.precompiled', 'tests/samples/files/*.js']
+      all: ['xunit.xml', 'artifacts', 'coverage', 'node_modules'],
+      buildResidues: ['xunit.xml', 'artifacts', 'coverage']
     }
   });
 
@@ -91,8 +99,9 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-clean');
   grunt.loadNpmTasks('grunt-contrib-uglify');
+  grunt.loadNpmTasks('grunt-execute');
 
-  grunt.registerTask('test', ['clean:buildResidues', 'jshint', 'dist', 'karma', 'mocha_istanbul']);
+  grunt.registerTask('test', ['clean:buildResidues', 'jshint', 'execute', 'dist', 'karma', 'mocha_istanbul']);
   grunt.registerTask('dist', ['browserify', 'uglify']);
   grunt.registerTask('default', ['test']);
 
