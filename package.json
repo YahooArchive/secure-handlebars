@@ -43,6 +43,7 @@
   "dependencies": {
     "context-parser": "^1.0.0",
     "debug": "^2.1.2",
+    "grunt-execute": "^0.2.2",
     "xss-filters": "^1.1.0"
   },
   "devDependencies": {
