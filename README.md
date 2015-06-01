@@ -2,6 +2,14 @@ SecureHandlebars
 ===============================
 *Automatically* applying context-sensitive XSS output filtering to prevent XSS!
 
+[![npm version][npm-badge]][npm]
+[![dependency status][dep-badge]][dep-status]
+
+[npm]: https://www.npmjs.org/package/secure-handlebars
+[npm-badge]: https://img.shields.io/npm/v/secure-handlebars.svg?style=flat-square
+[dep-status]: https://david-dm.org/yahoo/secure-handlebars
+[dep-badge]: https://img.shields.io/david/yahoo/secure-handlebars.svg?style=flat-square
+
 ## Introduction
 The original [Handlebars](http://handlebarsjs.com/) is overriden to perform the following major steps:
 
