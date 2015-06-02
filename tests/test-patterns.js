@@ -1099,7 +1099,7 @@ var exceptionPatterns = [
         result: [ /raw block name mismatch/, /lineNo:2,charNo:52/ ],
     },
     {
-        title: '/bin/handlebarspp html5 inconsistent state (42/34) test',
+        title: './bin/handlebarspp html5 inconsistent state (42/34) test',
         file: './tests/samples/bugs/003.html5.inconsitent.hb',
         strictMode: false,
         result: [ /Inconsistent HTML5 state/, /lineNo:5,charNo:387/ ],
@@ -1227,7 +1227,7 @@ var cssStyleAttributeValuePatterns1 = [
     { css: '&#092&#092;&#x05c&#x05C;&bsol;',                result: '\\\\\\\\\\'    },
     { css: '&#042&#042;&#x02a&#x02A;&ast;&midast;',         result: '******' },
     { css: '&#032&#032;&#x020&#x020;&#9&#9;&Tab;&#010;&#010&#x0a&#x0A;&NewLine;&#012&#012;&#x0c&#x0C;&#013&#013;&#x0d&#x0D;\t\r\n\f',
-        result: '                        ' },
+        result: '                \ufffd\ufffd\ufffd\ufffd    ' },
 ];
 exports.cssStyleAttributeValuePatterns1 = cssStyleAttributeValuePatterns1;
 
@@ -1450,7 +1450,6 @@ exports.cssStyleAttributeValuePatterns2 = cssStyleAttributeValuePatterns2;
 var cssHtmlEntitiesPattern = [
     { html: '', result: '' },
 
-    // reference: http://unicode.org/charts/
     { html: '&#9;',        result: ' ' },
     { html: '&#9',         result: ' ' },
     { html: '&#00009;',    result: ' ' },
@@ -1467,9 +1466,9 @@ var cssHtmlEntitiesPattern = [
     { html: '&#x0000af;',  result: '¯' },
 
     { html: '&#d;',        result: '&#d;'  },
-    { html: '&#xd;',       result: ' '    },
-    { html: '&#xd',        result: ' '    },
-    { html: '&#x0000d;',   result: ' '    },
+    { html: '&#xd;',       result: '\ufffd'    },
+    { html: '&#xd',        result: '\ufffd'    },
+    { html: '&#x0000d;',   result: '\ufffd'    },
 
     { html: '&#d7ff;',     result: '&#d7ff;'  },
     { html: '&#xd7ff;',    result: '퟿'     },
@@ -1491,7 +1490,7 @@ var cssHtmlEntitiesPattern = [
     { html: '&#xe000',     result: '\ue000'   },
     { html: '&#x000e000;', result: '\ue000'   },
 
-    { html: '&#24B62;',    result: '\u0018B62;'},
+    { html: '&#24B62;',    result: '\ufffdB62;'},
     { html: '&#x24B62;',   result: '\ud852\udf62' },
     { html: '&#x24B62',    result: '\ud852\udf62' },
     { html: '&#x0024B62',  result: '\ud852\udf62' },
