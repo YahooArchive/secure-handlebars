@@ -21,6 +21,9 @@ var ContextParser = require('./strict-context-parser.js'),
 
 var cssParserUtils = require('./css-utils.js');
 
+var HtmlEntitiesDecoder = require("./html-decoder/html-decoder.js"),
+    htmlDecoder = new HtmlEntitiesDecoder();
+
 /////////////////////////////////////////////////////
 //
 // TODO: need to move this code back to filter module
@@ -592,7 +595,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     
                 } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_CSS) { // CSS
 
-                    attributeValue = cssParserUtils.htmlStyleAttributeValueEntitiesDecode(attributeValue);
+                    attributeValue = htmlDecoder.decode(attributeValue);
                     var r = cssParserUtils.parseStyleAttributeValue(attributeValue);
                     switch(r.code) {
                         case cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED:
