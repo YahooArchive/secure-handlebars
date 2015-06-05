@@ -16,6 +16,12 @@ var debug = require('debug')('cph');
 
 /* import the required package */
 var ContextParser = require('./strict-context-parser.js'),
+    configContextParser = {
+        enableInputPreProcessing: true,
+        enableCanonicalization: true,
+        enableIEConditionalComments: true,
+        enableStateTracking: true
+    },
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = require('context-parser').StateMachine;
 
@@ -107,9 +113,8 @@ function ContextParserHandlebars(config) {
     this._charNo = 0;
     this._lineNo = 1;
 
-    // TODO: enforce the strict CP by overridding the config object.
     /* context parser for HTML5 parsing */
-    this.contextParser = new ContextParser(config);
+    this.contextParser = new ContextParser(configContextParser);
 }
 
 /**
@@ -400,7 +405,7 @@ ContextParserHandlebars.prototype.generateNodeObject = function(type, content, s
 ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, charNo) {
 
     var output = '', leftParser, rightParser,
-        t, msg, exceptionObj, debugString = [];
+        t, msg, exceptionObj;
 
     this._charNo = charNo;
 
@@ -412,7 +417,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
 
             if (node.type === 'html') {
                 
-                output += parser.parsePartial(node.content);
+                output += parser.contextualize(node.content);
 
             } else if (node.type === 'escapeexpression' ||
                 node.type === 'rawexpression') {
@@ -426,10 +431,10 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
             } else if (node.type === 'node') {
                 
                 t = this.analyzeAst(node.content, parser, node.startPos);
-                // cloning states from the branches
-                parser.state = t.parser.state;
-                parser.attributeName = t.parser.attributeName;
-                parser.attributeValue = t.parser.attributeValue;
+                // the following 3 variables are the branch's state
+                parser.state = t.parser.getLastState();
+                parser.attrName = t.parser.getAttributeName();
+                parser.attributeValue = t.parser.getAttributeValue();
 
                 output += t.output;
 
@@ -553,8 +558,8 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
     var isFullUri = false, filters = [], f, exceptionObj, errorMessage,
         state = parser.state,
         tagName = parser.getStartTagName(),
-        attributeName = parser.attributeName,
-        attributeValue = parser.attributeValue;
+        attributeName = parser.getAttributeName(),
+        attributeValue = parser.getAttributeValue();
 
     try {
 
@@ -594,9 +599,13 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     filters.push(f);                    
                     
                 } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_CSS) { // CSS
-
-                    attributeValue = htmlDecoder.decode(attributeValue);
-                    var r = cssParserUtils.parseStyleAttributeValue(attributeValue);
+                    var r;
+                    try {
+                        attributeValue = htmlDecoder.decode(attributeValue);
+                        r = cssParserUtils.parseStyleAttributeValue(attributeValue);
+                    } catch (e) {
+                        throw 'Unsafe output expression @ attribute style CSS context (Parsing error OR expression position not supported!)';
+                    }
                     switch(r.code) {
                         case cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED:
                             filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_UNQUOTED);
@@ -694,11 +703,10 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             // TODO: need tagname tracing in Context Parser such that we can have 
             // ability to capture the case of putting output expression within dangerous tag.
             // like svg etc.
-            // the following will be caught by parser.isScriptableTag() anyway
-            // case stateMachine.State.STATE_SCRIPT_DATA: // 6
-            //     throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
+            // the following will be caught by handlebarsUtils.isScriptableTag(tagName) anyway
+            case stateMachine.State.STATE_SCRIPT_DATA: // 6
+                throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
             
-
             // should not fall into the following states
             case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
                 throw 'unexpectedly BEFORE_ATTRIBUTE_VALUE state';
@@ -715,7 +723,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             // To be secure, scriptable tags when encountered will anyway throw an error/warning
             // they require either special parsers of their own context (e.g., CSS/script parsers) 
             //    or an application-specific whitelisted url check (e.g., <script src=""> with yubl-yavu-yufull is not enough)
-            errorMessage += parser.isScriptableTag() ? 'scriptable <' + tagName + '> tag' : exception;
+            errorMessage += handlebarsUtils.isScriptableTag(tagName) ? 'scriptable <' + tagName + '> tag' : exception;
 
             exceptionObj = new ContextParserHandlebarsException(errorMessage, this._lineNo, this._charNo);
             handlebarsUtils.handleError(exceptionObj, this._config._strictMode);

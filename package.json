@@ -41,7 +41,7 @@
     "test": "grunt test"
   },
   "dependencies": {
-    "context-parser": "^1.0.0",
+    "context-parser": "^1.1.0",
     "debug": "^2.1.2",
     "xss-filters": "^1.1.0"
   },
@@ -56,8 +56,9 @@
     "grunt-contrib-uglify": "^0.9.1",
     "grunt-execute": "^0.2.2",
     "grunt-karma": "^0.11.0",
-    "karma-mocha": "~0.1.10",
     "grunt-mocha-istanbul": "^2.3.0",
+    "karma": "^0.12.36",
+    "karma-mocha": "~0.1.10",
     "karma-phantomjs-launcher": "^0.2.0",
     "handlebars": "^3.0.1"
   },
