@@ -380,8 +380,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 var parser1 = new ContextParserHandlebars(config);
                 var parser2 = new ContextParserHandlebars(config);
                 var contextParser1, contextParser2;
-                parser1.contextParser.parsePartial(testObj.s1);
-                parser2.contextParser.parsePartial(testObj.s2);
+                parser1.contextParser.contextualize(testObj.s1);
+                parser2.contextParser.contextualize(testObj.s2);
                 // contextParser1 = parser1._html5Parser.getInternalState();
                 // contextParser2 = parser2._html5Parser.getInternalState();
                 expect(parser1.contextParser.state === parser2.contextParser.state).to.equal(testObj.result);
