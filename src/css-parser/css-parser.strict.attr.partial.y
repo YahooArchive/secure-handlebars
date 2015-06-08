@@ -5,8 +5,6 @@ See the accompanying LICENSE file for terms.
 
 Authors: Nera Liu <neraliu@yahoo-inc.com, neraliu@gmail.com>
 
-Grammer of CSS 2.1 specification
-
 Reference:
 - http://www.w3.org/TR/2011/REC-CSS2-20110607/syndata.html
 - http://www.w3.org/TR/2011/REC-CSS2-20110607/grammar.html

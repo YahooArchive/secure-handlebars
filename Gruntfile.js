@@ -10,7 +10,7 @@ module.exports = function(grunt) {
     execute: {
       cssparser: {
         options: {
-          args: ['src/css-parser/css-parser.21.attr.partial.y', 'src/css-parser/css.21.l', '--outfile', 'src/css-parser/css-parser.js']
+          args: ['src/css-parser/css-parser.strict.attr.partial.y', 'src/css-parser/css.strict.l', '--outfile', 'src/css-parser/css-parser.js']
         },
         src: ['node_modules/jison/lib/cli.js']
       },
