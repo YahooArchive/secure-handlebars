@@ -96,6 +96,21 @@ ContextParser.prototype.getAttributeNameType = function() {
     }
 };
 
+/**
+ * @function ContextParser#cloneStates
+ *
+ * @params {parser} the Context Parser for copying states.
+ *
+ * @description
+ * Copy the required states for state comparison in the conditional branching templates.
+ *
+ */
+ContextParser.prototype.cloneStates = function(parser) {
+    this.state = parser.getLastState();
+    this.attrName = parser.getAttributeName();
+    this.attributeValue = parser.getAttributeValue();
+};
+
 /* exposing it */
 module.exports = ContextParser;
 

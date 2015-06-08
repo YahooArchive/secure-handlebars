@@ -18,13 +18,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             enableIEConditionalComments: true,
             enableStateTracking: true
         },
-        ContextParser = require("../../src/strict-context-parser.js"),
-        contextParser = new ContextParser(configContextParser);
+        ContextParser = require("../../src/strict-context-parser.js");
 
     describe('Attribute Name Type Test', function(){
-
-        it('getAttributeNameType test', function () {
-            var parser = contextParser;
+        it('should same attribute name type', function () {
+            var parser = new ContextParser(configContextParser);
             [
                 [ '<a href=""            ',   ' ></a>',    ContextParser.ATTRTYPE_URI ],
                 [ '<a src=""             ',   ' ></a>',    ContextParser.ATTRTYPE_URI ],
@@ -73,4 +71,18 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             });
         });
     });
+
+    describe('Clone States Test', function(){
+        it('should same states', function () {
+            var parser1 = new ContextParser(configContextParser),
+                parser2 = new ContextParser(configContextParser),
+                html = "<a href='http://www.abc.com'>link</a>";
+            parser1.contextualize(html);
+            parser2.cloneStates(parser1);
+            expect(parser2.getLastState()).to.equal(1);
+	    expect(parser2.getAttributeName()).to.equal("href");
+            expect(parser2.getAttributeValue()).to.equal("http://www.abc.com");
+        });
+    });
+
 }());

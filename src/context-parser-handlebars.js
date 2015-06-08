@@ -431,10 +431,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
             } else if (node.type === 'node') {
                 
                 t = this.analyzeAst(node.content, parser, node.startPos);
-                // the following 3 variables are the branch's state
-                parser.state = t.parser.getLastState();
-                parser.attrName = t.parser.getAttributeName();
-                parser.attributeValue = t.parser.getAttributeValue();
+                parser.cloneStates(t.parser);
 
                 output += t.output;
 

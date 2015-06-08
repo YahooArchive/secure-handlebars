@@ -863,11 +863,11 @@ var filterTemplatePatterns = [
                   /{{{y color0}}}/,
                   /{{{y invalid1}}}/, /{{{y invalid2}}}/, /{{{y invalid3}}}/, /{{{y invalid4}}}/,
 
-                  // TODO: need double check on this pattern
-                  /{{{yavu \(yced invalid5\)}}}/,
-                  /{{{yavu \(yced invalid6\)}}}/,
-                  /{{{yavu \(yces invalid7\)}}}/,
-                  /{{{yavu \(yces invalid8\)}}}/,
+                  // valid pattern with conditional templates
+                  /{{{yavu \(yced color11\)}}}/,
+                  /{{{yavu \(yced color12\)}}}/,
+                  /{{{yavu \(yces color13\)}}}/,
+                  /{{{yavu \(yces color14\)}}}/,
         ],
     },
     {
@@ -1207,6 +1207,18 @@ var reportedBugPatterns = [
 */
 ];
 exports.reportedBugPatterns = reportedBugPatterns;
+
+var scriptableTagTestPatterns = [
+    { tag: 'script', result: true },
+    { tag: 'style', result: true },
+    { tag: 'svg', result: true },
+    { tag: 'object', result: true },
+    { tag: 'embed', result: true },
+    { tag: 'link', result: true },
+    { tag: 'scriptlet', result: true },
+    { tag: 'a', result: false },
+];
+exports.scriptableTagTestPatterns = scriptableTagTestPatterns;
 
 var cssStyleAttributeValuePatterns1 = [
     { css: '', result: '' },
