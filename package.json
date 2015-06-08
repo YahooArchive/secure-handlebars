@@ -42,8 +42,7 @@
   },
   "dependencies": {
     "context-parser": "^1.1.0",
-    "debug": "^2.1.2",
-    "xss-filters": "^1.1.0"
+    "xss-filters": "^1.2.0"
   },
   "devDependencies": {
     "bluebird": "^2.9.21",

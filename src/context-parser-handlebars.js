@@ -11,9 +11,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 (function () {
 "use strict";
 
-/* debug facility */
-var debug = require('debug')('cph');
-
 /* import the required package */
 var ContextParser = require('./strict-context-parser.js'),
     configContextParser = {
@@ -469,7 +466,6 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
              leftParser.getAttributeNameType() !== rightParser.getAttributeNameType())
             )
             ) {
-        // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
         msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
         msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
         msg += "attributeNameType:("+leftParser.getAttributeNameType()+"/"+rightParser.getAttributeNameType()+")";
@@ -512,7 +508,6 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
         if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
             handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
             /* _handleRawExpression and no validation need, it is safe guard in buildAst function */
-            debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
             obj = this.consumeExpression(input, i, handlebarsExpressionType, true);
             return;
         } else if (input[i] === '{' && i+1<len && input[i+1] === '{') {
@@ -521,7 +516,6 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
             switch (handlebarsExpressionType) {
                 case handlebarsUtils.ESCAPE_EXPRESSION:
                     /* handleEscapeExpression and no validation need, it is safe guard in buildAst function */
-                    debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
                     obj = this.handleEscapeExpression(input, i, len, stateObj, true);
                     return;
                 default:
