@@ -81,6 +81,9 @@ module.exports = function(grunt) {
         options: {
           excludes: [
             'src/css-parser/css-parser.js', 
+            'src/html-decoder/*.js',
+            'src/html-decoder/gen/*.js',
+            'src/html-decoder/polyfills/*.js',
             'src/polyfills/browser.js',
             'src/polyfills/minimal.js'
           ],
