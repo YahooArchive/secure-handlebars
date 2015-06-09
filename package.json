@@ -1,6 +1,6 @@
 {
   "name": "secure-handlebars",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "licenses": [
     {
       "type": "BSD",
@@ -42,9 +42,7 @@
   },
   "dependencies": {
     "context-parser": "^1.1.0",
-    "fs": "0.0.2",
     "handlebars": "^3.0.3",
-    "path": "^0.11.14",
     "xss-filters": "^1.2.0"
   },
   "devDependencies": {
