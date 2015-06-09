@@ -1,6 +1,6 @@
 {
   "name": "secure-handlebars",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "dist/secure-handlebars.min.js",
   "authors": [
     "Adonis Fung <adon@yahoo-inc.com>",
