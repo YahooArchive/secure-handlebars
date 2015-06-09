@@ -16,7 +16,7 @@ var ContextParser = require('./strict-context-parser.js'),
     configContextParser = {
         enableInputPreProcessing: true,
         enableCanonicalization: true,
-        enableIEConditionalComments: true,
+        enableIEConditionalComments: false,
         enableStateTracking: true
     },
     handlebarsUtils = require('./handlebars-utils.js'),
