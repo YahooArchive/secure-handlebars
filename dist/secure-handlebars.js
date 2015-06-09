@@ -7965,9 +7965,11 @@ function amdefine(module, requireFn) {
                 });
 
                 //Wait for next tick to call back the require call.
-                process.nextTick(function () {
-                    callback.apply(null, deps);
-                });
+                if (callback) {
+                    process.nextTick(function () {
+                        callback.apply(null, deps);
+                    });
+                }
             }
         }
 
@@ -9268,7 +9270,7 @@ var ContextParser = require('./strict-context-parser.js'),
     configContextParser = {
         enableInputPreProcessing: true,
         enableCanonicalization: true,
-        enableIEConditionalComments: true,
+        enableIEConditionalComments: false,
         enableStateTracking: true
     },
     handlebarsUtils = require('./handlebars-utils.js'),
