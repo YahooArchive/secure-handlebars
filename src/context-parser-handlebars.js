@@ -12,17 +12,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 "use strict";
 
 /* import the required package */
-var ContextParser = require('./strict-context-parser.js'),
-    configContextParser = {
-        enableInputPreProcessing: true,
-        enableCanonicalization: true,
-        enableIEConditionalComments: false,
-        enableStateTracking: true
-    },
-    handlebarsUtils = require('./handlebars-utils.js'),
-    stateMachine = require('context-parser').StateMachine;
+var handlebarsUtils = require('./handlebars-utils.js'),
+    parserUtils = require('./parser-utils.js'),
+    cssParserUtils = require('./css-utils.js');
 
-var cssParserUtils = require('./css-utils.js');
+var stateMachine = parserUtils.StateMachine,
+    ContextParser = parserUtils.Parser;
 
 var HtmlEntitiesDecoder = require("./html-decoder/html-decoder.js"),
     htmlDecoder = new HtmlEntitiesDecoder();
@@ -100,18 +95,18 @@ function ContextParserHandlebars(config) {
     /* the configuration of ContextParserHandlebars */
     this._config = {};
 
-    /* the flag is used to print out the char to console */
-    this._config._printCharEnable = config.printCharEnable === undefined ? true : config.printCharEnable;
+    /* the flag is used to print out the char to console, defaulted to true */
+    this._config._printCharEnable = (config.printCharEnable !== false);
 
-    /* the flag is used to strict mode of handling un-handled state */
-    this._config._strictMode = config.strictMode === undefined ? false: config.strictMode;
+    /* the flag is used to strict mode of handling un-handled state, defaulted to false */
+    this._config._strictMode = (config.strictMode === true);
 
     /* save the char/line no being processed */
     this._charNo = 0;
     this._lineNo = 1;
 
     /* context parser for HTML5 parsing */
-    this.contextParser = new ContextParser(configContextParser);
+    this.contextParser = parserUtils.getParser();
 }
 
 /**

@@ -14,7 +14,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         configContextParser = {
             enableInputPreProcessing: true,
             enableCanonicalization: true,
-            enableIEConditionalComments: true,
+            enableVoidingIEConditionalComments: true,
             enableStateTracking: true
         },
         ContextParser = require("context-parser").Parser;

@@ -12,17 +12,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
     require("mocha");
     var expect = require('chai').expect,
         utils = require("../utils.js"),
-        configContextParser = {
-            enableInputPreProcessing: true,
-            enableCanonicalization: true,
-            enableIEConditionalComments: true,
-            enableStateTracking: true
-        },
-        ContextParser = require("../../src/strict-context-parser.js");
+        parserUtils = require("../../src/parser-utils.js"),
+        ContextParser = parserUtils.Parser;
 
     describe('Attribute Name Type Test', function(){
         it('should give attribute name type', function () {
-            var parser = new ContextParser(configContextParser);
+            var parser = parserUtils.getParser();
             [
                 [ '<a href=""            ',   ' ></a>',         ContextParser.ATTRTYPE_URI ],
                 [ '<a src=""             ',   ' ></a>',         ContextParser.ATTRTYPE_URI ],
@@ -80,8 +75,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     describe('Clone States Test', function(){
         it('should be of same states', function () {
-            var parser1 = new ContextParser(configContextParser),
-                parser2 = new ContextParser(configContextParser),
+            var parser1 = parserUtils.getParser(),
+                parser2 = parserUtils.getParser(),
                 html = "<a href='http://www.abc.com'>link</a>";
             parser1.contextualize(html);
             parser2.cloneStates(parser1);
