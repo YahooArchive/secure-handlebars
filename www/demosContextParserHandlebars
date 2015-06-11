@@ -1,11 +1,10 @@
-
-<!DOCTYPE html>
+CTYPE html>
 <html lang="en">
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>Safe JavaScript Templating</title>
+    <title>Safe JavaScript Templating with Handlebars</title>
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssbase/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssreset/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssfonts/cssfonts-min.css">
@@ -23,19 +22,27 @@
     <!-- jquery -->
     <script src="javascripts/jquery.min.js"></script>
   </head>
+    <script src="javascripts/xss-filters.min.js"></script>
+    <script src="javascripts/secure-handlebars.min.js"></script>
+    <script src="javascripts/secure-handlebars-helpers.min.js"></script>
+    <script src="javascripts/demos_context_parser_handlebars.js"></script>
+    <style>
+    .templateBox {
+        resize: none;
+    }
+    </style>
 
     <body>
     <div class="header">
       <h1 class="header-logo">
       </h1>
     </div>
-
         <div class="blog-masthead">
           <div class="container">
             <nav class="blog-nav">
-              <a class="blog-nav-item active" href="/">Home</a>
+              <a class="blog-nav-item " href="/">Home</a>
               <a class="blog-nav-item " href="/safejstemplating">Getting Started</a>
-              <a class="blog-nav-item " href="/demosXssFilters">Demos</a>
+              <a class="blog-nav-item active" href="/demosXssFilters">Demos</a>
               <a class="blog-nav-item " href="/bugBounty">Bug Bounty</a>
             </nav>
           </div>
@@ -45,29 +52,40 @@
       <!-- grid system: http://getbootstrap.com/css/#grid -->
       <div class="row">
         <div class="col-md-12 blog-main">
-          <h2 class="header-badge">Safe JavaScript Templating</h2>
-          <p class="text-center">Our novel approach to defend JavaScript Templating solutions against Cross-site Scripting (XSS).</p>
-          <div class="security-cta">
-            <form action="/safejstemplating" method="get">
-              <button type="submit">Get started</button>
-            </form>
-          </div>
-        </div> <!-- blog main -->
-
-        <div class="col-md-12 blog-post"><h2>&nbsp;</h2></div>
+          <h2 class="header-badge">Safe JavaScript Templating with Handlebars</h2>
+        </div>
 
         <div class="col-md-12 blog-post">
-          <h2>Existing JavaScript (JS) Templating is UNSAFE!</h2>
-          <p><a href="http://en.wikipedia.org/wiki/JavaScript_templating">JS Templating</a> refers to the data binding method implemented with the JavaScript language. In general, a placeholder such as &lbrace;&lbrace;key&rbrace;&rbrace; is used to bind values of the given key from data files, often JSON objects. To name a few, popular JS templating libraries include AngularJS, Dust.js, Handlebars.js, and Mustache.js. </p>
+          <p class="text-justify">Secure Handlebars is a pre-processor to automatically conduct HTML 5 context analysis on Handlebars templates, and insert markup of XSS filtering helpers to output expressions based on their surrounding contexts.</p>
+<p class="text-justify">The resulted templates can then be further processed with the vanilla Handlebars template engine. With the context-sensitive helpers properly registered at runtime, the context-sensitive escaping will effectively defend against XSS attacks. For more detail, please check <a href="https://github.com/yahoo/secure-handlebars">here</a>.</p>
+          <p><input type="checkbox" id="strictMode" aria-label="Strict Mode"> Enable strict mode (the pre-processor will throw exception if context is not supported by our Context Parser.</p>
+        </div>
 
-          <p>Intended to defend aganist Cross-Site Scripting (XSS), the JS Templating libraries are defaulted to apply automatic HTML escaping on the untrusted binding outputs. However, it is known to be still VULNERABLE to XSS! <a href="/autoescaping">more...</a></p>
+        <div class="col-md-6 blog-post">
+          <h3>Original Handlebars Template</h3>
+          <textarea id="templateInput" class="templateBox form-control" rows="10"></textarea>
+        </div>
+
+        <div class="col-md-6 blog-post">
+          <h3>Preprocessed Handlebars Template</h3>
+          <textarea id="templateOutput" class="templateBox form-control" aria-describedby="basic-addon1" rows="10" readonly></textarea>
+        </div>
+
+        <div class="col-md-6 blog-post">
+          <h3>JSON string</h3>
+          <textarea id="jsonInput" class="templateBox form-control" aria-describedby="basic-addon1" rows="10"></textarea>
+        </div>
+
+        <div class="col-md-6 blog-post">
+          <h3>Rendered HTML</h3>
+          <textarea id="output" class="templateBox form-control" aria-describedby="basic-addon1" rows="10" readonly></textarea>
         </div><!-- blog-post -->
 
-        <div class="col-md-12 blog-post">
-          <h2>Context Parser & Safe JavaScript Templating</h2>
-          <p>We propose a novel approach to defend JavaScript Templating libraries against XSS by our 
-          <a href="/contextparser">HTML5 compilant context parser and filters</a>.</p>
-        </div><!-- blog-post -->
+        <div class="security-cta col-md-12 blog-post">
+          <form action="/" method="get">
+            <button type="submit">Back</button>
+          </form>
+        </div>
 
       </div><!-- row -->
     </div><!-- container -->
@@ -90,3 +108,5 @@
     
       </body>
     </html>
+
+

@@ -1,0 +1,123 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+    <title>Auto Escaping</title>
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssbase/cssbase-min.css">
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssreset/cssreset-min.css">
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssfonts/cssfonts-min.css">
+    <link rel="stylesheet" href="stylesheets/security.css" type="text/css" />
+
+    <!-- Bootstrap -->
+    <link href="stylesheets/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+
+    <link href="stylesheets/blog.css" rel="stylesheet">
+    <link href="stylesheets/carousel.css" rel="stylesheet">
+
+    <!-- jquery -->
+    <script src="javascripts/jquery.min.js"></script>
+  </head>
+
+    <body>
+    <div class="header">
+      <h1 class="header-logo">
+      </h1>
+    </div>
+
+        <div class="blog-masthead">
+          <div class="container">
+            <nav class="blog-nav">
+              <a class="blog-nav-item " href="/">Home</a>
+              <a class="blog-nav-item active" href="/safejstemplating">Getting Started</a>
+              <a class="blog-nav-item " href="/demosXssFilters">Demos</a>
+              <a class="blog-nav-item " href="/bugBounty">Bug Bounty</a>
+            </nav>
+          </div>
+        </div>
+
+    <div class="container">
+      <!-- grid system: http://getbootstrap.com/css/#grid -->
+      <div class="row">
+        <div class="col-md-12 blog-main">
+          <h2 class="header-badge">Auto Escaping</h2>
+          <p class="text-center">It is the default strategy in JavaScript Templating by auto HTML escaping the output to defend aganist cross site scripting (XSS)</p>
+        </div> <!-- blog main -->
+
+        <div class="col-md-12 blog-post">
+          <h2>What is Auto Escaping?</h2>
+          <p>Auto Escaping is applied by JS Templating engines to mitigate Cross-Site Scripting (XSS). It works by encoding all harmful characters originated from untrusted inputs, and thus preventing browsers from interpreting them as HTML entities, which otherwise could lead to malicious script injections and executions.</p>
+  	  <p>Here we summarize those characters that are considered dangerous by the Auto Escaping approach:
+	  <table class="table table-bordered">
+	    <tbody>
+            <tr><td><b>Characters</b></td><td>&gt;</td><td>&lt;</td><td>&quot;</td><td>&apos;</td><td>&amp;</td></tr>
+            <tr><td><b>Characters (encoded)</b></td><td>&amp;gt;</td><td>&amp;lt;</td><td>&amp;quot;</td><td>&amp;apos;</td><td>&amp;amp;</td></tr>
+  	    </tbody>
+          </table>
+	  </p>
+          <p>While the approach can defend against some XSS vulnerabilities, it may give a false sense of security that the XSS problem is solved.</p>
+        </div><!-- blog-post -->
+
+        <div class="col-md-12 blog-post">
+          <h2>What's wrong?</h2>
+          <p>Some JS templating engines miss characters that could lead to XSS. Taking DustJS and Handlerbars as examples, the table below summerizes which dangerous characters are encoded by their auto escaping implementations.</p>
+	  <table class="table table-bordered">
+	    <tbody>
+	    <tr><td>Characters</td><td>&gt;</td><td>&lt;</td><td>&quot;</td><td>&apos;</td><td>&amp;</td><td>SPACE</td></tr>
+	    <tr><td><b>DustJS</b></td><td>&amp;gt;</td><td>&amp;lt;</td><td>&amp;quot;</td><td>&amp;apos;</td><td>&amp;amp;</td><td><font color="red">SPACE</font></td></tr>
+	    <tr><td><b>Handlebars</b></td><td>&amp;gt;</td><td>&amp;lt;</td><td>&amp;quot;</td><td>&amp;apos;</td><td>&amp;amp;</td><td><font color="red">SPACE</font></td></tr>
+  	    </tbody>
+          </table>
+
+          <p>The dangerous characters are blindly encoded without considering the output execution contexts. According to the encoding character sets, both DustJS and HandlebarsJS do not encode space (&nbsp;) characters, which are arguably legitimate user inputs. However, it could be used as a XSS attack vector depending on the output context.</p>
+          <blockquote>
+            <h3>Example of Vulnerability</h3>
+            <ul>
+              <li>Visit <a href="http://linkedin.github.io/dustjs/test/test.html">the official DustJS demo page</a></li>
+              <li>Use &lt;input value={untrusted}/&gt; as template</li>
+              <li>Use {&quot;untrusted&quot;: &quot;<span style="color:#F00">break_the_context</span> <span style="color:#F00"> onblur=alert(1)</span>&quot;} as data input</li>
+              <li>After data binding, the output becomes &lt;input value=<span style="color:#F00">break_the_context onblur=alert(1)</span>/&gt;</li>
+              <li>Again, when rendered by browsers, you will see the alert prompt when the input box is out of focus.</li>
+            </ul>
+          </blockquote>
+        </div><!-- blog-post -->
+
+        <div class="col-md-12 blog-post">
+          <h2>Our Context-aware Solution</h2>
+          <p>The solution is to (1) parse the HTML template files to analyze the output execution context, and (2) apply context-sensitive encoding accordingly.</p>
+        </div><!-- blog-post -->
+
+        <div class="col-md-12 blog-post">
+          <div class="security-cta">
+            <form action="/contextparser" method="get">
+              <button type="submit">Continue</button>
+            </form>
+          </div>
+        </div> <!-- blog post -->     
+
+      </div><!-- row -->
+    </div><!-- container -->
+
+    <div class="footer">
+    <a href="http://info.yahoo.com/privacy/us/yahoo/" target="_blank">Privacy</a> |
+    <a href="http://info.yahoo.com/legal/us/yahoo/utos/en-us/" target="_blank">Legal</a>
+    </div>
+        <!-- Bootstrap core JavaScript
+        ================================================== -->
+        <!-- Placed at the end of the document so the pages load faster -->
+        <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+        <script src="javascripts/jquery.min.js"></script>
+        <!-- Include all compiled plugins (below), or include individual files as needed -->
+        <script src="javascripts/bootstrap.min.js"></script>
+    
+        <script src="javascripts/docs.min.js"></script>
+        <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+        <script src="javascripts/ie10-viewport-bug-workaround.js"></script>
+    
+      </body>
+    </html>

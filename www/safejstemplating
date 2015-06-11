@@ -1,5 +1,4 @@
-
-<!DOCTYPE html>
+CTYPE html>
 <html lang="en">
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -33,8 +32,8 @@
         <div class="blog-masthead">
           <div class="container">
             <nav class="blog-nav">
-              <a class="blog-nav-item active" href="/">Home</a>
-              <a class="blog-nav-item " href="/safejstemplating">Getting Started</a>
+              <a class="blog-nav-item " href="/">Home</a>
+              <a class="blog-nav-item active" href="/safejstemplating">Getting Started</a>
               <a class="blog-nav-item " href="/demosXssFilters">Demos</a>
               <a class="blog-nav-item " href="/bugBounty">Bug Bounty</a>
             </nav>
@@ -46,28 +45,33 @@
       <div class="row">
         <div class="col-md-12 blog-main">
           <h2 class="header-badge">Safe JavaScript Templating</h2>
-          <p class="text-center">Our novel approach to defend JavaScript Templating solutions against Cross-site Scripting (XSS).</p>
-          <div class="security-cta">
-            <form action="/safejstemplating" method="get">
-              <button type="submit">Get started</button>
-            </form>
-          </div>
+          <p class="text-center">We support Handlebars JavaScript Templating engine with our Context Parser.</p>
         </div> <!-- blog main -->
 
-        <div class="col-md-12 blog-post"><h2>&nbsp;</h2></div>
-
         <div class="col-md-12 blog-post">
-          <h2>Existing JavaScript (JS) Templating is UNSAFE!</h2>
-          <p><a href="http://en.wikipedia.org/wiki/JavaScript_templating">JS Templating</a> refers to the data binding method implemented with the JavaScript language. In general, a placeholder such as &lbrace;&lbrace;key&rbrace;&rbrace; is used to bind values of the given key from data files, often JSON objects. To name a few, popular JS templating libraries include AngularJS, Dust.js, Handlebars.js, and Mustache.js. </p>
-
-          <p>Intended to defend aganist Cross-Site Scripting (XSS), the JS Templating libraries are defaulted to apply automatic HTML escaping on the untrusted binding outputs. However, it is known to be still VULNERABLE to XSS! <a href="/autoescaping">more...</a></p>
+          <h2>Standalone Handlebars</h2>
+          <p>I am using the Handlebars in client side... </p> 
+          <p>You can integrate our Context Parser with Handlebars by precompiling the original template files with our <a href="https://www.npmjs.com/package/context-parser-handlebars">secure-handlebars</a> and registering the required <a href="https://www.npmjs.com/package/secure-handlebars-helpers">secure XSS output filters</a> as handlebars' helpers at the client side.
         </div><!-- blog-post -->
 
         <div class="col-md-12 blog-post">
-          <h2>Context Parser & Safe JavaScript Templating</h2>
-          <p>We propose a novel approach to defend JavaScript Templating libraries against XSS by our 
-          <a href="/contextparser">HTML5 compilant context parser and filters</a>.</p>
+          <h2>Express/Secure Handlebars</h2>
+          <p>I am using the Express/Handlebars framework...</p>
+          <p>You can integrate the Context Parser with Handlebars on Express framework at server side with our <a href="https://www.npmjs.com/package/express-secure-handlebars">express-secure-handlebars</a> npm package.
         </div><!-- blog-post -->
+
+        <div class="col-md-12 blog-post">
+          <h2>more...</h2>
+          <p>If you want to have support on other templating engines, please talk to <a href="mailto:contextparse-devel@yahoo-inc.com">our team</a>.</p>
+        </div><!-- blog-post -->
+
+        <div class="col-md-12 blog-post">
+          <div class="security-cta">
+            <form action="/demosXssFilters" method="get">
+              <button type="submit">External Review</button>
+            </form>
+          </div>
+        </div> <!-- blog post -->
 
       </div><!-- row -->
     </div><!-- container -->
@@ -90,3 +94,5 @@
     
       </body>
     </html>
+
+
