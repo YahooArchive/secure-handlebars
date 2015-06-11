@@ -79,21 +79,21 @@ ContextParser.attributeNamesType = {
  *
  */
 ContextParser.prototype.getAttributeNameType = function() {
-    if (this.attrName[0] === 'o' && this.attrName[1] === 'n') { /* assuming it is from Strict Context Parser.
-                                                                             and o{{placeholder}}n* can bypass the check.
-                                                                             anyway, we are good to throw error in atttribute name state. 
-                                                                             note: CP has lowerCase the attributeName */
+    // Assume CP has **lowercased** the attributeName
+    var attrName = this.getAttributeName();
+
+    // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
+
+    // Note: o{{placeholder}}n* can bypass the check. Anyway, we are good to throw error in atttribute name state. 
+    if (attrName[0] === 'o' && attrName[1] === 'n') { 
         return ContextParser.ATTRTYPE_SCRIPTABLE;
-    } else {
-        // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
-
-        // return ContextParser.ATTRTYPE_GENERAL for case without special handling
-        // here,  attrTags === [integer] is a tag agnostic matching
-        // while, attrTags[tags] === [integer] matches only those attribute of the given tagName
-
-        var attrTags = ContextParser.attributeNamesType[this.attrName];
-        return typeof attrTags === 'object'? attrTags[this.tags[0]] : attrTags;
     }
+
+    // return ContextParser.ATTRTYPE_GENERAL (i.e. undefined) for case without special handling
+    // here,  attrTags === [integer] is a tag agnostic matching
+    // while, attrTags[tags] === [integer] matches only those attribute of the given tagName
+    var attrTags = ContextParser.attributeNamesType[attrName];
+    return typeof attrTags === 'object'? attrTags[this.getStartTagName()] : attrTags;
 };
 
 /**
