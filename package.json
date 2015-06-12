@@ -59,7 +59,8 @@
     "grunt-mocha-istanbul": "^2.3.0",
     "karma": "^0.12.36",
     "karma-mocha": "~0.1.10",
-    "karma-phantomjs-launcher": "^0.2.0"
+    "karma-phantomjs-launcher": "^0.2.0",
+    "jison": "^0.4.15"
   },
   "main": "./src/secure-handlebars.js",
   "bugs": {

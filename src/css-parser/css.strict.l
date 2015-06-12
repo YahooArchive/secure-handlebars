@@ -23,8 +23,8 @@ unicoderange	[0-9a-fA-F?]{1,6}(\-[0-9a-fA-F]{1,6})?
 escape		{unicode}|\\[^\r\n\f0-9a-fA-F]				/* add A-Z for case-insensitive */
 // nmstart	[_a-zA-Z]|{nonascii}|{escape}				/* add A-Z for case-insensitive */
 nmstart		[_a-zA-Z]                                               /* Strict CSS Parser: remove the {nonascii} and {escape} lexical definition */
-// nmchar	[_a-zZ-Z0-9\-]|{nonascii}|{escape}			/* add A-Z for case-insensitive, escape - */
-nmchar		[_a-zZ-Z0-9\-]                                          /* Strict CSS Parser: remove the {nonascii} and {escape} lexical definition */
+// nmchar	[_a-zA-Z0-9\-]|{nonascii}|{escape}			/* add A-Z for case-insensitive, escape - */
+nmchar		[_a-zA-Z0-9\-]                                          /* Strict CSS Parser: remove the {nonascii} and {escape} lexical definition */
 
 // Reference: http://unicode.org/charts/PDF/U0000.pdf
 // Basic ASCII (\u20-\u7E): <space>!"#$%&'\(\)\*+,\-\.\/0-9:;<=>?@A-Z\[\\\]^_`a-z\{\|\}~
@@ -39,9 +39,9 @@ badstring1      \"([^\n\r\f\\"]|\\{nl}|{escape})*\\?
 badstring2      \'([^\n\r\f\\']|\\{nl}|{escape})*\\?
 badcomment1     \/\*[^*]*\*+([^/*][^*]*\*+)*
 badcomment2     \/\*[^*]*(\*+[^/*][^*]*)*
-baduri1         "url"\({w}([!#$%&*-\[\]-~]|{nonascii}|{escape})*{w}	
-baduri2         "url"\({w}{string}{w}					
-baduri3         "url"\({w}{badstring}					
+baduri1         [uU][rR][lL]\({w}([!#$%&*-\[\]-~]|{nonascii}|{escape})*{w}	
+baduri2         [uU][rR][lL]\({w}{string}{w}					
+baduri3         [uU][rR][lL]\({w}{badstring}					
 comment		\/\*[^*]*\*+([^/*][^*]*\*+)*\/
 ident		[\-]?{nmstart}{nmchar}* 					
 vendor          [\-_]{h}"-"{h}
@@ -101,8 +101,8 @@ Z               "Z"|"z"|\\"0"{0,4}("5a"|"7a")(\r\n|[ \t\r\n\f])?|\\[z]
 {string}		{return 'STRING';}
 {badstring}             {return 'BAD_STRING';}
 
-"url("{w}{string}{w}")" {return 'URI';}
-"url("{w}{url}{w}")"    {return 'URI';}
+[uU][rR][lL]"("{w}{string}{w}")" {return 'URI';}
+[uU][rR][lL]"("{w}{url}{w}")"    {return 'URI';}
 {baduri}                {return 'BAD_URI';}
 
 "!"({w}|{comment})*{I}{M}{P}{O}{R}{T}{A}{N}{T}		                {return 'IMPORTANT_SYM';}
