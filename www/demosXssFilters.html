@@ -1,11 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>Safe JavaScript Templating with Handlebars</title>
+    <title>Secure XSS Filters</title>
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssbase/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssreset/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssfonts/cssfonts-min.css">
@@ -30,14 +29,7 @@
     <![endif]-->
   </head>
     <script src="javascripts/xss-filters.min.js"></script>
-    <script src="javascripts/secure-handlebars.min.js"></script>
-    <script src="javascripts/secure-handlebars-helpers.min.js"></script>
-    <script src="javascripts/demos_context_parser_handlebars.js"></script>
-    <style>
-    .templateBox {
-        resize: none;
-    }
-    </style>
+    <script src="javascripts/demos_xss_filters.js"></script>
 
     <body>
     <div class="header">
@@ -48,9 +40,9 @@
           <div class="container">
             <nav class="blog-nav">
               <a class="blog-nav-item " href="./">Safe JS Templating</a>
-              <a class="blog-nav-item " href="./safejstemplating">Getting Started</a>
-              <a class="blog-nav-item active" href="./demosContextParserHandlebars">Demos</a>
-              <a class="blog-nav-item " href="./bugBounty">Bug Bounty</a>
+              <a class="blog-nav-item " href="./safejstemplating.html">Getting Started</a>
+              <a class="blog-nav-item active" href="./demosContextParserHandlebars.html">Demos</a>
+              <a class="blog-nav-item " href="./bugBounty.html">Bug Bounty</a>
             </nav>
           </div>
         </div>
@@ -59,46 +51,35 @@
       <!-- grid system: http://getbootstrap.com/css/#grid -->
       <div class="row">
         <div class="col-md-12 blog-main">
-          <h2 class="header-badge">Safe JavaScript Templating with Handlebars</h2>
+          <h2 class="header-badge">Secure XSS Filters</h2>
         </div>
-
         <div class="col-md-12 blog-post">
-          <p class="text-justify">Secure Handlebars is a pre-processor to automatically conduct HTML 5 context analysis on Handlebars templates, and insert markup of XSS filtering helpers to output expressions based on their surrounding contexts. The resulted templates can then be further processed with the vanilla Handlebars template engine. With the context-sensitive helpers properly registered at runtime, the context-sensitive escaping will effectively defend against XSS attacks. For more detail, please check <a href="https://github.com/yahoo/secure-handlebars">here</a>.</p>
-        </div>
-
-        <div class="col-md-6 blog-post">
-          <h3>Original Handlebars Template</h3>
-          <textarea id="templateInput" class="templateBox form-control" rows="10"></textarea>
-        </div>
-        <div class="col-md-6 blog-post">
-          <h3>Preprocessed Handlebars Template</h3>
-          <textarea id="templateOutput" class="templateBox form-control" aria-describedby="basic-addon1" rows="10" readonly></textarea>
-        </div>
-        <div class="col-md-6 blog-post">
-          <h3>JSON string</h3>
-          <textarea id="jsonInput" class="templateBox form-control" aria-describedby="basic-addon1" rows="10"></textarea>
-        </div>
-        <div class="col-md-6 blog-post">
-          <h3>Rendered HTML</h3>
-          <textarea id="output" class="templateBox form-control" aria-describedby="basic-addon1" rows="10" readonly></textarea>
+          <p class="text-justify">Secure XSS Filters is a npm package to provide <em>*just sufficient*</em> output filtering to prevent cross site scripting vulnerablities. This page demostrates the filtering result of untrusted input in its corresponding execution context! For more detail, please check <a href="https://www.npmjs.com/package/xss-filters">here</a>.</p>
         </div><!-- blog-post -->
-        <div class="col-md-12 blog-post">
-          <p><input type="checkbox" id="strictMode" aria-label="Strict Mode"> Enable strict mode (the pre-processor will throw exception if context is not supported by our Context Parser, otherwise, the original auto escaping filter is applied!</p>
-        </div>
 
+        <div class="col-md-12 blog-post">
+          <div class="input-group input-group-lg">
+            <input type="text" class="form-control" placeholder="Please input a text and press ENTER" aria-describedby="sizing-addon1" id="userInput">
+            <span class="input-group-btn">
+              <button id="clearBtn" class="btn btn-default" type="button">Clear</button>
+            </span>
+          </div>
+        </div><!-- blog-post -->
+
+        <div class="col-md-12 blog-post" id="output">
+        </div><!-- blog-post -->
+       
         <div class="col-md-12 blog-post">
           <ol class="list-unstyled">
-           <li><img src="https://img.shields.io/npm/v/secure-handlebars.svg?style=flat-square"/> <a href="https://www.npmjs.com/package/secure-handlebars">Secure Handlebars</a></li>
-           <li><img src="https://img.shields.io/npm/v/secure-handlebars-helpers.svg?style=flat-square"/> <a href="https://www.npmjs.com/package/secure-handlebars-helpers">Secure Handlebars Helpers</a></li>
-           <li><img src="https://img.shields.io/npm/v/express-secure-handlebars.svg?style=flat-square"/> <a href="https://www.npmjs.com/package/express-secure-handlebars">Express Secure Handlebars</a></li>
+           <li><img src="https://img.shields.io/npm/v/xss-filters.svg?style=flat-square"/> <a href="https://www.npmjs.com/package/xss-filters">XSS Filters</a></li>
           <ol>
         </div><!-- blog-post -->
 
         <div class="security-cta col-md-12 blog-post">
-          <form action="./demosXssFilters" method="get">
-            <button type="submit">Demo of XSS Filters</button>
+          <form action="./demosContextParserHandlebars.html" method="get">
+          <button type="submit">Demo of Secure Handlebars</button>
           </form>
-        </div>
+        </div><!-- blog-post-->
 
       </div><!-- row -->
     </div><!-- container -->
@@ -121,4 +102,3 @@
     
       </body>
     </html>
-

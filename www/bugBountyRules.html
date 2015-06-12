@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+    <title>Yahoo Bug Bounty Special Program 2.0 Rules</title>
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssbase/cssbase-min.css">
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssreset/cssreset-min.css">
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssfonts/cssfonts-min.css">
+    <link rel="stylesheet" href="stylesheets/security.css" type="text/css" />
+
+    <!-- Bootstrap -->
+    <link href="stylesheets/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+
+    <link href="stylesheets/blog.css" rel="stylesheet">
+    <link href="stylesheets/carousel.css" rel="stylesheet">
+
+    <!-- jquery -->
+    <script src="javascripts/jquery.min.js"></script>
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+    <body>
+    <div class="header">
+      <h1 class="header-logo">
+      </h1>
+    </div>
+    
+        <div class="blog-masthead">
+          <div class="container">
+            <nav class="blog-nav">
+              <a class="blog-nav-item " href="./">Safe JS Templating</a>
+              <a class="blog-nav-item " href="./safejstemplating.html">Getting Started</a>
+              <a class="blog-nav-item " href="./demosContextParserHandlebars.html">Demos</a>
+              <a class="blog-nav-item active" href="./bugBounty.html">Bug Bounty</a>
+            </nav>
+          </div>
+        </div>
+
+    <div class="container">
+      <!-- grid system: http://getbootstrap.com/css/#grid -->
+      <div class="row">
+        <div class="col-md-12 blog-main">
+          <h2 class="header-badge">Yahoo Bug Bounty Special Program 2.0 Rules</h2>
+        </div> <!-- blog main -->
+
+        <div class="col-md-12 blog-post">
+          <h3>Products in scope</h3>
+          <p class="text-justify">We would like to sincerely request for your reviews and participations in testing out the following two products.</p>
+          <p class="text-justify">&nbsp;</p>
+
+          <h4><a href="https://www.npmjs.com/package/xss-filters">Secure XSS Filters</a></h4>
+          <p class="text-justify"><a href="https://www.npmjs.com/package/xss-filters">xss-filters</a> is the output sanitization filters to defend against cross site scripting (XSS), any untrusted input that can bypass the filtering rules and trigger the Javascript execution in its corresponding execution context is qualified!</p>
+          <p class="text-justify">For the full list of supported filters and corresponding execution contexts, please check the API section of the <a href="https://www.npmjs.com/package/xss-filters">documentation</a> and try our <a href="./demosXssFilters.html">demo</a>.</p>
+          <p class="text-justify">&nbsp;</p>
+
+          <h4><a href="https://www.npmjs.com/package/secure-handlebars">Secure Handlebars</a></h4>
+          <p class="text-justify"><a href="https://www.npmjs.com/package/secure-handlebars">secure-handlebars</a> is a utility to inspect the Handlebars template expression and auto-inject the context-aware filter based on the context analysis of our <a href="https://www.npmjs.com/package/context-parser">HTML5 Context Parser</a>, any untrusted user input from JSON data can bypass the filtering rules and trigger the Javascript execution in a legitimate Handlebars template is qualified!</p>
+          <p class="text-justify">For demonstration, please try our <a href="./demosContextParserHandlebars.html">demo</a>.</p>
+        </div>
+
+        <div class="col-md-12 blog-post">
+          <h3>Qualifying vulnerabilities</h3>
+          <p class="text-justify">We would like to learn if there are any corner cases where the two products would fail in protecting websites from XSS. We welcome any Proof-of-Concept (PoC) demonstrations that show how correct uses of our products would end up in situations that are even worse than their respective security baselines, as stated below:
+          <p class="text-justify">&nbsp;</p>
+
+          <h4>Secure XSS Filters</h4>
+          <p class="text-justify">The xss-filters, when correctly applied in their desired contexts, are found vulnerable to XSS, yet replacing them with the context-insensitive filter (which escapes &, &lt;, >, ', ", and `) would become invulnerable.</p>
+          <p class="text-justify">&nbsp;</p>
+
+          <h4>Secure Handlebars</h4>
+          <p class="text-justify">The secure-handlebars, when correctly applied without any errors and warnings, are found vulnerable to XSS due to those automatically inserted filter(s) that would otherwise be invulnerable by the default escaping automatically applied by the vanilla Handlebars.</p>
+          <p class="text-justify">&nbsp;</p>
+          <p class="text-justify">Some known issues are documented next, and are excluded from monetary rewards.</p>
+        </div>
+
+        <div class="col-md-12 blog-post">
+          <h3>Unqualifying vulnerabilities</h3>
+          <p class="text-justify">Vulnerabilities that fall outside of the scope of Qualifying vulnerabilities will be reviewed on a case-by-case basis and may not earn monetary rewards. Below are some known issues/cases/limitations that are excluded from monetary rewards:</p>
+          <p class="text-justify">&nbsp;</p>
+
+          <h4>Supported browsers for XSS Filters</h4>
+          <p class="text-justify">In our design principle of XSS Filters, we mainly focus on the HTML5 specification and state transition for just sufficient encoding. However, browser implementation from different vendors may deviate from HTML5 specification and we have to address to make our XSS Filters pragmatic, we also consider non-HTML5 specification in our XSS Filter filtering rules and support the following browsers with minimum version based on the market share of each browser in Feb-2015 based on the statcounter data.</p>
+          <p class="text-justify">The minimum version of each browser qualified for this program is listed below, otherwise, it is not qualified.</p>
+          <table class="table table-bordered">
+            <tbody>
+            <tr><td><b>Browser</b></td><td>Chrome</td><td>Firefox</td><td>Internet Explorer</td><td>Safari</td></tr>
+            <tr><td><b>Minimum Version</b></td><td>31</td><td>27</td><td>7</td><td>5.1</td></tr>
+            </tbody>
+          </table>
+          <p class="text-justify">&nbsp;</p>
+
+          <!-- we have strict CP now
+          <h4>HTML5 Context Parser and Templates</h4>
+          <p class="text-justify">With the same consideration and design principle of HTML5 specification in our Context Parser, we assume that the input template is HTML5 compliant. Any non-HTML5 template file, leading to different parsing result and incorrect insertion of context-sensitive filters, does not qualify for this program. In principle, we don’t treat template file as untrusted user input in our product design.</p>
+          <p class="text-justify">For example, grace accent (`) is not defined in the HTML5 specification for state transition, however, some older version of IE browsers support grace accent as a quoting character like single or double quote for tag’s attribute value. This grace accent (`) can lead to incorrect decision of attribute unquoted filters being inserted in the following example below.</p>
+          <p class="text-justify"re><code>&lt;img onclick=`&lbrace;&lbrace;yavu output1}}`&gt;</code></pre>
+          <p class="text-justify">&nbsp;</p>
+          -->
+
+          <h4>Broken Template</h4>
+          <p class="text-justify">In our implementation, we decouple the template processing from Handlebars parser to build AST and apply relaxed syntax validation. Templates that would cause either Context-parser and/or Handlebars’ compilation process to throw errors are generally unqualified for this reward program, since such an error has already prohibited any data binding and rendering to trigger XSS vulnerabilities.</p>
+          <p class="text-justify">Nevertheless, we would still love to learn how broken templates can be creatively crafted that you think deserve our special attention and please report any issue through <a href="https://github.com/yahoo/secure-handlebars/issues">github issue page</a>.</p>
+          <p class="text-justify">&nbsp;</p>
+
+          <h4>Static Template Analysis</h4>
+          <p class="text-justify">Our context parsing analysis is based on the static template, a special crafted template file that can alter the contexts of 2 adjacent output markups during the runtime dynamically, does not qualify for this program. Most of the cases come with by putting 2 output markups next to each other and the dynamic data in the first one affects the context and filtering rules of the next one.</p>
+          <p class="text-justify">In the first example, both output markups are treated as attribute name context. However, dynamic data in the runtime (i.e. href=) can alter the second output context to URI context and leads to the incorrect filtering rules being applied.</p>
+          <p class="text-justify" re><code>&lt;img &lbrace;&lbrace;output1}}&lbrace;&lbrace;output2}}/&gt;</code></pre>
+          <p class="text-justify">The second example can bypass the filtering rule of our blacklist protocol filtering by splitting the protocol data into two.</p>
+          <p class="text-justify" re><code>&lt;a href="&lbrace;&lbrace;output1}}&lbrace;&lbrace;output2}}"&gt;link&lt;/a&gt;</code></pre>
+          <p class="text-justify">&nbsp;</p>
+
+          <h4>Partial Templates and Raw Block in Handlebars</h4>
+          <p class="text-justify">Most Javascript templating engine supports the feature of partial to facilitate the sharing of common layouts. In our current implementation, we treat each partial file as a standalone HTML5 compliant template file to process, it means that the initial and final state of each partial file is <a href="https://html.spec.whatwg.org/multipage/syntax.html#data-state">Data State</a> as defined in the HTML5 Specification. Any partial file that does not start and end with Data State does not qualify for this program.</p>
+          <p class="text-justify">Besides, Handlebars 3.0 introduces the feature of raw block, allowing developer to handle unprocessed mustache blocks. During our analyszing of Handlebars template file, we untouch the string within the raw block and have the same assumption as partial that the initial and final state of the raw block is Data State.</p>
+          <p class="text-justify">&nbsp;</p>
+      
+          <h4>Unsupported Contexts</h4>
+          <p class="text-justify">Currently, we only support the HTML5 specification for our context analysis, there are few other common contexts such as JavaScript and Cascade Style Sheet (CSS) that we are not supporting now, and we would like to support it in the near future. Any untrusted user input in the unsupported context does not qualify for this program.</p>
+          <p class="text-justify">In our non-strict mode implementation, we fall back to default HTML escaping with the claim that we are not worst off to the original solution and warn the developers. In our strict mode implementation, we throw exception during our context analysis.</p>
+          <p class="text-justify">Below is the known list of supported contexts as defined in HTML5 Specification.</p>
+          <table class="table table-bordered">
+            <tbody>
+            <tr><td>Data state</td></tr>
+            <tr><td>Comment state</td></tr>
+            <tr><td>Attribute Value state (unquoted, single quoted and double quoted) with JavaScript and CSS contexts excluded</td></tr>
+            </tbody>
+          </table>
+          <p class="text-justify">&nbsp;</p>
+
+          <h4>JavaScript in Template</h4>
+          <p class="text-justify">Any javascript code in the template does not qualify for reward, as legitimate template is regarded as trusted input and our review goal is to bypass the filtering rules through JSON data in a legitimate Handlebars template.</p>
+        </div>
+
+        <div class="col-md-12 blog-post">
+          <h3>Reward amounts</h3>
+          <p class="text-justify">Qualifying reports will be rewarded based on severity. Our minimum reward is XXX USD, and our maximum is XXX USD. Rewards are granted entirely at the discretion of Yahoo.</p>
+        </div>
+
+        <div class="col-md-12 blog-post">
+          <h3>Investigating and reporting</h3>
+          <p class="text-justify">Please submit your reports through <a href="https://hackerone.com/yahoo">Yahoo HackerOne</a>, and your submission will be reviewed within 30 days.</p>
+        </div>
+
+        <div class="col-md-12 blog-post">
+          <h3>Frequently asked questions</h3>
+        </div>
+
+        <div class="col-md-12 blog-post">
+          <div class="security-cta">
+            <form action="/demosXssFilters.html" method="get"> 
+              <button type="submit">Continue</button>
+            </form>
+          </div>
+        </div><!-- blog-post -->
+
+      </div><!-- row -->
+    </div><!-- container -->
+
+    <div class="footer">
+    <a href="http://info.yahoo.com/privacy/us/yahoo/" target="_blank">Privacy</a> |
+    <a href="http://info.yahoo.com/legal/us/yahoo/utos/en-us/" target="_blank">Legal</a>
+    </div>
+        <!-- Bootstrap core JavaScript
+        ================================================== -->
+        <!-- Placed at the end of the document so the pages load faster -->
+        <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+        <script src="javascripts/jquery.min.js"></script>
+        <!-- Include all compiled plugins (below), or include individual files as needed -->
+        <script src="javascripts/bootstrap.min.js"></script>
+    
+        <script src="javascripts/docs.min.js"></script>
+        <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+        <script src="javascripts/ie10-viewport-bug-workaround.js"></script>
+    
+      </body>
+    </html>
