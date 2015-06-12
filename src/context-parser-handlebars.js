@@ -11,13 +11,16 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 (function () {
 "use strict";
 
-/* debug facility */
-var debug = require('debug')('cph');
-
 /* import the required package */
-var ContextParser = require('./strict-context-parser.js'),
-    handlebarsUtils = require('./handlebars-utils.js'),
-    stateMachine = require('context-parser').StateMachine;
+var handlebarsUtils = require('./handlebars-utils.js'),
+    parserUtils = require('./parser-utils.js'),
+    cssParserUtils = require('./css-utils.js');
+
+var stateMachine = parserUtils.StateMachine,
+    ContextParser = parserUtils.Parser;
+
+var HtmlEntitiesDecoder = require("./html-decoder/html-decoder.js"),
+    htmlDecoder = new HtmlEntitiesDecoder();
 
 /////////////////////////////////////////////////////
 //
@@ -33,6 +36,12 @@ var filter = {
     FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED: 'yavd',
     FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED: 'yavs',
     FILTER_ATTRIBUTE_VALUE_UNQUOTED: 'yavu',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED: 'yced',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED: 'yces',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED: 'yceu',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_UNQUOTED: 'yceuu',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_DOUBLE_QUOTED: 'yceud',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_SINGLE_QUOTED: 'yceus',
     FILTER_ENCODE_URI: 'yu',
     FILTER_ENCODE_URI_COMPONENT: 'yuc',
     FILTER_URI_SCHEME_BLACKLIST: 'yubl',
@@ -86,18 +95,18 @@ function ContextParserHandlebars(config) {
     /* the configuration of ContextParserHandlebars */
     this._config = {};
 
-    /* the flag is used to print out the char to console */
-    this._config._printCharEnable = config.printCharEnable === undefined ? true : config.printCharEnable;
+    /* the flag is used to print out the char to console, defaulted to true */
+    this._config._printCharEnable = (config.printCharEnable !== false);
 
-    /* the flag is used to strict mode of handling un-handled state */
-    this._config._strictMode = config.strictMode === undefined ? false: config.strictMode;
+    /* the flag is used to strict mode of handling un-handled state, defaulted to false */
+    this._config._strictMode = (config.strictMode === true);
 
     /* save the char/line no being processed */
     this._charNo = 0;
     this._lineNo = 1;
 
     /* context parser for HTML5 parsing */
-    this.contextParser = new ContextParser(config);
+    this.contextParser = parserUtils.getParser();
 }
 
 /**
@@ -183,6 +192,7 @@ ContextParserHandlebars.prototype.analyzeContext = function(input) {
 * @description
 * Build the AST tree of the Handlebars template language.
 */
+// TODO: using flex syntax to build the AST.
 ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
 
     /* init the data structure */
@@ -387,7 +397,7 @@ ContextParserHandlebars.prototype.generateNodeObject = function(type, content, s
 ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, charNo) {
 
     var output = '', leftParser, rightParser,
-        t, msg, exceptionObj, debugString = [];
+        t, msg, exceptionObj;
 
     this._charNo = charNo;
 
@@ -399,7 +409,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
 
             if (node.type === 'html') {
                 
-                output += parser.parsePartial(node.content);
+                output += parser.contextualize(node.content);
 
             } else if (node.type === 'escapeexpression' ||
                 node.type === 'rawexpression') {
@@ -413,10 +423,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
             } else if (node.type === 'node') {
                 
                 t = this.analyzeAst(node.content, parser, node.startPos);
-                // cloning states from the branches
-                parser.state = t.parser.state;
-                parser.attributeName = t.parser.attributeName;
-                parser.attributeValue = t.parser.attributeValue;
+                parser.cloneStates(t.parser);
 
                 output += t.output;
 
@@ -454,7 +461,6 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
              leftParser.getAttributeNameType() !== rightParser.getAttributeNameType())
             )
             ) {
-        // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
         msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
         msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
         msg += "attributeNameType:("+leftParser.getAttributeNameType()+"/"+rightParser.getAttributeNameType()+")";
@@ -481,10 +487,6 @@ ContextParserHandlebars.prototype.countNewLineChar = function(str) {
 *
 * @description
 * Handle the Handlebars template. (Handlebars Template Context)
-*
-* TODO: the function handleTemplate does not need to handle other expressions
-* except RAW_EXPRESSION and ESCAPE_EXPRESSION anymore, we can safely remove it
-* when the code is stable.
 */
 ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) {
 
@@ -501,7 +503,6 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
         if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
             handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
             /* _handleRawExpression and no validation need, it is safe guard in buildAst function */
-            debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
             obj = this.consumeExpression(input, i, handlebarsExpressionType, true);
             return;
         } else if (input[i] === '{' && i+1<len && input[i+1] === '{') {
@@ -510,7 +511,6 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
             switch (handlebarsExpressionType) {
                 case handlebarsUtils.ESCAPE_EXPRESSION:
                     /* handleEscapeExpression and no validation need, it is safe guard in buildAst function */
-                    debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
                     obj = this.handleEscapeExpression(input, i, len, stateObj, true);
                     return;
                 default:
@@ -544,8 +544,8 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
     var isFullUri = false, filters = [], f, exceptionObj, errorMessage,
         state = parser.state,
         tagName = parser.getStartTagName(),
-        attributeName = parser.attributeName,
-        attributeValue = parser.attributeValue;
+        attributeName = parser.getAttributeName(),
+        attributeValue = parser.getAttributeValue();
 
     try {
 
@@ -570,7 +570,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
 
                 if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_URI) {
                     /* we don't support javascript parsing yet */
-                    // TODO: this filtering rule cannot cover all cases.
+                    // TODO: should use yup() instead
                     if (handlebarsUtils.blacklistProtocol(attributeValue)) {
                         throw 'scriptable URI attribute (e.g., after <a href="javascript: )';
                     }
@@ -585,11 +585,60 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     filters.push(f);                    
                     
                 } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_CSS) { // CSS
-                    /* we don't support css parser yet
-                    * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                    * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                    */
-                    throw 'CSS style attribute';
+                    var r;
+                    try {
+                        attributeValue = htmlDecoder.decode(attributeValue);
+                        r = cssParserUtils.parseStyleAttributeValue(attributeValue);
+                    } catch (e) {
+                        throw 'Unsafe output expression @ attribute style CSS context (Parsing error OR expression position not supported!)';
+                    }
+                    switch(r.code) {
+                        case cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_UNQUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_SINGLE_QUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParserUtils.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_DOUBLE_QUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED);
+                            break;
+                        case cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED);
+                            break;
+                        case cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED);
+                            break;
+                        case cssParserUtils.STYLE_ATTRIBUTE_ERROR:
+                            throw 'Unsafe output expression @ attribute style CSS context (Parsing error OR expression position not supported!)';
+                    }
+
+                    /* add the attribute value filter */
+                    switch(state) {
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
+                            break;
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
+                            break;
+                        default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
+                            break;
+                    }
+                    filters.push(f);
+
+                    /* add blacklist filters at the end of filtering chain */
+                    if (isFullUri) {
+                        /* blacklist the URI scheme for full uri */
+                        filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
+                    }
+                    return filters;
+
                 } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_SCRIPTABLE) { // JS
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
@@ -637,11 +686,13 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                 throw 'being an attribute name (state #: ' + state + ')';
 
 
-            // the following will be caught by parser.isScriptableTag() anyway
-            // case stateMachine.State.STATE_SCRIPT_DATA: // 6
-            //     throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
+            // TODO: need tagname tracing in Context Parser such that we can have 
+            // ability to capture the case of putting output expression within dangerous tag.
+            // like svg etc.
+            // the following will be caught by handlebarsUtils.isScriptableTag(tagName) anyway
+            case stateMachine.State.STATE_SCRIPT_DATA: // 6
+                throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
             
-
             // should not fall into the following states
             case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
                 throw 'unexpectedly BEFORE_ATTRIBUTE_VALUE state';
@@ -658,7 +709,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             // To be secure, scriptable tags when encountered will anyway throw an error/warning
             // they require either special parsers of their own context (e.g., CSS/script parsers) 
             //    or an application-specific whitelisted url check (e.g., <script src=""> with yubl-yavu-yufull is not enough)
-            errorMessage += parser.isScriptableTag() ? 'scriptable <' + tagName + '> tag' : exception;
+            errorMessage += handlebarsUtils.isScriptableTag(tagName) ? 'scriptable <' + tagName + '> tag' : exception;
 
             exceptionObj = new ContextParserHandlebarsException(errorMessage, this._lineNo, this._charNo);
             handlebarsUtils.handleError(exceptionObj, this._config._strictMode);

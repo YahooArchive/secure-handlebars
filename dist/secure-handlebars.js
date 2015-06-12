@@ -8,44 +8,122 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
          Albert Yu <albertyu@yahoo-inc.com>
          Adonis Fung <adon@yahoo-inc.com>
 */
+/*jshint -W030 */
 (function() {
 "use strict";
 
-var stateMachine = require('./html5-state-machine.js');
+var stateMachine = require('./html5-state-machine.js'),
+    htmlState = stateMachine.State;
 
 /**
  * @class FastParser
  * @constructor FastParser
  */
 function FastParser() {
+
+    this.listeners = {};
+
     this.state = stateMachine.State.STATE_DATA;  /* Save the current status */
-    this.tagNames = ['', '']; /* Save the current tag name */
-    this.tagNameIdx = '';
-    this.attributeName = ''; /* Save the current attribute name */
+    this.tags = ['', '']; /* Save the current tag name */
+    this.tagIdx = 0;
+    this.attrName = ''; /* Save the current attribute name */
     this.attributeValue = ''; /* Save the current attribute value */
+    this.input = '';
+    this.inputLen = 0;
 }
 
 /**
- * @function FastParser#contextualize
+ * @function FastParser#on
  *
- * @param {string} input - The byte stream of the HTML5 web page.
- * @returns {integer} The return code of success or failure of parsing.
+ * @param {string} eventType - the event type 
+ * @param {function} listener - the event listener
+ * @returns this
  *
  * @description
- * <p>The context analyzing function, it analyzes the output context of each character based on
- * the HTML5 WHATWG - https://html.spec.whatwg.org/multipage/</p>
+ * <p>register the given event listener to the given eventType</p>
  *
  */
-FastParser.prototype.contextualize = function(input) {
-    var len = input.length;
-
-    for(var i = 0; i < len; ++i) {
-        i = this.beforeWalk(i, input);
-        if ( i >= len ) { break; }
-        i = this.walk(i, input);
-        if ( i >= len ) { break; }
-        this.afterWalk(input[i], i);
+FastParser.prototype.on = function (eventType, listener) {
+    var l = this.listeners[eventType];
+    if (listener) {
+        if (l) {
+            l.push(listener);
+        } else {
+            this.listeners[eventType] = [listener];
+        }
     }
+    return this;
+};
+
+/**
+ * @function FastParser#once
+ *
+ * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
+ * @param {function} listener - the event listener
+ * @returns this
+ *
+ * @description
+ * <p>register the given event listener to the given eventType, for which it will be fired only once</p>
+ *
+ */
+FastParser.prototype.once = function(eventType, listener) {
+    var self = this, onceListener;
+    if (listener) {
+        onceListener = function () {
+            self.off(eventType, onceListener);
+            listener.apply(self, arguments);
+        };
+        return this.on(eventType, onceListener);
+    }
+    return this;
+};
+
+/**
+ * @function FastParser#off
+ *
+ * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
+ * @param {function} listener - the event listener
+ * @returns this
+ *
+ * @description
+ * <p>remove the listener from being fired when the eventType happen</p>
+ *
+ */
+FastParser.prototype.off = function (eventType, listener) {
+    if (listener) {
+        var i, len, listeners = this.listeners[eventType];
+        if (listeners) {
+            for (i = 0; listeners[i]; i++) {
+                if (listeners[i] === listener) {
+                    listeners.splice(i, 1);
+                    break;
+                }
+            }
+        }
+    }
+    return this;
+};
+
+/**
+ * @function FastParser#emit
+ *
+ * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
+ * @returns this
+ *
+ * @description
+ * <p>fire those listeners correspoding to the given eventType</p>
+ *
+ */
+FastParser.prototype.emit = function (listeners, args) {
+    if (listeners) {
+        var i = -1, len;
+        if ((len = listeners.length)) {
+            while (++i < len) {
+                listeners[i].apply(this, args || []);
+            }
+        }
+    }
+    return this;
 };
 
 /*
@@ -56,7 +134,7 @@ FastParser.prototype.contextualize = function(input) {
  * @returns {integer} the new location of the current character.
  *
  */
-FastParser.prototype.walk = function(i, input) {
+FastParser.prototype.walk = function(i, input, endsWithEOF) {
 
     var ch = input[i],
         symbol = this.lookupChar(ch),
@@ -73,7 +151,7 @@ FastParser.prototype.walk = function(i, input) {
         case 3:  this.appendTagName(ch);  break;
         case 4:  this.resetEndTag(ch);    break;
         case 6:                       /* match end tag token with start tag token's tag name */
-            if(this.tagNames[0] === this.tagNames[1]) {
+            if(this.tags[0].toLowerCase() === this.tags[1].toLowerCase()) {
                 reconsume = 0;  /* see 12.2.4.13 - switch state for the following case, otherwise, reconsume. */
                 this.matchEndTagWithStartTag(symbol);
             }
@@ -86,10 +164,7 @@ FastParser.prototype.walk = function(i, input) {
     }
 
     if (reconsume) {                  /* reconsume the character */
-        if( this.states) {
-            // This is error prone. May need to change the way we walk the stream to avoid this.
-            this.states[i] = this.state; 
-        }
+        this.listeners.reWalk && this.emit(this.listeners.reWalk, [this.state, i, endsWithEOF]);
         return this.walk(i, input);
     }
 
@@ -97,22 +172,22 @@ FastParser.prototype.walk = function(i, input) {
 };
 
 FastParser.prototype.createStartTag = function (ch) {
-    this.tagNameIdx = 0;
-    this.tagNames[0] = ch.toLowerCase();
+    this.tagIdx = 0;
+    this.tags[0] = ch;
 };
 
 FastParser.prototype.createEndTag = function (ch) {
-    this.tagNameIdx = 1;
-    this.tagNames[1] = ch.toLowerCase();
+    this.tagIdx = 1;
+    this.tags[1] = ch;
 };
 
 FastParser.prototype.appendTagName = function (ch) {
-    this.tagNames[this.tagNameIdx] += ch.toLowerCase();
+    this.tags[this.tagIdx] += ch;
 };
 
 FastParser.prototype.resetEndTag = function (ch) {
-    this.tagNameIdx = 1;
-    this.tagNames[1] = '';
+    this.tagIdx = 1;
+    this.tags[1] = '';
 };
 
 FastParser.prototype.matchEndTagWithStartTag = function (symbol) {
@@ -124,8 +199,9 @@ FastParser.prototype.matchEndTagWithStartTag = function (symbol) {
         GREATER-THAN SIGN (>): If the current end tag token is an appropriate end tag token, then switch to the data state and emit the current tag token.
                 Otherwise, treat it as per the 'anything else' entry below.
         */
-        this.tagNames[0] = '';
-        this.tagNames[1] = '';
+        this.tags[0] = '';
+        this.tags[1] = '';
+
         switch (symbol) {
             case stateMachine.Symbol.SPACE: /** Whitespaces */
                 this.state = stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME;
@@ -141,14 +217,14 @@ FastParser.prototype.matchEndTagWithStartTag = function (symbol) {
 
 FastParser.prototype.matchEscapedScriptTag = function (ch) {
     /* switch to the script data double escaped state if we see <script> inside <script><!-- */    
-    if ( this.tagNames[1] === 'script') {
+    if ( this.tags[1].toLowerCase() === 'script') {
         this.state = stateMachine.State.STATE_SCRIPT_DATA_DOUBLE_ESCAPED;
     }
 };
 
 FastParser.prototype.processTagName = function (ch) {
     /* context transition when seeing <sometag> and switch to Script / Rawtext / RCdata / ... */
-    switch (this.tagNames[0]) {
+    switch (this.tags[0].toLowerCase()) {
         // TODO - give exceptions when non-HTML namespace is used.
         // case 'math':
         // case 'svg':
@@ -177,12 +253,12 @@ FastParser.prototype.processTagName = function (ch) {
 FastParser.prototype.createAttributeNameAndValueTag = function (ch) {
     /* new attribute name and value token */
     this.attributeValue = '';
-    this.attributeName = ch.toLowerCase();
+    this.attrName = ch;
 };
 
 FastParser.prototype.appendAttributeNameTag = function (ch) {
     /* append to attribute name token */
-    this.attributeName += ch.toLowerCase();
+    this.attrName += ch;
 };
 
 FastParser.prototype.appendAttributeValueTag = function(ch) {
@@ -200,13 +276,35 @@ FastParser.prototype.appendAttributeValueTag = function(ch) {
  * e.g. [A-z] = type 17 (Letter [A-z])</p>
  *
  */
-
-
-
 FastParser.prototype.lookupChar = function(ch) {
     var o = ch.charCodeAt(0);
     if ( o > 122 ) { return 12; }
     return stateMachine.lookupSymbolFromChar[o];
+};
+
+/**
+ * @function FastParser#contextualize
+ */
+FastParser.prototype.contextualize = function(input, endsWithEOF) {
+    var self = this, listeners = self.listeners, i = -1, lastState;
+
+    self.input = input;
+    self.inputLen = input.length;
+
+    while (++i < self.inputLen) {
+        lastState = self.state;
+
+        // TODO: endsWithEOF handling
+        listeners.preWalk && this.emit(listeners.preWalk, [lastState, i, endsWithEOF]);
+
+        // these functions are not supposed to alter the input
+        self.beforeWalk(i, this.input);
+        self.walk(i, this.input, endsWithEOF);
+        self.afterWalk(i, this.input);
+
+        // TODO: endsWithEOF handling
+        listeners.postWalk && this.emit(listeners.postWalk, [lastState, self.state, i, endsWithEOF]);
+    }
 };
 
 /**
@@ -215,54 +313,205 @@ FastParser.prototype.lookupChar = function(ch) {
  * @param {integer} i - the location of the head pointer.
  * @param {string} input - the input stream
  *
- * @return {integer} the new location of the head pointer.
- *
  * @description
  * Interface function for subclass to implement logics before parsing the character.
  *
  */
-FastParser.prototype.beforeWalk = function( i, input ) {
-    return i;
-};
+FastParser.prototype.beforeWalk = function (i, input) {};
 
 /**
  * @function FastParser#afterWalk
  *
- * @param {string} ch - The character consumed.
- * @param {integer} i - the head pointer location of this character
+ * @param {integer} i - the location of the head pointer.
+ * @param {string} input - the input stream
  *
  * @description
  * Interface function for subclass to implement logics after parsing the character.
  *
  */
-FastParser.prototype.afterWalk = function( ch, i ) {
+FastParser.prototype.afterWalk = function (i, input) {};
+
+/**
+ * @function FastParser#getStartTagName
+ *
+ * @returns {string} The current handling start tag name
+ *
+ */
+FastParser.prototype.getStartTagName = function() {
+    return this.tags[0].toLowerCase();
 };
 
+/**
+ * @function FastParser#getAttributeName
+ *
+ * @returns {string} The current handling attribute name.
+ *
+ * @description
+ * Get the current handling attribute name of HTML tag.
+ *
+ */
+FastParser.prototype.getAttributeName = function() {
+    return this.attrName.toLowerCase();
+};
 
-function Parser () {
-    FastParser.call(this);
-    this.bytes = [];  /* Save the processed bytes */
-    this.states = [stateMachine.State.STATE_DATA]; /* Save the processed status */
-    this.contexts = [];
-    this.buffer = []; /* Save the processed character into the internal buffer */
-    this.symbols = []; /* Save the processed symbols */
+/**
+ * @function FastParser#getAttributeValue
+ *
+ * @returns {string} The current handling attribute name's value.
+ *
+ * @description
+ * Get the current handling attribute name's value of HTML tag.
+ *
+ */
+FastParser.prototype.getAttributeValue = function(htmlDecoded) {
+    // TODO: html decode the attribute value
+    return this.attributeValue;
+};
 
+/**
+* @module Parser
+*/
+function Parser (config, listeners) {
+    var self = this, k;
+
+    // super constructor
+    FastParser.call(self);
+
+    // config
+    config || (config = {});
+
+    // deep copy config to this.config
+    self.config = {};
+    if (config) {
+        for (k in config) {
+            self.config[k] = config[k];
+        }
+    } else {
+        config = self.config;
+    }
+
+    // deep copy the provided listeners, if any
+    if (typeof listeners === 'object') {
+        for (k in listeners) {
+            self.listeners[k] = listeners[k].slice();
+        }
+        return;
+    }
+
+    // run through the input stream with input pre-processing
+    this.config.enableInputPreProcessing = (config.enableInputPreProcessing === undefined || config.enableInputPreProcessing === false)? false:true;
+    this.config.enableInputPreProcessing && this.on('preWalk', InputPreProcessing);
+    // fix parse errors before they're encountered in walk()
+    this.config.enableCanonicalization = (config.enableCanonicalization === undefined || config.enableCanonicalization === false)? false:true;
+    this.config.enableCanonicalization && this.on('preWalk', Canonicalize).on('reWalk', Canonicalize);
+    // enable IE conditional comments
+    this.config.enableIEConditionalComments = (config.enableIEConditionalComments === undefined || config.enableIEConditionalComments === false)? false:true;
+    this.config.enableIEConditionalComments && this.on('preWalk', DisableIEConditionalComments);
+    // TODO: rewrite IE <comment> tags
+    // TODO: When a start tag token is emitted with its self-closing flag set, if the flag is not acknowledged when it is processed by the tree construction stage, that is a parse error.
+    // TODO: When an end tag token is emitted with attributes, that is a parse error.
+    // TODO: When an end tag token is emitted with its self-closing flag set, that is a parse error.
+
+    // for bookkeeping the processed inputs and states
+    if (config.enableStateTracking === undefined || config.enableStateTracking) {
+        this.config.enableStateTracking = true;
+        this.states = [this.state];
+        this.buffer = []; 
+        this.symbol = []; 
+        this.on('postWalk', function (lastState, state, i, endsWithEOF) {
+            this.buffer.push(this.input[i]);
+            this.states.push(state);
+            this.symbol.push(this._getSymbol(i));
+        }).on('reWalk', this.setCurrentState);
+    }
 }
 
 // as in https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/prototype 
 Parser.prototype = Object.create(FastParser.prototype);
-Parser.prototype.constructor = FastParser;
+Parser.prototype.constructor = Parser;
 
-Parser.prototype.walk = function(i, input) {
-    i = FastParser.prototype.walk.call(this, i, input);
-    var ch = input[i];
-    this.bytes[i + 1] = ch;
-    this.states[i + 1] = this.state;
-    this.symbols[i + 1] = this.lookupChar(ch);
-    return i;
+/**
+* @function Parser._getSymbol
+* @param {integer} i - the index of input stream
+*
+* @description
+* Get the html symbol mapping for the character located in the given index of input stream
+*/
+Parser.prototype._getSymbol = function (i) {
+    return i < this.inputLen ? this.lookupChar(this.input[i]) : -1;
 };
 
+/**
+* @function Parser._getNextState
+* @param {integer} state - the current state
+* @param {integer} i - the index of input stream
+* @returns {integer} the potential state about to transition into, given the current state and an index of input stream
+*
+* @description
+* Get the potential html state about to transition into
+*/
+Parser.prototype._getNextState = function (state, i, endsWithEOF) {
+    return i < this.inputLen ? stateMachine.lookupStateFromSymbol[this._getSymbol(i)][state] : -1;
+};
 
+/**
+* @function Parser._convertString2Array
+*
+* @description
+* Convert the immutable this.input to array type for Strict Context Parser processing (lazy conversion).
+*
+*/
+Parser.prototype._convertString2Array = function () {
+    if (typeof this.input === "string") this.input = this.input.split('');
+};
+
+/**
+* @function Parser.fork
+* @returns {object} a new parser with all internal states inherited
+*
+* @description
+* create a new parser with all internal states inherited
+*/
+Parser.prototype.fork = function() {
+    var parser = new this.constructor(this.config, this.listeners);
+
+    parser.state = this.state;
+    parser.tags = this.tags.slice();
+    parser.tagIdx = this.tagIdx;
+    parser.attrName = this.attrName;
+    parser.attributeValue = this.attributeValue;
+
+    if (this.config.enableStateTracking) {
+        parser.buffer = this.buffer.slice();
+        parser.states = this.states.slice();
+        parser.symbol = this.symbol.slice();
+    }
+    return parser;
+};
+
+/**
+ * @function Parser#contextualize
+ * @param {string} input - the input stream
+ *
+ * @description
+ * It is the same as the original contextualize() except that this method returns the internal input stream.
+ */
+Parser.prototype.contextualize = function (input, endsWithEOF) {
+    FastParser.prototype.contextualize.call(this, input, endsWithEOF);
+    return this.getModifiedInput();
+};
+
+/**
+ * @function Parser#getModifiedInput
+ *
+ * @description
+ * Get the modified input due to Strict Context Parser processing.
+ *
+ */
+Parser.prototype.getModifiedInput = function() {
+    // TODO: it is not defensive enough, should use Array.isArray, but need polyfill
+    return (typeof this.input === "string")? this.input:this.input.join('');
+};
 
 /**
  * @function Parser#setCurrentState
@@ -274,7 +523,22 @@ Parser.prototype.walk = function(i, input) {
  *
  */
 Parser.prototype.setCurrentState = function(state) {
-    this.state = state;
+    this.states.pop();
+    this.states.push(this.state = state);
+    return this;
+};
+
+/**
+ * @function Parser#getCurrentState
+ *
+ * @returns {integer} The last state of the HTML5 Context Parser.
+ *
+ * @description
+ * Get the last state of HTML5 Context Parser.
+ *
+ */
+Parser.prototype.getCurrentState = function() {
+    return this.state;
 };
 
 /**
@@ -287,7 +551,7 @@ Parser.prototype.setCurrentState = function(state) {
  *
  */
 Parser.prototype.getStates = function() {
-    return this.states;
+    return this.states.slice();
 };
 
 /**
@@ -300,7 +564,8 @@ Parser.prototype.getStates = function() {
  *
  */
 Parser.prototype.setInitState = function(state) {
-    this.states[0] = state;
+    this.states = [state];
+    return this;
 };
 
 /**
@@ -331,40 +596,360 @@ Parser.prototype.getLastState = function() {
 };
 
 /**
- * @function Parser#getAttributeName
- *
- * @returns {string} The current handling attribute name.
- *
- * @description
- * Get the current handling attribute name of HTML tag.
- *
- */
-Parser.prototype.getAttributeName = function() {
-    return this.attributeName;
-};
+* The implementation of Strict Context Parser functions
+* 
+* - InputPreProcessing
+* - ConvertBogusCommentToComment
+* - PreCanonicalizeConvertBogusCommentEndTag
+* - Canonicalize
+* - DisableIEConditionalComments
+*
+*/
 
-/**
- * @function Parser#getAttributeValue
- *
- * @returns {string} The current handling attribute name's value.
- *
- * @description
- * Get the current handling attribute name's value of HTML tag.
- *
- */
-Parser.prototype.getAttributeValue = function() {
-    return this.attributeValue;
-};
+// Perform input stream preprocessing
+// Reference: https://html.spec.whatwg.org/multipage/syntax.html#preprocessing-the-input-stream
+function InputPreProcessing (state, i) {
+    var chr = this.input[i],
+        nextChr = this.input[i+1];
 
-/**
- * @function Parser#getStartTagName
- *
- * @returns {string} The current handling start tag name
- *
- */
-Parser.prototype.getStartTagName = function() {
-    return this.tagNames[0];
-};
+    // equivalent to inputStr.replace(/\r\n?/g, '\n')
+    if (chr === '\r') {
+        // for lazy conversion
+        this._convertString2Array();
+        if (nextChr === '\n') {
+            this.input.splice(i, 1);
+            this.inputLen--;
+        } else {
+            this.input[i] = '\n';
+        }
+    }
+    // the following are control characters or permanently undefined Unicode characters (noncharacters), resulting in parse errors
+    // \uFFFD replacement is not required by the specification, we consider \uFFFD character as an inert character
+    else if ((chr >= '\x01'   && chr <= '\x08') ||
+             (chr >= '\x0E'   && chr <= '\x1F') ||
+             (chr >= '\x7F'   && chr <= '\x9F') ||
+             (chr >= '\uFDD0' && chr <= '\uFDEF') ||
+             chr === '\x0B' || chr === '\uFFFE' || chr === '\uFFFF') {
+        // for lazy conversion
+        this._convertString2Array();
+        this.input[i] = '\uFFFD';
+    }
+    // U+1FFFE, U+1FFFF, U+2FFFE, U+2FFFF, U+3FFFE, U+3FFFF,
+    // U+4FFFE, U+4FFFF, U+5FFFE, U+5FFFF, U+6FFFE, U+6FFFF,
+    // U+7FFFE, U+7FFFF, U+8FFFE, U+8FFFF, U+9FFFE, U+9FFFF,
+    // U+AFFFE, U+AFFFF, U+BFFFE, U+BFFFF, U+CFFFE, U+CFFFF,
+    // U+DFFFE, U+DFFFF, U+EFFFE, U+EFFFF, U+FFFFE, U+FFFFF,
+    // U+10FFFE, and U+10FFFF
+    else if ((nextChr === '\uDFFE' || nextChr === '\uDFFF') &&
+             (  chr === '\uD83F' || chr === '\uD87F' || chr === '\uD8BF' || chr === '\uD8FF' ||
+                chr === '\uD93F' || chr === '\uD97F' || chr === '\uD9BF' || chr === '\uD9FF' ||
+                chr === '\uDA3F' || chr === '\uDA7F' || chr === '\uDABF' || chr === '\uDAFF' ||
+                chr === '\uDB3F' || chr === '\uDB7F' || chr === '\uDBBF' || chr === '\uDBFF')) {
+        // for lazy conversion
+        this._convertString2Array();
+        this.input[i] = this.input[i+1] = '\uFFFD';
+    }
+}
+
+function ConvertBogusCommentToComment(i) {
+    // for lazy conversion
+    this._convertString2Array();
+
+    // convert !--. i.e., from <* to <!--*
+    this.input.splice(i, 0, '!', '-', '-');
+    this.inputLen += 3;
+
+    // convert the next > to -->
+    this.on('preCanonicalize', PreCanonicalizeConvertBogusCommentEndTag);
+}
+
+function PreCanonicalizeConvertBogusCommentEndTag(state, i, endsWithEOF) {
+    if (this.input[i] === '>') {
+        // remove itself from the listener list
+        this.off('preCanonicalize', PreCanonicalizeConvertBogusCommentEndTag);
+
+        // for lazy conversion
+        this._convertString2Array();
+
+        // convert [>] to [-]->
+        this.input.splice(i, 0, '-', '-');
+        this.inputLen += 2;
+
+        this.emit(this.listeners.bogusCommentCoverted, [state, i, endsWithEOF]);
+    }
+}
+
+// those doctype states (52-67) are initially treated as bogus comment state, but they are further converted to comment state
+// Canonicalize() will create no more bogus comment state except the fake (context-parser treats <!doctype as bogus) one hardcoded as <!doctype html> that has no NULL inside
+var statesRequiringNullReplacement = [
+//    0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+/*0*/ 0, 0, 0, 1, 0, 1, 1, 1, 0, 0,
+/*1*/ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+/*2*/ 0, 0, 1, 1, 1, 0, 0, 0, 0, 1,
+/*3*/ 1, 1, 0, 0, 1, 1, 1, 1, 1, 1,
+/*4*/ 1, 0, 0, 0, 1, 0, 1, 1, 1, 1,
+/*5*/ 1, 1
+];
+// \uFFFD replacement is not required by the spec for DATA state
+statesRequiringNullReplacement[htmlState.STATE_DATA] = 1;
+
+function Canonicalize(state, i, endsWithEOF) {
+
+    this.emit(this.listeners.preCanonicalize, [state, i, endsWithEOF]);
+
+    var reCanonicalizeNeeded = true,
+        chr = this.input[i], nextChr = this.input[i+1],
+        potentialState = this._getNextState(state, i, endsWithEOF),
+        nextPotentialState = this._getNextState(potentialState, i + 1, endsWithEOF);
+
+    // console.log(i, state, potentialState, nextPotentialState, this.input.slice(i).join(''));
+
+    // batch replacement of NULL with \uFFFD would violate the spec
+    //  - for example, NULL is untouched in CDATA section state
+    if (chr === '\x00' && statesRequiringNullReplacement[state]) {
+        // for lazy conversion
+        this._convertString2Array();
+        this.input[i] = '\uFFFD';
+    }
+    // encode < into &lt; for [<]* (* is non-alpha) in STATE_DATA, [<]% and [<]! in STATE_RCDATA and STATE_RAWTEXT
+    else if ((potentialState === htmlState.STATE_TAG_OPEN && nextPotentialState === htmlState.STATE_DATA) ||  // [<]*, where * is non-alpha
+             ((state === htmlState.STATE_RCDATA || state === htmlState.STATE_RAWTEXT) &&                            // in STATE_RCDATA and STATE_RAWTEXT
+            chr === '<' && (nextChr === '%' || nextChr === '!'))) {   // [<]% or [<]!
+        // for lazy conversion
+        this._convertString2Array();
+
+        // [<]*, [<]%, [<]!
+        this.input.splice(i, 1, '&', 'l', 't', ';');
+        this.inputLen += 3;
+    }
+    // enforce <!doctype html>
+    // + convert bogus comment or unknown doctype to the standard html comment
+    else if (potentialState === htmlState.STATE_MARKUP_DECLARATION_OPEN) {            // <[!]***
+        reCanonicalizeNeeded = false;
+
+        // for lazy conversion
+        this._convertString2Array();
+
+        // context-parser treats the doctype and [CDATA[ as resulting into STATE_BOGUS_COMMENT
+        // so, we need our algorithm here to extract and check the next 7 characters
+        var commentKey = this.input.slice(i + 1, i + 8).join('');
+
+        // enforce <!doctype html>
+        if (commentKey.toLowerCase() === 'doctype') {               // <![d]octype
+            // extract 6 chars immediately after <![d]octype and check if it's equal to ' html>'
+            if (this.input.slice(i + 8, i + 14).join('').toLowerCase() !== ' html>') {
+
+                // replace <[!]doctype xxxx> with <[!]--!doctype xxxx--><doctype html>
+                ConvertBogusCommentToComment.call(this, i);
+
+                this.once('bogusCommentCoverted', function (state, i) {
+                    [].splice.apply(this.input, [i + 3, 0].concat('<!doctype html>'.split('')));
+                    this.inputLen += 15;
+                });
+
+                reCanonicalizeNeeded = true;
+            }
+        }
+        // do not touch <![CDATA[ and <[!]--
+        else if (commentKey === '[CDATA[' ||
+                    (nextChr === '-' && this.input[i+2] === '-')) {
+            // noop
+        }
+        // ends up in bogus comment
+        else {
+            // replace <[!]*** with <[!]--***
+            // will replace the next > to -->
+            ConvertBogusCommentToComment.call(this, i);
+            reCanonicalizeNeeded = true;
+        }
+    }
+    // convert bogus comment to the standard html comment
+    else if ((state === htmlState.STATE_TAG_OPEN &&
+             potentialState === htmlState.STATE_BOGUS_COMMENT) ||           // <[?] only from STATE_TAG_OPEN
+            (potentialState === htmlState.STATE_END_TAG_OPEN &&             // <[/]* or <[/]> from STATE_END_TAG_OPEN
+             nextPotentialState !== htmlState.STATE_TAG_NAME &&
+             nextPotentialState !== -1)) {                                  // TODO: double check if there're any other cases requiring -1 check
+        // replace <? and </* respectively with <!--? and <!--/*
+        // will replace the next > to -->
+        ConvertBogusCommentToComment.call(this, i);
+    }
+    // remove the unnecessary SOLIDUS
+    else if (potentialState === htmlState.STATE_SELF_CLOSING_START_TAG &&             // <***[/]*
+            nextPotentialState === htmlState.STATE_BEFORE_ATTRIBUTE_NAME) {           // this.input[i+1] is ANYTHING_ELSE (i.e., not EOF nor >)
+        // if ([htmlState.STATE_TAG_NAME,                                             // <a[/]* replaced with <a[ ]*
+        //     /* following is unknown to CP
+        //     htmlState.STATE_RCDATA_END_TAG_NAME,
+        //     htmlState.STATE_RAWTEXT_END_TAG_NAME,
+        //     htmlState.STATE_SCRIPT_DATA_END_TAG_NAME,
+        //     htmlState.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME,
+        //     */
+        //     htmlState.STATE_BEFORE_ATTRIBUTE_NAME,                                 // <a [/]* replaced with <a [ ]*
+        //     htmlState.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED].indexOf(state) !== -1)   // <a abc=""[/]* replaced with <a abc=""[ ]*
+   
+        // for lazy conversion
+        this._convertString2Array();
+
+        this.input[i] = ' ';
+
+        // given this.input[i] was    '/', nextPotentialState was htmlState.STATE_BEFORE_ATTRIBUTE_NAME
+        // given this.input[i] is now ' ', nextPotentialState becomes STATE_BEFORE_ATTRIBUTE_NAME if current state is STATE_ATTRIBUTE_NAME or STATE_AFTER_ATTRIBUTE_NAME
+        // to preserve state, remove future EQUAL SIGNs (=)s to force STATE_AFTER_ATTRIBUTE_NAME behave as if it is STATE_BEFORE_ATTRIBUTE_NAME
+        // this is okay since EQUAL SIGNs (=)s will be stripped anyway in the STATE_BEFORE_ATTRIBUTE_NAME cleanup handling
+        if (state === htmlState.STATE_ATTRIBUTE_NAME ||                               // <a abc[/]=abc  replaced with <a abc[ ]*
+                state === htmlState.STATE_AFTER_ATTRIBUTE_NAME) {                     // <a abc [/]=abc replaced with <a abc [ ]*
+            for (var j = i + 1; j < this.inputLen && this.input[j] === '='; j++) {
+                this.input.splice(j, 1);
+                this.inputLen--;
+            }
+        }
+    }
+    // remove unnecessary equal signs, hence <input checked[=]> become <input checked[>], or <input checked [=]> become <input checked [>]
+    else if (potentialState === htmlState.STATE_BEFORE_ATTRIBUTE_VALUE &&   // only from STATE_ATTRIBUTE_NAME or STATE_AFTER_ATTRIBUTE_NAME
+            nextPotentialState === htmlState.STATE_DATA) {                  // <a abc[=]> or <a abc [=]>
+        // for lazy conversion
+        this._convertString2Array();
+
+        this.input.splice(i, 1);
+        this.inputLen--;
+    }
+    // insert a space for <a abc="***["]* or <a abc='***[']* after quoted attribute value (i.e., <a abc="***["] * or <a abc='***['] *)
+    else if (potentialState === htmlState.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED &&        // <a abc=""[*] where * is not SPACE (\t,\n,\f,' ')
+            nextPotentialState === htmlState.STATE_BEFORE_ATTRIBUTE_NAME &&
+            this._getSymbol(i + 1) !== stateMachine.Symbol.SPACE) {
+        // for lazy conversion
+        this._convertString2Array();
+
+        this.input.splice(i + 1, 0, ' ');
+        this.inputLen++;
+    }
+    // else here means no special pattern was found requiring rewriting
+    else {
+        reCanonicalizeNeeded = false;
+    }
+
+    // remove " ' < = from being treated as part of attribute name (not as the spec recommends though)
+    switch (potentialState) {
+        case htmlState.STATE_BEFORE_ATTRIBUTE_NAME:     // remove ambigious symbols in <a [*]href where * is ", ', <, or =
+            if (nextChr === "=") {
+                // for lazy conversion
+                this._convertString2Array();
+
+                this.input.splice(i + 1, 1);
+                this.inputLen--;
+                reCanonicalizeNeeded = true;
+                break;
+            }
+            /* falls through */
+        case htmlState.STATE_ATTRIBUTE_NAME:            // remove ambigious symbols in <a href[*] where * is ", ', or <
+        case htmlState.STATE_AFTER_ATTRIBUTE_NAME:      // remove ambigious symbols in <a href [*] where * is ", ', or <
+            if (nextChr === '"' || nextChr === "'" || nextChr === '<') {
+                // for lazy conversion
+                this._convertString2Array();
+
+                this.input.splice(i + 1, 1);
+                this.inputLen--;
+                reCanonicalizeNeeded = true;
+            }
+            break;
+    }
+
+    if (reCanonicalizeNeeded) {
+        return Canonicalize.call(this, state, i, endsWithEOF);
+    }
+
+    switch (state) {
+    // escape " ' < = ` to avoid raising parse errors for unquoted value
+        case htmlState.STATE_ATTRIBUTE_VALUE_UNQUOTED:
+            if (chr === '"') {
+                // for lazy conversion
+                this._convertString2Array();
+
+                this.input.splice(i, 1, '&', 'q', 'u', 'o', 't', ';');
+                this.inputLen += 5;
+                break;
+            } else if (chr === "'") {
+                // for lazy conversion
+                this._convertString2Array();
+
+                this.input.splice(i, 1, '&', '#', '3', '9', ';');
+                this.inputLen += 4;
+                break;
+            }
+            /* falls through */
+        case htmlState.STATE_BEFORE_ATTRIBUTE_VALUE:     // treat < = ` as if they are in STATE_ATTRIBUTE_VALUE_UNQUOTED
+            if (chr === '<') {
+                // for lazy conversion
+                this._convertString2Array();
+
+                this.input.splice(i, 1, '&', 'l', 't', ';');
+                this.inputLen += 3;
+            } else if (chr === '=') {
+                // for lazy conversion
+                this._convertString2Array();
+
+                this.input.splice(i, 1, '&', '#', '6', '1', ';');
+                this.inputLen += 4;
+            } else if (chr === '`') {
+                // for lazy conversion
+                this._convertString2Array();
+
+                this.input.splice(i, 1, '&', '#', '9', '6', ';');
+                this.inputLen += 4;
+            }
+            break;
+
+    // add hyphens to complete <!----> to avoid raising parsing errors
+        // replace <!--[>] with <!--[-]->
+        case htmlState.STATE_COMMENT_START:
+            if (chr === '>') {                          // <!--[>]
+                // for lazy conversion
+                this._convertString2Array();
+
+                this.input.splice(i, 0, '-', '-');
+                this.inputLen += 2;
+                // reCanonicalizeNeeded = true;  // not need due to no where to treat its potential states
+            }
+            break;
+        // replace <!---[>] with <!---[-]>
+        case htmlState.STATE_COMMENT_START_DASH:
+            if (chr === '>') {                          // <!---[>]
+                // for lazy conversion
+                this._convertString2Array();
+
+                this.input.splice(i, 0, '-');
+                this.inputLen++;
+                // reCanonicalizeNeeded = true;  // not need due to no where to treat its potential states
+            }
+            break;
+    // replace --[!]> with --[>]
+        case htmlState.STATE_COMMENT_END:
+            if (chr === '!' && nextChr === '>') {
+                // for lazy conversion
+                this._convertString2Array();
+
+                this.input.splice(i, 1);
+                this.inputLen--;
+                // reCanonicalizeNeeded = true;  // not need due to no where to treat its potential states
+            }
+            // if (chr === '-'), ignored this parse error. TODO: consider stripping n-2 hyphens for ------>
+            break;
+    }
+
+    if (reCanonicalizeNeeded) {
+        return Canonicalize.call(this, state, i, endsWithEOF);
+    }
+}
+
+// remove IE conditional comments
+function DisableIEConditionalComments(state, i){
+    if (state === htmlState.STATE_COMMENT && this.input[i] === ']' && this.input[i+1] === '>') {
+        // for lazy conversion
+        this._convertString2Array();
+
+        this.input.splice(i, 0, ' ');
+        this.inputLen++;
+    }
+}
 
 module.exports = {
     Parser: Parser,
@@ -625,508 +1210,7 @@ StateMachine.lookupContext = [
 module.exports = StateMachine;
 },{}],3:[function(require,module,exports){
 
-/**
- * This is the web browser implementation of `debug()`.
- *
- * Expose `debug()` as the module.
- */
-
-exports = module.exports = require('./debug');
-exports.log = log;
-exports.formatArgs = formatArgs;
-exports.save = save;
-exports.load = load;
-exports.useColors = useColors;
-
-/**
- * Use chrome.storage.local if we are in an app
- */
-
-var storage;
-
-if (typeof chrome !== 'undefined' && typeof chrome.storage !== 'undefined')
-  storage = chrome.storage.local;
-else
-  storage = localstorage();
-
-/**
- * Colors.
- */
-
-exports.colors = [
-  'lightseagreen',
-  'forestgreen',
-  'goldenrod',
-  'dodgerblue',
-  'darkorchid',
-  'crimson'
-];
-
-/**
- * Currently only WebKit-based Web Inspectors, Firefox >= v31,
- * and the Firebug extension (any Firefox version) are known
- * to support "%c" CSS customizations.
- *
- * TODO: add a `localStorage` variable to explicitly enable/disable colors
- */
-
-function useColors() {
-  // is webkit? http://stackoverflow.com/a/16459606/376773
-  return ('WebkitAppearance' in document.documentElement.style) ||
-    // is firebug? http://stackoverflow.com/a/398120/376773
-    (window.console && (console.firebug || (console.exception && console.table))) ||
-    // is firefox >= v31?
-    // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
-    (navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31);
-}
-
-/**
- * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
- */
-
-exports.formatters.j = function(v) {
-  return JSON.stringify(v);
-};
-
-
-/**
- * Colorize log arguments if enabled.
- *
- * @api public
- */
-
-function formatArgs() {
-  var args = arguments;
-  var useColors = this.useColors;
-
-  args[0] = (useColors ? '%c' : '')
-    + this.namespace
-    + (useColors ? ' %c' : ' ')
-    + args[0]
-    + (useColors ? '%c ' : ' ')
-    + '+' + exports.humanize(this.diff);
-
-  if (!useColors) return args;
-
-  var c = 'color: ' + this.color;
-  args = [args[0], c, 'color: inherit'].concat(Array.prototype.slice.call(args, 1));
-
-  // the final "%c" is somewhat tricky, because there could be other
-  // arguments passed either before or after the %c, so we need to
-  // figure out the correct index to insert the CSS into
-  var index = 0;
-  var lastC = 0;
-  args[0].replace(/%[a-z%]/g, function(match) {
-    if ('%%' === match) return;
-    index++;
-    if ('%c' === match) {
-      // we only are interested in the *last* %c
-      // (the user may have provided their own)
-      lastC = index;
-    }
-  });
-
-  args.splice(lastC, 0, c);
-  return args;
-}
-
-/**
- * Invokes `console.log()` when available.
- * No-op when `console.log` is not a "function".
- *
- * @api public
- */
-
-function log() {
-  // this hackery is required for IE8/9, where
-  // the `console.log` function doesn't have 'apply'
-  return 'object' === typeof console
-    && console.log
-    && Function.prototype.apply.call(console.log, console, arguments);
-}
-
-/**
- * Save `namespaces`.
- *
- * @param {String} namespaces
- * @api private
- */
-
-function save(namespaces) {
-  try {
-    if (null == namespaces) {
-      storage.removeItem('debug');
-    } else {
-      storage.debug = namespaces;
-    }
-  } catch(e) {}
-}
-
-/**
- * Load `namespaces`.
- *
- * @return {String} returns the previously persisted debug modes
- * @api private
- */
-
-function load() {
-  var r;
-  try {
-    r = storage.debug;
-  } catch(e) {}
-  return r;
-}
-
-/**
- * Enable namespaces listed in `localStorage.debug` initially.
- */
-
-exports.enable(load());
-
-/**
- * Localstorage attempts to return the localstorage.
- *
- * This is necessary because safari throws
- * when a user disables cookies/localstorage
- * and you attempt to access it.
- *
- * @return {LocalStorage}
- * @api private
- */
-
-function localstorage(){
-  try {
-    return window.localStorage;
-  } catch (e) {}
-}
-
-},{"./debug":4}],4:[function(require,module,exports){
-
-/**
- * This is the common logic for both the Node.js and web browser
- * implementations of `debug()`.
- *
- * Expose `debug()` as the module.
- */
-
-exports = module.exports = debug;
-exports.coerce = coerce;
-exports.disable = disable;
-exports.enable = enable;
-exports.enabled = enabled;
-exports.humanize = require('ms');
-
-/**
- * The currently active debug mode names, and names to skip.
- */
-
-exports.names = [];
-exports.skips = [];
-
-/**
- * Map of special "%n" handling functions, for the debug "format" argument.
- *
- * Valid key names are a single, lowercased letter, i.e. "n".
- */
-
-exports.formatters = {};
-
-/**
- * Previously assigned color.
- */
-
-var prevColor = 0;
-
-/**
- * Previous log timestamp.
- */
-
-var prevTime;
-
-/**
- * Select a color.
- *
- * @return {Number}
- * @api private
- */
-
-function selectColor() {
-  return exports.colors[prevColor++ % exports.colors.length];
-}
-
-/**
- * Create a debugger with the given `namespace`.
- *
- * @param {String} namespace
- * @return {Function}
- * @api public
- */
-
-function debug(namespace) {
-
-  // define the `disabled` version
-  function disabled() {
-  }
-  disabled.enabled = false;
-
-  // define the `enabled` version
-  function enabled() {
-
-    var self = enabled;
-
-    // set `diff` timestamp
-    var curr = +new Date();
-    var ms = curr - (prevTime || curr);
-    self.diff = ms;
-    self.prev = prevTime;
-    self.curr = curr;
-    prevTime = curr;
-
-    // add the `color` if not set
-    if (null == self.useColors) self.useColors = exports.useColors();
-    if (null == self.color && self.useColors) self.color = selectColor();
-
-    var args = Array.prototype.slice.call(arguments);
-
-    args[0] = exports.coerce(args[0]);
-
-    if ('string' !== typeof args[0]) {
-      // anything else let's inspect with %o
-      args = ['%o'].concat(args);
-    }
-
-    // apply any `formatters` transformations
-    var index = 0;
-    args[0] = args[0].replace(/%([a-z%])/g, function(match, format) {
-      // if we encounter an escaped % then don't increase the array index
-      if (match === '%%') return match;
-      index++;
-      var formatter = exports.formatters[format];
-      if ('function' === typeof formatter) {
-        var val = args[index];
-        match = formatter.call(self, val);
-
-        // now we need to remove `args[index]` since it's inlined in the `format`
-        args.splice(index, 1);
-        index--;
-      }
-      return match;
-    });
-
-    if ('function' === typeof exports.formatArgs) {
-      args = exports.formatArgs.apply(self, args);
-    }
-    var logFn = enabled.log || exports.log || console.log.bind(console);
-    logFn.apply(self, args);
-  }
-  enabled.enabled = true;
-
-  var fn = exports.enabled(namespace) ? enabled : disabled;
-
-  fn.namespace = namespace;
-
-  return fn;
-}
-
-/**
- * Enables a debug mode by namespaces. This can include modes
- * separated by a colon and wildcards.
- *
- * @param {String} namespaces
- * @api public
- */
-
-function enable(namespaces) {
-  exports.save(namespaces);
-
-  var split = (namespaces || '').split(/[\s,]+/);
-  var len = split.length;
-
-  for (var i = 0; i < len; i++) {
-    if (!split[i]) continue; // ignore empty strings
-    namespaces = split[i].replace(/\*/g, '.*?');
-    if (namespaces[0] === '-') {
-      exports.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
-    } else {
-      exports.names.push(new RegExp('^' + namespaces + '$'));
-    }
-  }
-}
-
-/**
- * Disable debug output.
- *
- * @api public
- */
-
-function disable() {
-  exports.enable('');
-}
-
-/**
- * Returns true if the given mode name is enabled, false otherwise.
- *
- * @param {String} name
- * @return {Boolean}
- * @api public
- */
-
-function enabled(name) {
-  var i, len;
-  for (i = 0, len = exports.skips.length; i < len; i++) {
-    if (exports.skips[i].test(name)) {
-      return false;
-    }
-  }
-  for (i = 0, len = exports.names.length; i < len; i++) {
-    if (exports.names[i].test(name)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Coerce `val`.
- *
- * @param {Mixed} val
- * @return {Mixed}
- * @api private
- */
-
-function coerce(val) {
-  if (val instanceof Error) return val.stack || val.message;
-  return val;
-}
-
-},{"ms":5}],5:[function(require,module,exports){
-/**
- * Helpers.
- */
-
-var s = 1000;
-var m = s * 60;
-var h = m * 60;
-var d = h * 24;
-var y = d * 365.25;
-
-/**
- * Parse or format the given `val`.
- *
- * Options:
- *
- *  - `long` verbose formatting [false]
- *
- * @param {String|Number} val
- * @param {Object} options
- * @return {String|Number}
- * @api public
- */
-
-module.exports = function(val, options){
-  options = options || {};
-  if ('string' == typeof val) return parse(val);
-  return options.long
-    ? long(val)
-    : short(val);
-};
-
-/**
- * Parse the given `str` and return milliseconds.
- *
- * @param {String} str
- * @return {Number}
- * @api private
- */
-
-function parse(str) {
-  var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(str);
-  if (!match) return;
-  var n = parseFloat(match[1]);
-  var type = (match[2] || 'ms').toLowerCase();
-  switch (type) {
-    case 'years':
-    case 'year':
-    case 'yrs':
-    case 'yr':
-    case 'y':
-      return n * y;
-    case 'days':
-    case 'day':
-    case 'd':
-      return n * d;
-    case 'hours':
-    case 'hour':
-    case 'hrs':
-    case 'hr':
-    case 'h':
-      return n * h;
-    case 'minutes':
-    case 'minute':
-    case 'mins':
-    case 'min':
-    case 'm':
-      return n * m;
-    case 'seconds':
-    case 'second':
-    case 'secs':
-    case 'sec':
-    case 's':
-      return n * s;
-    case 'milliseconds':
-    case 'millisecond':
-    case 'msecs':
-    case 'msec':
-    case 'ms':
-      return n;
-  }
-}
-
-/**
- * Short format for `ms`.
- *
- * @param {Number} ms
- * @return {String}
- * @api private
- */
-
-function short(ms) {
-  if (ms >= d) return Math.round(ms / d) + 'd';
-  if (ms >= h) return Math.round(ms / h) + 'h';
-  if (ms >= m) return Math.round(ms / m) + 'm';
-  if (ms >= s) return Math.round(ms / s) + 's';
-  return ms + 'ms';
-}
-
-/**
- * Long format for `ms`.
- *
- * @param {Number} ms
- * @return {String}
- * @api private
- */
-
-function long(ms) {
-  return plural(ms, d, 'day')
-    || plural(ms, h, 'hour')
-    || plural(ms, m, 'minute')
-    || plural(ms, s, 'second')
-    || ms + ' ms';
-}
-
-/**
- * Pluralization helper.
- */
-
-function plural(ms, n, name) {
-  if (ms < n) return;
-  if (ms < n * 1.5) return Math.floor(ms / n) + ' ' + name;
-  return Math.ceil(ms / n) + ' ' + name + 's';
-}
-
-},{}],6:[function(require,module,exports){
-
-},{}],7:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -1354,7 +1438,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
-},{"_process":8}],8:[function(require,module,exports){
+},{"_process":5}],5:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1405,7 +1489,7 @@ process.nextTick = function (fun) {
         }
     }
     queue.push(new Item(fun, args));
-    if (!draining) {
+    if (queue.length === 1 && !draining) {
         setTimeout(drainQueue, 0);
     }
 };
@@ -1446,7 +1530,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],9:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -1510,7 +1594,7 @@ inst['default'] = inst;
 
 exports['default'] = inst;
 module.exports = exports['default'];
-},{"./handlebars.runtime":10,"./handlebars/compiler/ast":12,"./handlebars/compiler/base":13,"./handlebars/compiler/compiler":15,"./handlebars/compiler/javascript-compiler":17,"./handlebars/compiler/visitor":20,"./handlebars/no-conflict":23}],10:[function(require,module,exports){
+},{"./handlebars.runtime":7,"./handlebars/compiler/ast":9,"./handlebars/compiler/base":10,"./handlebars/compiler/compiler":12,"./handlebars/compiler/javascript-compiler":14,"./handlebars/compiler/visitor":17,"./handlebars/no-conflict":20}],7:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -1571,7 +1655,7 @@ inst['default'] = inst;
 
 exports['default'] = inst;
 module.exports = exports['default'];
-},{"./handlebars/base":11,"./handlebars/exception":22,"./handlebars/no-conflict":23,"./handlebars/runtime":24,"./handlebars/safe-string":25,"./handlebars/utils":26}],11:[function(require,module,exports){
+},{"./handlebars/base":8,"./handlebars/exception":19,"./handlebars/no-conflict":20,"./handlebars/runtime":21,"./handlebars/safe-string":22,"./handlebars/utils":23}],8:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -1845,7 +1929,7 @@ function createFrame(object) {
 }
 
 /* [args, ]options */
-},{"./exception":22,"./utils":26}],12:[function(require,module,exports){
+},{"./exception":19,"./utils":23}],9:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -1998,7 +2082,7 @@ var AST = {
 // must modify the object to operate properly.
 exports['default'] = AST;
 module.exports = exports['default'];
-},{}],13:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2045,7 +2129,7 @@ function parse(input, options) {
   var strip = new _WhitespaceControl2['default']();
   return strip.accept(_parser2['default'].parse(input));
 }
-},{"../utils":26,"./ast":12,"./helpers":16,"./parser":18,"./whitespace-control":21}],14:[function(require,module,exports){
+},{"../utils":23,"./ast":9,"./helpers":13,"./parser":15,"./whitespace-control":18}],11:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -2210,7 +2294,7 @@ exports['default'] = CodeGen;
 module.exports = exports['default'];
 
 /* NOP */
-},{"../utils":26,"source-map":28}],15:[function(require,module,exports){
+},{"../utils":23,"source-map":25}],12:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2738,7 +2822,7 @@ function transformLiteralToPath(sexpr) {
     sexpr.path = new _AST2['default'].PathExpression(false, 0, [literal.original + ''], literal.original + '', literal.loc);
   }
 }
-},{"../exception":22,"../utils":26,"./ast":12}],16:[function(require,module,exports){
+},{"../exception":19,"../utils":23,"./ast":9}],13:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2870,7 +2954,7 @@ function prepareBlock(openBlock, program, inverseAndProgram, close, inverted, lo
 
   return new this.BlockStatement(openBlock.path, openBlock.params, openBlock.hash, program, inverse, openBlock.strip, inverseStrip, close && close.strip, this.locInfo(locInfo));
 }
-},{"../exception":22}],17:[function(require,module,exports){
+},{"../exception":19}],14:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -3933,7 +4017,7 @@ function strictLookup(requireTerminal, compiler, parts, type) {
 
 exports['default'] = JavaScriptCompiler;
 module.exports = exports['default'];
-},{"../base":11,"../exception":22,"../utils":26,"./code-gen":14}],18:[function(require,module,exports){
+},{"../base":8,"../exception":19,"../utils":23,"./code-gen":11}],15:[function(require,module,exports){
 "use strict";
 
 exports.__esModule = true;
@@ -4612,7 +4696,7 @@ var handlebars = (function () {
     return new Parser();
 })();exports["default"] = handlebars;
 module.exports = exports["default"];
-},{}],19:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -4778,7 +4862,7 @@ PrintVisitor.prototype.HashPair = function (pair) {
   return pair.key + '=' + this.accept(pair.value);
 };
 /*eslint-enable new-cap */
-},{"./visitor":20}],20:[function(require,module,exports){
+},{"./visitor":17}],17:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -4911,7 +4995,7 @@ Visitor.prototype = {
 exports['default'] = Visitor;
 module.exports = exports['default'];
 /* content */ /* comment */ /* path */ /* string */ /* number */ /* bool */ /* literal */ /* literal */
-},{"../exception":22,"./ast":12}],21:[function(require,module,exports){
+},{"../exception":19,"./ast":9}],18:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -5124,7 +5208,7 @@ function omitLeft(body, i, multiple) {
 
 exports['default'] = WhitespaceControl;
 module.exports = exports['default'];
-},{"./visitor":20}],22:[function(require,module,exports){
+},{"./visitor":17}],19:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5163,7 +5247,7 @@ Exception.prototype = new Error();
 
 exports['default'] = Exception;
 module.exports = exports['default'];
-},{}],23:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -5184,7 +5268,7 @@ exports['default'] = function (Handlebars) {
 
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],24:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -5417,7 +5501,7 @@ function initData(context, data) {
   }
   return data;
 }
-},{"./base":11,"./exception":22,"./utils":26}],25:[function(require,module,exports){
+},{"./base":8,"./exception":19,"./utils":23}],22:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5432,7 +5516,7 @@ SafeString.prototype.toString = SafeString.prototype.toHTML = function () {
 
 exports['default'] = SafeString;
 module.exports = exports['default'];
-},{}],26:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5547,7 +5631,7 @@ function blockParams(params, ids) {
 function appendContextPath(contextPath, id) {
   return (contextPath ? contextPath + '.' : '') + id;
 }
-},{}],27:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 // USAGE:
 // var handlebars = require('handlebars');
 /* eslint-disable no-var */
@@ -5574,7 +5658,7 @@ if (typeof require !== 'undefined' && require.extensions) {
   require.extensions['.hbs'] = extension;
 }
 
-},{"../dist/cjs/handlebars":9,"../dist/cjs/handlebars/compiler/printer":19,"fs":6}],28:[function(require,module,exports){
+},{"../dist/cjs/handlebars":6,"../dist/cjs/handlebars/compiler/printer":16,"fs":3}],25:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -5584,7 +5668,7 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":34,"./source-map/source-map-generator":35,"./source-map/source-node":36}],29:[function(require,module,exports){
+},{"./source-map/source-map-consumer":31,"./source-map/source-map-generator":32,"./source-map/source-node":33}],26:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5683,7 +5767,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":37,"amdefine":38}],30:[function(require,module,exports){
+},{"./util":34,"amdefine":35}],27:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5827,7 +5911,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./base64":31,"amdefine":38}],31:[function(require,module,exports){
+},{"./base64":28,"amdefine":35}],28:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5871,7 +5955,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":38}],32:[function(require,module,exports){
+},{"amdefine":35}],29:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5953,7 +6037,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":38}],33:[function(require,module,exports){
+},{"amdefine":35}],30:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2014 Mozilla Foundation and contributors
@@ -6041,7 +6125,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":37,"amdefine":38}],34:[function(require,module,exports){
+},{"./util":34,"amdefine":35}],31:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6618,7 +6702,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":29,"./base64-vlq":30,"./binary-search":32,"./util":37,"amdefine":38}],35:[function(require,module,exports){
+},{"./array-set":26,"./base64-vlq":27,"./binary-search":29,"./util":34,"amdefine":35}],32:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7020,7 +7104,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":29,"./base64-vlq":30,"./mapping-list":33,"./util":37,"amdefine":38}],36:[function(require,module,exports){
+},{"./array-set":26,"./base64-vlq":27,"./mapping-list":30,"./util":34,"amdefine":35}],33:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7436,7 +7520,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./source-map-generator":35,"./util":37,"amdefine":38}],37:[function(require,module,exports){
+},{"./source-map-generator":32,"./util":34,"amdefine":35}],34:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7757,7 +7841,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":38}],38:[function(require,module,exports){
+},{"amdefine":35}],35:[function(require,module,exports){
 (function (process,__filename){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 0.1.0 Copyright (c) 2011, The Dojo Foundation All Rights Reserved.
@@ -7881,9 +7965,11 @@ function amdefine(module, requireFn) {
                 });
 
                 //Wait for next tick to call back the require call.
-                process.nextTick(function () {
-                    callback.apply(null, deps);
-                });
+                if (callback) {
+                    process.nextTick(function () {
+                        callback.apply(null, deps);
+                    });
+                }
             }
         }
 
@@ -8060,7 +8146,7 @@ function amdefine(module, requireFn) {
 module.exports = amdefine;
 
 }).call(this,require('_process'),"/node_modules/handlebars/node_modules/source-map/node_modules/amdefine/amdefine.js")
-},{"_process":8,"path":7}],39:[function(require,module,exports){
+},{"_process":5,"path":4}],36:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo! Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -8074,15 +8160,27 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
 exports._getPrivFilters = function () {
 
-    var STR_UD = 'undefined',
-        STR_NL = 'null',
-        LT     = /</g,
+    var LT     = /</g,
         QUOT   = /"/g,
         SQUOT  = /'/g,
         NULL   = /\x00/g,
         SPECIAL_ATTR_VALUE_UNQUOTED_CHARS = /(?:^(?:["'`]|\x00+$|$)|[\x09-\x0D >])/g,
         SPECIAL_HTML_CHARS = /[&<>"'`]/g, 
         SPECIAL_COMMENT_CHARS = /(?:\x00|^-*!?>|--!?>|--?!?$|\]>|\]$)/g;
+
+    // CSS sensitive chars: ()"'/,!*@{}:;
+    // By CSS: (Tab|NewLine|colon|semi|lpar|rpar|apos|sol|comma|excl|ast|midast);|(quot|QUOT)
+    // By URI_PROTOCOL: (Tab|NewLine);
+    var SENSITIVE_HTML_ENTITIES = /&(?:#([xX][0-9A-Fa-f]+|\d+);?|(Tab|NewLine|colon|semi|lpar|rpar|apos|sol|comma|excl|ast|midast|ensp|emsp|thinsp);|(nbsp|amp|AMP|lt|LT|gt|GT|quot|QUOT);?)/g,
+        SENSITIVE_NAMED_REF_MAP = {Tab: '\t', NewLine: '\n', colon: ':', semi: ';', lpar: '(', rpar: ')', apos: '\'', sol: '/', comma: ',', excl: '!', ast: '*', midast: '*', ensp: '\u2002', emsp: '\u2003', thinsp: '\u2009', nbsp: '\xA0', amp: '&', lt: '<', gt: '>', quot: '"', QUOT: '"'};
+
+    // TODO: CSS_DANGEROUS_FUNCTION_NAME = /(url\(|expression\()/ig;
+    var CSS_UNQUOTED_CHARS = /[^%#+\-\w\.]/g,
+        // \x7F and \x01-\x1F less \x09 are for Safari 5.0
+        CSS_DOUBLE_QUOTED_CHARS = /[\x01-\x1F\x7F\\"]/g,
+        CSS_SINGLE_QUOTED_CHARS = /[\x01-\x1F\x7F\\']/g,
+        // this assumes encodeURI() and encodeURIComponent() has escaped 1-32, 41, 127 for IE8
+        CSS_UNQUOTED_URL = /['\(\)]/g; // " \ treated by encodeURI()   
 
     // Given a full URI, need to support "[" ( IPv6address ) "]" in URI as per RFC3986
     // Reference: https://tools.ietf.org/html/rfc3986
@@ -8097,26 +8195,164 @@ exports._getPrivFilters = function () {
     // Reference for named characters: https://html.spec.whatwg.org/multipage/entities.json
     var URI_BLACKLIST_PROTOCOLS = {'javascript':1, 'data':1, 'vbscript':1, 'mhtml':1},
         URI_PROTOCOL_COLON = /(?::|&#[xX]0*3[aA];?|&#0*58;?|&colon;)/,
-        URI_PROTOCOL_HTML_ENTITIES = /&(?:#([xX][0-9A-Fa-f]+|\d+);?|Tab;|NewLine;)/g,
         URI_PROTOCOL_WHITESPACES = /(?:^[\x00-\x20]+|[\t\n\r\x00]+)/g,
-        codePointConvertor = String.fromCodePoint || String.fromCharCode,
-        x;
+        URI_PROTOCOL_NAMED_REF_MAP = {Tab: '\t', NewLine: '\n'};
+
+    var x, 
+        strReplace = String.prototype.replace, 
+        fromCodePoint = String.fromCodePoint || function(codePoint) {
+            if (arguments.length === 0) {
+                return '';
+            }
+            if (codePoint <= 0xFFFF) { // BMP code point
+                return String.fromCharCode(codePoint);
+            }
+
+            // Astral code point; split in surrogate halves
+            // http://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
+            codePoint -= 0x10000;
+            return String.fromCharCode((codePoint >> 10) + 0xD800, (codePoint % 0x400) + 0xDC00);
+        };
+
+
+    function getProtocol(s) {
+        s = s.split(URI_PROTOCOL_COLON, 2);
+        return (s.length === 2 && s[0]) ? s[0] : null;
+    }
+
+    function stringify(s, callback) {
+        return typeof s === 'undefined' ? 'undefined'
+             : s === null               ? 'null'
+             : callback.apply(s.toString(), [].splice.call(arguments, 2));
+    }
+
+
+    function htmlDecode(s, namedRefMap, reNamedRef, callback) {
+        namedRefMap = namedRefMap || SENSITIVE_NAMED_REF_MAP;
+        reNamedRef = reNamedRef || SENSITIVE_HTML_ENTITIES;
+
+        var decodedStr, args = [].splice.call(arguments, 4);
+
+        return stringify(s, function() {
+            decodedStr = this.replace(NULL, '\uFFFD').replace(reNamedRef, function(m, num, named, named1) {
+                if (num) {
+                    num = Number(num[0] <= '9' ? num : '0' + num);
+                    // switch(num) {
+                    //     case 0x80: return '\u20AC';  // EURO SIGN (€)
+                    //     case 0x82: return '\u201A';  // SINGLE LOW-9 QUOTATION MARK (‚)
+                    //     case 0x83: return '\u0192';  // LATIN SMALL LETTER F WITH HOOK (ƒ)
+                    //     case 0x84: return '\u201E';  // DOUBLE LOW-9 QUOTATION MARK („)
+                    //     case 0x85: return '\u2026';  // HORIZONTAL ELLIPSIS (…)
+                    //     case 0x86: return '\u2020';  // DAGGER (†)
+                    //     case 0x87: return '\u2021';  // DOUBLE DAGGER (‡)
+                    //     case 0x88: return '\u02C6';  // MODIFIER LETTER CIRCUMFLEX ACCENT (ˆ)
+                    //     case 0x89: return '\u2030';  // PER MILLE SIGN (‰)
+                    //     case 0x8A: return '\u0160';  // LATIN CAPITAL LETTER S WITH CARON (Š)
+                    //     case 0x8B: return '\u2039';  // SINGLE LEFT-POINTING ANGLE QUOTATION MARK (‹)
+                    //     case 0x8C: return '\u0152';  // LATIN CAPITAL LIGATURE OE (Œ)
+                    //     case 0x8E: return '\u017D';  // LATIN CAPITAL LETTER Z WITH CARON (Ž)
+                    //     case 0x91: return '\u2018';  // LEFT SINGLE QUOTATION MARK (‘)
+                    //     case 0x92: return '\u2019';  // RIGHT SINGLE QUOTATION MARK (’)
+                    //     case 0x93: return '\u201C';  // LEFT DOUBLE QUOTATION MARK (“)
+                    //     case 0x94: return '\u201D';  // RIGHT DOUBLE QUOTATION MARK (”)
+                    //     case 0x95: return '\u2022';  // BULLET (•)
+                    //     case 0x96: return '\u2013';  // EN DASH (–)
+                    //     case 0x97: return '\u2014';  // EM DASH (—)
+                    //     case 0x98: return '\u02DC';  // SMALL TILDE (˜)
+                    //     case 0x99: return '\u2122';  // TRADE MARK SIGN (™)
+                    //     case 0x9A: return '\u0161';  // LATIN SMALL LETTER S WITH CARON (š)
+                    //     case 0x9B: return '\u203A';  // SINGLE RIGHT-POINTING ANGLE QUOTATION MARK (›)
+                    //     case 0x9C: return '\u0153';  // LATIN SMALL LIGATURE OE (œ)
+                    //     case 0x9E: return '\u017E';  // LATIN SMALL LETTER Z WITH CARON (ž)
+                    //     case 0x9F: return '\u0178';  // LATIN CAPITAL LETTER Y WITH DIAERESIS (Ÿ)
+                    // }
+                    // // num >= 0xD800 && num <= 0xDFFF, and 0x0D is separately handled, as it doesn't fall into the range of x.pec()
+                    // return (num >= 0xD800 && num <= 0xDFFF) || num === 0x0D ? '\uFFFD' : x.frCoPt(num);
+
+                    return num === 0x80 ? '\u20AC'  // EURO SIGN (€)
+                            : num === 0x82 ? '\u201A'  // SINGLE LOW-9 QUOTATION MARK (‚)
+                            : num === 0x83 ? '\u0192'  // LATIN SMALL LETTER F WITH HOOK (ƒ)
+                            : num === 0x84 ? '\u201E'  // DOUBLE LOW-9 QUOTATION MARK („)
+                            : num === 0x85 ? '\u2026'  // HORIZONTAL ELLIPSIS (…)
+                            : num === 0x86 ? '\u2020'  // DAGGER (†)
+                            : num === 0x87 ? '\u2021'  // DOUBLE DAGGER (‡)
+                            : num === 0x88 ? '\u02C6'  // MODIFIER LETTER CIRCUMFLEX ACCENT (ˆ)
+                            : num === 0x89 ? '\u2030'  // PER MILLE SIGN (‰)
+                            : num === 0x8A ? '\u0160'  // LATIN CAPITAL LETTER S WITH CARON (Š)
+                            : num === 0x8B ? '\u2039'  // SINGLE LEFT-POINTING ANGLE QUOTATION MARK (‹)
+                            : num === 0x8C ? '\u0152'  // LATIN CAPITAL LIGATURE OE (Œ)
+                            : num === 0x8E ? '\u017D'  // LATIN CAPITAL LETTER Z WITH CARON (Ž)
+                            : num === 0x91 ? '\u2018'  // LEFT SINGLE QUOTATION MARK (‘)
+                            : num === 0x92 ? '\u2019'  // RIGHT SINGLE QUOTATION MARK (’)
+                            : num === 0x93 ? '\u201C'  // LEFT DOUBLE QUOTATION MARK (“)
+                            : num === 0x94 ? '\u201D'  // RIGHT DOUBLE QUOTATION MARK (”)
+                            : num === 0x95 ? '\u2022'  // BULLET (•)
+                            : num === 0x96 ? '\u2013'  // EN DASH (–)
+                            : num === 0x97 ? '\u2014'  // EM DASH (—)
+                            : num === 0x98 ? '\u02DC'  // SMALL TILDE (˜)
+                            : num === 0x99 ? '\u2122'  // TRADE MARK SIGN (™)
+                            : num === 0x9A ? '\u0161'  // LATIN SMALL LETTER S WITH CARON (š)
+                            : num === 0x9B ? '\u203A'  // SINGLE RIGHT-POINTING ANGLE QUOTATION MARK (›)
+                            : num === 0x9C ? '\u0153'  // LATIN SMALL LIGATURE OE (œ)
+                            : num === 0x9E ? '\u017E'  // LATIN SMALL LETTER Z WITH CARON (ž)
+                            : num === 0x9F ? '\u0178'  // LATIN CAPITAL LETTER Y WITH DIAERESIS (Ÿ)
+                            : (num >= 0xD800 && num <= 0xDFFF) || num === 0x0D ? '\uFFFD'
+                            : x.frCoPt(num);
+                }
+                return namedRefMap[named || named1] || m;
+            });
+            return callback ? callback.apply(decodedStr, args) : decodedStr;
+        });
+    }
+
+    function cssEncode(chr) {
+        // space after \\HEX is needed by spec
+        return '\\' + chr.charCodeAt(0).toString(16).toLowerCase() + ' ';
+    }
+    function css(s, reSensitiveChars) {
+        return htmlDecode(s, null, null, function() {
+            return this.replace(reSensitiveChars, cssEncode);
+        });
+    }
+    function cssUrl(s, reSensitiveChars) {
+        return htmlDecode(s, null, null, function() {
+            // encodeURI() will throw error for use of the CSS_UNSUPPORTED_CODE_POINT (i.e., [\uD800-\uDFFF])
+            var s = x.yufull(this), protocol = getProtocol(s);
+            // prefix ## for blacklisted protocols
+            s = protocol && URI_BLACKLIST_PROTOCOLS[protocol.toLowerCase()] ? '##' + s : s;
+
+            return reSensitiveChars ? s.replace(reSensitiveChars, cssEncode) : s;
+        });
+    }
 
     return (x = {
+        // turn invalid codePoints and that of non-characters to \uFFFD, and then fromCodePoint()
+        frCoPt: function(num) {
+            return !isFinite(num) ||            // `NaN`, `+Infinity`, or `-Infinity`
+                num <= 0 ||                     // NULL or not a valid Unicode code point
+                num > 0x10FFFF ||               // not a valid Unicode code point
+                // Math.floor(num) != num || 
+
+                (num >= 0x01 && num <= 0x08) ||
+                (num >= 0x0E && num <= 0x1F) ||
+                (num >= 0x7F && num <= 0x9F) ||
+                (num >= 0xFDD0 && num <= 0xFDEF) ||
+                
+                 num === 0x0B || 
+                (num & 0xFFFF) === 0xFFFF || 
+                (num & 0xFFFF) === 0xFFFE ? '\uFFFD' : fromCodePoint(num);
+        },
+        d: htmlDecode,
         /*
          * @param {string} s - An untrusted uri input
          * @returns {string} s - null if relative url, otherwise the protocol with whitespaces stripped and lower-cased
          */
         yup: function(s) {
-            s = s.replace(NULL, '').split(URI_PROTOCOL_COLON, 2);
-            return (s.length >= 2 && s[0]) ? s[0].replace(URI_PROTOCOL_HTML_ENTITIES, function (m, p) {
-                        return (typeof p === STR_UD) ? '' // &Tab; &NewLine; will be stripped
-                            : codePointConvertor((p[0] === 'X' || p[0] === 'x') ? '0' + p : p);
-                    })
-                    // required for left trim and remove interim whitespaces
-                    .replace(URI_PROTOCOL_WHITESPACES, '')
-                    .toLowerCase()
-                : null;
+            s = getProtocol(s.replace(NULL, ''));
+            // URI_PROTOCOL_WHITESPACES is required for left trim and remove interim whitespaces
+            return s ? htmlDecode(s, URI_PROTOCOL_NAMED_REF_MAP, null, function() {
+                return this.replace(URI_PROTOCOL_WHITESPACES, '').toLowerCase();
+            }): null;
         },
 
         /*
@@ -8130,26 +8366,20 @@ exports._getPrivFilters = function () {
          * See workaround at https://github.com/yahoo/xss-filters#warnings
          */
         y: function(s) {
-            return typeof s === STR_UD ? STR_UD
-                 : s === null          ? STR_NL
-                 : s.toString()
-                    .replace(SPECIAL_HTML_CHARS, function (m) {
-                        return m === '&' ? '&amp;'
-                            :  m === '<' ? '&lt;'
-                            :  m === '>' ? '&gt;'
-                            :  m === '"' ? '&quot;'
-                            :  m === "'" ? '&#39;'
-                            :  /*m === '`'*/ '&#96;';       // in hex: 60
-                    });
+            return stringify(s, strReplace, SPECIAL_HTML_CHARS, function (m) {
+                return m === '&' ? '&amp;'
+                    :  m === '<' ? '&lt;'
+                    :  m === '>' ? '&gt;'
+                    :  m === '"' ? '&quot;'
+                    :  m === "'" ? '&#39;'
+                    :  /*m === '`'*/ '&#96;';       // in hex: 60
+            });
         },
 
         // FOR DETAILS, refer to inHTMLData()
         // Reference: https://html.spec.whatwg.org/multipage/syntax.html#data-state
         yd: function (s) {
-            return typeof s === STR_UD ? STR_UD
-                 : s === null          ? STR_NL
-                 : s.toString()
-                    .replace(LT, '&lt;');
+            return stringify(s, strReplace, LT, '&lt;');
         },
 
         // FOR DETAILS, refer to inHTMLComment()
@@ -8165,36 +8395,27 @@ exports._getPrivFilters = function () {
         // We do not care --\s>, which can possibly be intepreted as a valid close comment tag in very old browsers (e.g., firefox 3.6), as specified in the html4 spec
         // Reference: http://www.w3.org/TR/html401/intro/sgmltut.html#h-3.2.4
         yc: function (s) {
-            return typeof s === STR_UD ? STR_UD
-                 : s === null          ? STR_NL
-                 : s.toString()
-                    .replace(SPECIAL_COMMENT_CHARS, function(m){
-                        return m === '\x00' ? '\uFFFD'
-                            : m === '--!' || m === '--' || m === '-' || m === ']' ? m + ' '
-                            :/*
-                            :  m === ']>'   ? '] >'
-                            :  m === '-->'  ? '-- >'
-                            :  m === '--!>' ? '--! >'
-                            : /-*!?>/.test(m) ? */ m.slice(0, -1) + ' >';
-                    });
+            return stringify(s, strReplace, SPECIAL_COMMENT_CHARS, function(m){
+                return m === '\x00' ? '\uFFFD'
+                    : m === '--!' || m === '--' || m === '-' || m === ']' ? m + ' '
+                    :/*
+                    :  m === ']>'   ? '] >'
+                    :  m === '-->'  ? '-- >'
+                    :  m === '--!>' ? '--! >'
+                    : /-*!?>/.test(m) ? */ m.slice(0, -1) + ' >';
+            });
         },
 
         // FOR DETAILS, refer to inDoubleQuotedAttr()
         // Reference: https://html.spec.whatwg.org/multipage/syntax.html#attribute-value-(double-quoted)-state
         yavd: function (s) {
-            return typeof s === STR_UD  ? STR_UD
-                 : s === null           ? STR_NL
-                 : s.toString()
-                    .replace(QUOT, '&quot;');
+            return stringify(s, strReplace, QUOT, '&quot;');
         },
 
         // FOR DETAILS, refer to inSingleQuotedAttr()
         // Reference: https://html.spec.whatwg.org/multipage/syntax.html#attribute-value-(single-quoted)-state
         yavs: function (s) {
-            return typeof s === STR_UD  ? STR_UD
-                 : s === null           ? STR_NL
-                 : s.toString()
-                    .replace(SQUOT, '&#39;');
+            return stringify(s, strReplace, SQUOT, '&#39;');
         },
 
         // FOR DETAILS, refer to inUnQuotedAttr()
@@ -8227,21 +8448,19 @@ exports._getPrivFilters = function () {
         // Example:
         // <input value={{{yavu s}}} name="passwd"/>
         yavu: function (s) {
-            return typeof s === STR_UD ? STR_UD
-                : s === null           ? STR_NL
-                : s.toString().replace(SPECIAL_ATTR_VALUE_UNQUOTED_CHARS, function (m) {
-                    return m === '\t'   ? '&#9;'  // in hex: 09
-                        :  m === '\n'   ? '&#10;' // in hex: 0A
-                        :  m === '\x0B' ? '&#11;' // in hex: 0B  for IE. IE<9 \v equals v, so use \x0B instead
-                        :  m === '\f'   ? '&#12;' // in hex: 0C
-                        :  m === '\r'   ? '&#13;' // in hex: 0D
-                        :  m === ' '    ? '&#32;' // in hex: 20
-                        :  m === '>'    ? '&gt;'
-                        :  m === '"'    ? '&quot;'
-                        :  m === "'"    ? '&#39;'
-                        :  m === '`'    ? '&#96;'
-                        : /*empty or all null*/ '\uFFFD';
-                });
+            return stringify(s, strReplace, SPECIAL_ATTR_VALUE_UNQUOTED_CHARS, function (m) {
+                return m === '\t'   ? '&#9;'  // in hex: 09
+                    :  m === '\n'   ? '&#10;' // in hex: 0A
+                    :  m === '\x0B' ? '&#11;' // in hex: 0B  for IE. IE<9 \v equals v, so use \x0B instead
+                    :  m === '\f'   ? '&#12;' // in hex: 0C
+                    :  m === '\r'   ? '&#13;' // in hex: 0D
+                    :  m === ' '    ? '&#32;' // in hex: 20
+                    :  m === '>'    ? '&gt;'
+                    :  m === '"'    ? '&quot;'
+                    :  m === "'"    ? '&#39;'
+                    :  m === '`'    ? '&#96;'
+                    : /*empty or all null*/ '\uFFFD';
+            });
         },
 
         yu: encodeURI,
@@ -8260,6 +8479,77 @@ exports._getPrivFilters = function () {
                     .replace(URL_IPV6, function(m, p) {
                         return '//[' + p + ']';
                     });
+        },
+
+
+
+        // The design principle of the CSS filter MUST meet the following goal(s).
+        // (1) The input cannot break out of the context (expr) and this is to fulfill the just sufficient encoding principle.
+        // (2) The input cannot introduce CSS parsing error and this is to address the concern of UI redressing.
+        //
+        // term
+        //   : unary_operator?
+        //     [ NUMBER S* | PERCENTAGE S* | LENGTH S* | EMS S* | EXS S* | ANGLE S* |
+        //     TIME S* | FREQ S* ]
+        //   | STRING S* | IDENT S* | URI S* | hexcolor | function
+        // 
+        // Reference:
+        // * http://www.w3.org/TR/CSS21/grammar.html 
+        // * http://www.w3.org/TR/css-syntax-3/
+        // 
+        // PART 1. The first rule is to filter out the html encoded string, however this rule can be removed as rule (3) IF '&' is being encoded.
+        // PART 2. The second rule remove unsupported code point [\uD800-\uDFFF], it is safe to be empty string.
+        // PART 3. The third rule is CSS escaping and depends on 
+        // 
+        // NOTE: delimitar in CSS - \ _ : ; ( ) " ' / , % # ! * @ . { }
+        //
+        // PART 4. The forth rule is to blacklist the dangerous function in CSS, however this rule can be removed as rule (3) will encode '()' to '\\3b \\28 ' in UNQUOTED filter,
+        // while there is no need to encode it in STRING filter.
+
+
+        // CSS_UNQUOTED_CHARS = /([^%#\-+_a-z0-9\.])/ig,
+        // we allow NUMBER, PERCENTAGE, LENGTH, EMS, EXS, ANGLE, TIME, FREQ, IDENT and hexcolor in UNQUOTED filter without escaping chars [%#\-+_a-z0-9\.].
+        yceu: function(s) {
+            return css(s, CSS_UNQUOTED_CHARS);
+        },
+
+        // string1 = \"([^\n\r\f\\"]|\\{nl}|\\[^\n\r\f0-9a-f]|\\[0-9a-f]{1,6}(\r\n|[ \n\r\t\f])?)*\"
+        // CSS_DOUBLE_QUOTED_CHARS = /([\u0000\n\r\f\v\\"])/ig,
+        // we allow STRING in QUOTED filter and only escape [\u0000\n\r\f\v\\"] only. (\v is added for IE)
+        yced: function(s) {
+            return css(s, CSS_DOUBLE_QUOTED_CHARS);
+        },
+
+        // string2 = \'([^\n\r\f\\']|\\{nl}|\\[^\n\r\f0-9a-f]|\\[0-9a-f]{1,6}(\r\n|[ \n\r\t\f])?)*\'
+        // CSS_SINGLE_QUOTED_CHARS = /([\u0000\n\r\f\v\\'])/ig,
+        // we allow STRING in QUOTED filter and only escape [\u0000\n\r\f\v\\'] only. (\v is added for IE)
+        yces: function(s) {
+            return css(s, CSS_SINGLE_QUOTED_CHARS);
+        },
+
+
+        // for url({{{yceuu url}}}
+        // unquoted_url = ([!#$%&*-~]|\\{h}{1,6}(\r\n|[ \t\r\n\f])?|\\[^\r\n\f0-9a-f])* (CSS 2.1 definition)
+        // unquoted_url = ([^"'()\\ \t\n\r\f\v\u0000\u0008\u000b\u000e-\u001f\u007f]|\\{h}{1,6}(\r\n|[ \t\r\n\f])?|\\[^\r\n\f0-9a-f])* (CSS 3.0 definition)
+        // The state machine in CSS 3.0 is more well defined - http://www.w3.org/TR/css-syntax-3/#consume-a-url-token0
+        // CSS_UNQUOTED_URL = /(["'\(\)\\ \t\n\r\f\v\u0000\u0008\u000b\u007f\u000e-\u001f])/ig; (\v is added for IE)
+        // CSS_UNQUOTED_URL = /(["'\(\)])/ig; (optimized version by chaining with yufull)
+        yceuu: function(s) {
+            return cssUrl(s, CSS_UNQUOTED_URL);
+        },
+
+        // for url("{{{yceud url}}}
+        // CSS_DOUBLE_QUOTED_URL = CSS_DOUBLE_QUOTED_CHARS;
+        // CSS_DOUBLE_QUOTED_URL has nothing else to escape (optimized version by chaining with yufull)
+        yceud: function(s) { 
+            return cssUrl(s);
+        },
+
+        // for url('{{{yceus url}}}
+        // CSS_SINGLE_QUOTED_URL = CSS_SINGLE_QUOTED_CHARS;
+        // CSS_SINGLE_QUOTED_URL = /'/g; (optimized version by chaining with yufull)
+        yceus: function(s) { 
+            return cssUrl(s, SQUOT);
         }
     });
 };
@@ -8960,7 +9250,7 @@ exports.uriFragmentInHTMLData = exports.uriComponentInHTMLData;
 */
 exports.uriFragmentInHTMLComment = exports.uriComponentInHTMLComment;
 
-},{}],40:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 (function (process){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
@@ -8975,13 +9265,21 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 (function () {
 "use strict";
 
-/* debug facility */
-var debug = require('debug')('cph');
-
 /* import the required package */
 var ContextParser = require('./strict-context-parser.js'),
+    configContextParser = {
+        enableInputPreProcessing: true,
+        enableCanonicalization: true,
+        enableIEConditionalComments: false,
+        enableStateTracking: true
+    },
     handlebarsUtils = require('./handlebars-utils.js'),
     stateMachine = require('context-parser').StateMachine;
+
+var cssParserUtils = require('./css-utils.js');
+
+var HtmlEntitiesDecoder = require("./html-decoder/html-decoder.js"),
+    htmlDecoder = new HtmlEntitiesDecoder();
 
 /////////////////////////////////////////////////////
 //
@@ -8997,6 +9295,12 @@ var filter = {
     FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED: 'yavd',
     FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED: 'yavs',
     FILTER_ATTRIBUTE_VALUE_UNQUOTED: 'yavu',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED: 'yced',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED: 'yces',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED: 'yceu',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_UNQUOTED: 'yceuu',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_DOUBLE_QUOTED: 'yceud',
+    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_SINGLE_QUOTED: 'yceus',
     FILTER_ENCODE_URI: 'yu',
     FILTER_ENCODE_URI_COMPONENT: 'yuc',
     FILTER_URI_SCHEME_BLACKLIST: 'yubl',
@@ -9061,7 +9365,7 @@ function ContextParserHandlebars(config) {
     this._lineNo = 1;
 
     /* context parser for HTML5 parsing */
-    this.contextParser = new ContextParser(config);
+    this.contextParser = new ContextParser(configContextParser);
 }
 
 /**
@@ -9147,6 +9451,7 @@ ContextParserHandlebars.prototype.analyzeContext = function(input) {
 * @description
 * Build the AST tree of the Handlebars template language.
 */
+// TODO: using flex syntax to build the AST.
 ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
 
     /* init the data structure */
@@ -9351,7 +9656,7 @@ ContextParserHandlebars.prototype.generateNodeObject = function(type, content, s
 ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, charNo) {
 
     var output = '', leftParser, rightParser,
-        t, msg, exceptionObj, debugString = [];
+        t, msg, exceptionObj;
 
     this._charNo = charNo;
 
@@ -9363,7 +9668,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
 
             if (node.type === 'html') {
                 
-                output += parser.parsePartial(node.content);
+                output += parser.contextualize(node.content);
 
             } else if (node.type === 'escapeexpression' ||
                 node.type === 'rawexpression') {
@@ -9377,10 +9682,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
             } else if (node.type === 'node') {
                 
                 t = this.analyzeAst(node.content, parser, node.startPos);
-                // cloning states from the branches
-                parser.state = t.parser.state;
-                parser.attributeName = t.parser.attributeName;
-                parser.attributeValue = t.parser.attributeValue;
+                parser.cloneStates(t.parser);
 
                 output += t.output;
 
@@ -9418,7 +9720,6 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
              leftParser.getAttributeNameType() !== rightParser.getAttributeNameType())
             )
             ) {
-        // debug("analyzeAst:["+r.parsers[0].state+"/"+r.parsers[1].state+"]");
         msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
         msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
         msg += "attributeNameType:("+leftParser.getAttributeNameType()+"/"+rightParser.getAttributeNameType()+")";
@@ -9445,10 +9746,6 @@ ContextParserHandlebars.prototype.countNewLineChar = function(str) {
 *
 * @description
 * Handle the Handlebars template. (Handlebars Template Context)
-*
-* TODO: the function handleTemplate does not need to handle other expressions
-* except RAW_EXPRESSION and ESCAPE_EXPRESSION anymore, we can safely remove it
-* when the code is stable.
 */
 ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) {
 
@@ -9465,7 +9762,6 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
         if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
             handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
             /* _handleRawExpression and no validation need, it is safe guard in buildAst function */
-            debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
             obj = this.consumeExpression(input, i, handlebarsExpressionType, true);
             return;
         } else if (input[i] === '{' && i+1<len && input[i+1] === '{') {
@@ -9474,7 +9770,6 @@ ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) 
             switch (handlebarsExpressionType) {
                 case handlebarsUtils.ESCAPE_EXPRESSION:
                     /* handleEscapeExpression and no validation need, it is safe guard in buildAst function */
-                    debug("handleTemplate:handlebarsExpressionType:"+handlebarsExpressionType,",i:"+i+",state:"+stateObj.state);
                     obj = this.handleEscapeExpression(input, i, len, stateObj, true);
                     return;
                 default:
@@ -9508,8 +9803,8 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
     var isFullUri = false, filters = [], f, exceptionObj, errorMessage,
         state = parser.state,
         tagName = parser.getStartTagName(),
-        attributeName = parser.attributeName,
-        attributeValue = parser.attributeValue;
+        attributeName = parser.getAttributeName(),
+        attributeValue = parser.getAttributeValue();
 
     try {
 
@@ -9534,7 +9829,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
 
                 if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_URI) {
                     /* we don't support javascript parsing yet */
-                    // TODO: this filtering rule cannot cover all cases.
+                    // TODO: should use yup() instead
                     if (handlebarsUtils.blacklistProtocol(attributeValue)) {
                         throw 'scriptable URI attribute (e.g., after <a href="javascript: )';
                     }
@@ -9549,11 +9844,60 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     filters.push(f);                    
                     
                 } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_CSS) { // CSS
-                    /* we don't support css parser yet
-                    * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
-                    * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
-                    */
-                    throw 'CSS style attribute';
+                    var r;
+                    try {
+                        attributeValue = htmlDecoder.decode(attributeValue);
+                        r = cssParserUtils.parseStyleAttributeValue(attributeValue);
+                    } catch (e) {
+                        throw 'Unsafe output expression @ attribute style CSS context (Parsing error OR expression position not supported!)';
+                    }
+                    switch(r.code) {
+                        case cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_UNQUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_SINGLE_QUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParserUtils.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_DOUBLE_QUOTED);
+                            isFullUri = true;
+                            break;
+                        case cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED);
+                            break;
+                        case cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED);
+                            break;
+                        case cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED:
+                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED);
+                            break;
+                        case cssParserUtils.STYLE_ATTRIBUTE_ERROR:
+                            throw 'Unsafe output expression @ attribute style CSS context (Parsing error OR expression position not supported!)';
+                    }
+
+                    /* add the attribute value filter */
+                    switch(state) {
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
+                            break;
+                        case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
+                            break;
+                        default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
+                            f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
+                            break;
+                    }
+                    filters.push(f);
+
+                    /* add blacklist filters at the end of filtering chain */
+                    if (isFullUri) {
+                        /* blacklist the URI scheme for full uri */
+                        filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
+                    }
+                    return filters;
+
                 } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_SCRIPTABLE) { // JS
                     /* we don't support js parser yet
                     * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
@@ -9601,11 +9945,13 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                 throw 'being an attribute name (state #: ' + state + ')';
 
 
-            // the following will be caught by parser.isScriptableTag() anyway
-            // case stateMachine.State.STATE_SCRIPT_DATA: // 6
-            //     throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
+            // TODO: need tagname tracing in Context Parser such that we can have 
+            // ability to capture the case of putting output expression within dangerous tag.
+            // like svg etc.
+            // the following will be caught by handlebarsUtils.isScriptableTag(tagName) anyway
+            case stateMachine.State.STATE_SCRIPT_DATA: // 6
+                throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
             
-
             // should not fall into the following states
             case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
                 throw 'unexpectedly BEFORE_ATTRIBUTE_VALUE state';
@@ -9622,7 +9968,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             // To be secure, scriptable tags when encountered will anyway throw an error/warning
             // they require either special parsers of their own context (e.g., CSS/script parsers) 
             //    or an application-specific whitelisted url check (e.g., <script src=""> with yubl-yavu-yufull is not enough)
-            errorMessage += parser.isScriptableTag() ? 'scriptable <' + tagName + '> tag' : exception;
+            errorMessage += handlebarsUtils.isScriptableTag(tagName) ? 'scriptable <' + tagName + '> tag' : exception;
 
             exceptionObj = new ContextParserHandlebarsException(errorMessage, this._lineNo, this._charNo);
             handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
@@ -9792,7 +10138,885 @@ module.exports = ContextParserHandlebars;
 })();
 
 }).call(this,require('_process'))
-},{"./handlebars-utils.js":41,"./strict-context-parser.js":43,"_process":8,"context-parser":1,"debug":3}],41:[function(require,module,exports){
+},{"./css-utils.js":39,"./handlebars-utils.js":40,"./html-decoder/html-decoder.js":42,"./strict-context-parser.js":46,"_process":5,"context-parser":1}],38:[function(require,module,exports){
+(function (process){
+/* parser generated by jison 0.4.15 */
+/*
+  Returns a Parser object of the following structure:
+
+  Parser: {
+    yy: {}
+  }
+
+  Parser.prototype: {
+    yy: {},
+    trace: function(),
+    symbols_: {associative list: name ==> number},
+    terminals_: {associative list: number ==> name},
+    productions_: [...],
+    performAction: function anonymous(yytext, yyleng, yylineno, yy, yystate, $$, _$),
+    table: [...],
+    defaultActions: {...},
+    parseError: function(str, hash),
+    parse: function(input),
+
+    lexer: {
+        EOF: 1,
+        parseError: function(str, hash),
+        setInput: function(input),
+        input: function(),
+        unput: function(str),
+        more: function(),
+        less: function(n),
+        pastInput: function(),
+        upcomingInput: function(),
+        showPosition: function(),
+        test_match: function(regex_match_array, rule_index),
+        next: function(),
+        lex: function(),
+        begin: function(condition),
+        popState: function(),
+        _currentRules: function(),
+        topState: function(),
+        pushState: function(condition),
+
+        options: {
+            ranges: boolean           (optional: true ==> token location info will include a .range[] member)
+            flex: boolean             (optional: true ==> flex-like lexing behaviour where the rules are tested exhaustively to find the longest match)
+            backtrack_lexer: boolean  (optional: true ==> lexer regexes are tested in order and for each matching regex the action code is invoked; the lexer terminates the scan when a token is returned by the action code)
+        },
+
+        performAction: function(yy, yy_, $avoiding_name_collisions, YY_START),
+        rules: [...],
+        conditions: {associative list: name ==> set},
+    }
+  }
+
+
+  token location info (@$, _$, etc.): {
+    first_line: n,
+    last_line: n,
+    first_column: n,
+    last_column: n,
+    range: [start_number, end_number]       (where the numbers are indexes into the input string, regular zero-based)
+  }
+
+
+  the parseError function receives a 'hash' object with these members for lexer and parser errors: {
+    text:        (matched text)
+    token:       (the produced terminal token, if any)
+    line:        (yylineno)
+  }
+  while parser (grammar) errors will also provide these members, i.e. parser errors deliver a superset of attributes: {
+    loc:         (yylloc)
+    expected:    (string describing the set of expected tokens)
+    recoverable: (boolean: TRUE when the parser has a error recovery rule available for this particular error)
+  }
+*/
+var parser = (function(){
+var o=function(k,v,o,l){for(o=o||{},l=k.length;l--;o[k[l]]=v);return o},$V0=[1,11,12],$V1=[2,41],$V2=[1,4],$V3=[1,11],$V4=[2,3],$V5=[1,7],$V6=[1,8,11,12,20,21,22,23,24,25,26,27,28,29,32,33,34,35,36,37,39,40,41,42,43],$V7=[1,35],$V8=[1,24],$V9=[1,25],$Va=[1,26],$Vb=[1,27],$Vc=[1,28],$Vd=[1,29],$Ve=[1,30],$Vf=[1,31],$Vg=[1,34],$Vh=[1,36],$Vi=[1,39],$Vj=[1,40],$Vk=[1,43],$Vl=[1,42],$Vm=[1,32],$Vn=[1,33],$Vo=[1,11,34,36],$Vp=[1,50],$Vq=[1,51],$Vr=[1,11,12,20,21,22,23,24,25,26,27,28,29,32,33,34,35,36,37,39,40,41,42,43],$Vs=[1,11,12,20,21,22,23,24,25,26,27,28,29,32,33,34,35,36,37,40,41,42,43],$Vt=[20,21,22,23,24,25,26,27],$Vu=[1,11,34,36,42,43];
+var parser = {trace: function trace() { },
+yy: {},
+symbols_: {"error":2,"style_attribute":3,"space_or_empty":4,"declarations":5,"declaration_list":6,"property":7,":":8,"expr":9,"prio":10,";":11,"IDENT":12,"term":13,"term_list":14,"operator":15,"numeric_term":16,"unary_operator":17,"string_term":18,"bad_term":19,"NUMBER":20,"PERCENTAGE":21,"LENGTH":22,"EMS":23,"EXS":24,"ANGLE":25,"TIME":26,"FREQ":27,"STRING":28,"URI":29,"hexcolor":30,"function":31,"BAD_STRING":32,"BAD_URI":33,"IMPORTANT_SYM":34,"FUNCTION":35,")":36,"HASH":37,"at_least_one_space":38,"S":39,"+":40,"-":41,"/":42,",":43,"$accept":0,"$end":1},
+terminals_: {2:"error",8:":",11:";",12:"IDENT",20:"NUMBER",21:"PERCENTAGE",22:"LENGTH",23:"EMS",24:"EXS",25:"ANGLE",26:"TIME",27:"FREQ",28:"STRING",29:"URI",32:"BAD_STRING",33:"BAD_URI",34:"IMPORTANT_SYM",35:"FUNCTION",36:")",37:"HASH",39:"S",40:"+",41:"-",42:"/",43:","},
+productions_: [0,[3,3],[5,5],[5,0],[6,3],[6,4],[6,0],[7,2],[9,2],[14,1],[14,2],[14,2],[14,3],[14,0],[13,1],[13,2],[13,1],[13,1],[16,2],[16,2],[16,2],[16,2],[16,2],[16,2],[16,2],[16,2],[18,2],[18,2],[18,2],[18,2],[18,2],[19,2],[19,2],[19,1],[10,2],[10,0],[31,5],[30,2],[38,1],[38,2],[4,1],[4,0],[17,1],[17,1],[15,2],[15,2]],
+performAction: function anonymous(yytext, yyleng, yylineno, yy, yystate /* action[1] */, $$ /* vstack */, _$ /* lstack */) {
+/* this == yyval */
+
+var $0 = $$.length - 1;
+switch (yystate) {
+case 1:
+
+      this.$ = [];
+      var r = this.$;
+      $$[$0-1] !== null? this.$.push($$[$0-1]) : '';
+      $$[$0] !== null? $$[$0].forEach(function(e) { r.push(e); }) : ''
+
+      /* this is used for capturing the empty declaration */
+      if (this.$.length === 0) this.$.push({ type: -1, key: '', value: '' });
+      return this.$;
+    
+break;
+case 2:
+
+      this.$ = {};
+      this.$.key = $$[$0-4];
+
+      this.$.type = -1;
+      var l = $$[$0-1].length;
+      l>0? this.$.value = $$[$0-1][l-1].value : '';
+
+      /* if the last expr is BAD_URI, then we test for the following pattern */
+      if ($$[$0-1][l-1].type !== undefined && $$[$0-1][l-1].type === 'BAD_URI') {
+        $$[$0-1][l-1].value.match(/^(url\([\s]*)$/i)? this.$.type = 1 : '';
+
+      /* if the last expr is BAD_STRING pattern, then we test
+      */
+      } else if ($$[$0-1][l-1].type !== undefined && ($$[$0-1][l-1].type === 'BAD_STRING' || $$[$0-1][l-1].type === 'SPACE_EMPTY')) {
+        $$[$0-1][l-1].value === ''? this.$.type = 4 : '';
+        $$[$0-1][l-1].value.match(/^'[\s]*$/)? this.$.type = 5 : '';
+        $$[$0-1][l-1].value.match(/^"[\s]*$/)? this.$.type = 6 : '';
+
+        if ($$[$0-1][l-2] !== undefined && $$[$0-1][l-2].type !== undefined && $$[$0-1][l-2].type === 'BAD_URI') {
+          $$[$0-1][l-1].value.match(/^'[\s]*$/)? this.$.type = 2 : '';
+          $$[$0-1][l-1].value.match(/^"[\s]*$/)? this.$.type = 3 : '';
+          this.$.value = $$[$0-1][l-2].value + this.$.value;
+        }
+
+      /* if it is end with semicolon, keep it intact */
+      } else if ($$[$0-1][l-1].type !== undefined && $$[$0-1][l-1].type === -2) {
+
+      /* if the last expr is VALID pattern, then we test
+         (1) the string is ended with at least one space.
+         (2) look ahead one expr and see whether it is BAD_URI, if yes, it is ERROR.
+      */
+      } else {
+        $$[$0-1][l-1].value.match(/[\s]+$/)?  this.$.type = 4 : '';
+
+        if ($$[$0-1][l-2] !== undefined && $$[$0-1][l-2].type !== undefined && $$[$0-1][l-2].type === 'BAD_URI') {
+          this.$.type = -1; /* always bad */
+          this.$.value = $$[$0-1][l-2].value + this.$.value;
+        }
+      }
+
+      $$[$0] !== null? this.$.value += ' ' + $$[$0] : '';
+    
+break;
+case 3: case 6: case 13: case 35:
+this.$ = null;
+break;
+case 4:
+
+      this.$ = [];
+      /* capture the semicolon */
+      this.$.push({ type: -2, key: '', value: ';' });
+      if ($$[$0] !== null) this.$.push($$[$0]);
+    
+break;
+case 5:
+
+      this.$ = [];
+      this.$ = $$[$0-3];
+      /* capture the semicolon */
+      this.$.push({ type: -2, key: '', value: ';' });
+      if ($$[$0] !== null) this.$.push($$[$0]);
+    
+break;
+case 7: case 37: case 44: case 45:
+this.$ = $$[$0-1];
+break;
+case 8:
+
+      this.$ = [];
+      this.$.push($$[$0-1]);
+      var r = this.$;
+      $$[$0] !== null? $$[$0].forEach(function(e) { r.push(e) }) : '';
+    
+break;
+case 9: case 10:
+
+      this.$ = [];
+      this.$.push($$[$0]);
+    
+break;
+case 11:
+
+      this.$ = [];
+      $$[$0-1] !== null? this.$ = $$[$0-1] : '';
+      this.$.push($$[$0]);
+    
+break;
+case 12:
+
+      this.$ = [];
+      $$[$0-2] !== null? this.$ = $$[$0-2] : '';
+      this.$.push($$[$0]);
+    
+break;
+case 14: case 16: case 17: case 40: case 42: case 43:
+this.$ = $$[$0];
+break;
+case 15:
+
+      this.$ = $$[$0];
+      this.$.value = $$[$0-1] + $$[$0].value;
+    
+break;
+case 18: case 19: case 20: case 21: case 22: case 23: case 24: case 25: case 26: case 27: case 28: case 29: case 30:
+this.$ = { value: $$[$0-1] + $$[$0] };
+break;
+case 31:
+this.$ = { value: $$[$0-1] + $$[$0], type: 'BAD_STRING' };
+break;
+case 32:
+this.$ = { value: $$[$0-1] + $$[$0], type: 'BAD_URI'    };
+break;
+case 33:
+this.$ = { value: $$[$0], type: 'SPACE_EMPTY' };
+break;
+case 34:
+this.$ = $$[$0-1] + $$[$0];
+break;
+case 36:
+this.$ = { value: $$[$0-4] + $$[$0-3] + $$[$0-2] + $$[$0-1] + $$[$0] };
+break;
+case 38: case 39:
+this.$ = " ";
+break;
+case 41:
+this.$ = "";
+break;
+}
+},
+table: [o($V0,$V1,{3:1,4:2,38:3,39:$V2}),{1:[3]},o($V3,$V4,{5:5,7:6,12:$V5}),o([1,8,11,12,20,21,22,23,24,25,26,27,28,29,32,33,34,35,36,37,40,41,42,43],[2,40],{39:[1,8]}),o($V6,[2,38]),{1:[2,6],6:9,11:[1,10]},{8:$V3},{4:12,8:$V1,38:3,39:$V2},o($V6,[2,39]),{1:[2,1],11:[1,13]},o($V0,$V1,{38:3,4:14,39:$V2}),o([1,11,12,20,21,22,23,24,25,26,27,28,29,32,33,34,35,37,40,41,42,43],$V1,{38:3,4:15,39:$V2}),{8:[2,7]},o($V0,$V1,{38:3,4:16,39:$V2}),o($V3,$V4,{7:6,5:17,12:$V5}),o([1,11,34,42,43],$V1,{38:3,9:18,13:19,16:20,17:21,18:22,19:23,30:37,31:38,4:41,12:$V7,20:$V8,21:$V9,22:$Va,23:$Vb,24:$Vc,25:$Vd,26:$Ve,27:$Vf,28:$Vg,29:$Vh,32:$Vi,33:$Vj,35:$Vk,37:$Vl,39:$V2,40:$Vm,41:$Vn}),o($V3,$V4,{7:6,5:44,12:$V5}),o($V3,[2,4]),o($V3,[2,35],{10:45,34:[1,46]}),o($Vo,[2,13],{38:3,16:20,17:21,18:22,19:23,30:37,31:38,4:41,14:47,13:48,15:49,12:$V7,20:$V8,21:$V9,22:$Va,23:$Vb,24:$Vc,25:$Vd,26:$Ve,27:$Vf,28:$Vg,29:$Vh,32:$Vi,33:$Vj,35:$Vk,37:$Vl,39:$V2,40:$Vm,41:$Vn,42:$Vp,43:$Vq}),o($Vr,[2,14]),{16:52,20:$V8,21:$V9,22:$Va,23:$Vb,24:$Vc,25:$Vd,26:$Ve,27:$Vf},o($Vr,[2,16]),o($Vr,[2,17]),o($Vs,$V1,{38:3,4:53,39:$V2}),o($Vs,$V1,{38:3,4:54,39:$V2}),o($Vs,$V1,{38:3,4:55,39:$V2}),o($Vs,$V1,{38:3,4:56,39:$V2}),o($Vs,$V1,{38:3,4:57,39:$V2}),o($Vs,$V1,{38:3,4:58,39:$V2}),o($Vs,$V1,{38:3,4:59,39:$V2}),o($Vs,$V1,{38:3,4:60,39:$V2}),o($Vt,[2,42]),o($Vt,[2,43]),o($Vs,$V1,{38:3,4:61,39:$V2}),o($Vs,$V1,{38:3,4:62,39:$V2}),o($Vs,$V1,{38:3,4:63,39:$V2}),o($Vs,$V1,{38:3,4:64,39:$V2}),o($Vs,$V1,{38:3,4:65,39:$V2}),o($Vs,$V1,{38:3,4:66,39:$V2}),o($Vs,$V1,{38:3,4:67,39:$V2}),o($Vr,[2,33]),o($Vs,$V1,{38:3,4:68,39:$V2}),o([12,20,21,22,23,24,25,26,27,28,29,32,33,35,36,37,40,41,42,43],$V1,{38:3,4:69,39:$V2}),o($V3,[2,5]),o($V3,[2,2]),o($V3,$V1,{38:3,4:70,39:$V2}),o($Vo,[2,8],{38:3,16:20,17:21,18:22,19:23,30:37,31:38,4:41,13:71,15:72,12:$V7,20:$V8,21:$V9,22:$Va,23:$Vb,24:$Vc,25:$Vd,26:$Ve,27:$Vf,28:$Vg,29:$Vh,32:$Vi,33:$Vj,35:$Vk,37:$Vl,39:$V2,40:$Vm,41:$Vn,42:$Vp,43:$Vq}),o($Vr,[2,9]),o($Vu,$V1,{38:3,16:20,17:21,18:22,19:23,30:37,31:38,4:41,13:73,12:$V7,20:$V8,21:$V9,22:$Va,23:$Vb,24:$Vc,25:$Vd,26:$Ve,27:$Vf,28:$Vg,29:$Vh,32:$Vi,33:$Vj,35:$Vk,37:$Vl,39:$V2,40:$Vm,41:$Vn}),o($Vs,$V1,{38:3,4:74,39:$V2}),o($Vs,$V1,{38:3,4:75,39:$V2}),o($Vr,[2,15]),o($Vr,[2,18]),o($Vr,[2,19]),o($Vr,[2,20]),o($Vr,[2,21]),o($Vr,[2,22]),o($Vr,[2,23]),o($Vr,[2,24]),o($Vr,[2,25]),o($Vr,[2,26]),o($Vr,[2,27]),o($Vr,[2,28]),o($Vr,[2,29]),o($Vr,[2,30]),o($Vr,[2,31]),o($Vr,[2,32]),o($Vr,[2,37]),o([36,42,43],$V1,{38:3,13:19,16:20,17:21,18:22,19:23,30:37,31:38,4:41,9:76,12:$V7,20:$V8,21:$V9,22:$Va,23:$Vb,24:$Vc,25:$Vd,26:$Ve,27:$Vf,28:$Vg,29:$Vh,32:$Vi,33:$Vj,35:$Vk,37:$Vl,39:$V2,40:$Vm,41:$Vn}),o($V3,[2,34]),o($Vr,[2,11]),o($Vu,$V1,{38:3,16:20,17:21,18:22,19:23,30:37,31:38,4:41,13:77,12:$V7,20:$V8,21:$V9,22:$Va,23:$Vb,24:$Vc,25:$Vd,26:$Ve,27:$Vf,28:$Vg,29:$Vh,32:$Vi,33:$Vj,35:$Vk,37:$Vl,39:$V2,40:$Vm,41:$Vn}),o($Vr,[2,10]),o($Vr,[2,44]),o($Vr,[2,45]),{36:[1,78]},o($Vr,[2,12]),o($Vs,$V1,{38:3,4:79,39:$V2}),o($Vr,[2,36])],
+defaultActions: {12:[2,7]},
+parseError: function parseError(str, hash) {
+    if (hash.recoverable) {
+        this.trace(str);
+    } else {
+        throw new Error(str);
+    }
+},
+parse: function parse(input) {
+    var self = this, stack = [0], tstack = [], vstack = [null], lstack = [], table = this.table, yytext = '', yylineno = 0, yyleng = 0, recovering = 0, TERROR = 2, EOF = 1;
+    var args = lstack.slice.call(arguments, 1);
+    var lexer = Object.create(this.lexer);
+    var sharedState = { yy: {} };
+    for (var k in this.yy) {
+        if (Object.prototype.hasOwnProperty.call(this.yy, k)) {
+            sharedState.yy[k] = this.yy[k];
+        }
+    }
+    lexer.setInput(input, sharedState.yy);
+    sharedState.yy.lexer = lexer;
+    sharedState.yy.parser = this;
+    if (typeof lexer.yylloc == 'undefined') {
+        lexer.yylloc = {};
+    }
+    var yyloc = lexer.yylloc;
+    lstack.push(yyloc);
+    var ranges = lexer.options && lexer.options.ranges;
+    if (typeof sharedState.yy.parseError === 'function') {
+        this.parseError = sharedState.yy.parseError;
+    } else {
+        this.parseError = Object.getPrototypeOf(this).parseError;
+    }
+    function popStack(n) {
+        stack.length = stack.length - 2 * n;
+        vstack.length = vstack.length - n;
+        lstack.length = lstack.length - n;
+    }
+    _token_stack:
+        function lex() {
+            var token;
+            token = lexer.lex() || EOF;
+            if (typeof token !== 'number') {
+                token = self.symbols_[token] || token;
+            }
+            return token;
+        }
+    var symbol, preErrorSymbol, state, action, a, r, yyval = {}, p, len, newState, expected;
+    while (true) {
+        state = stack[stack.length - 1];
+        if (this.defaultActions[state]) {
+            action = this.defaultActions[state];
+        } else {
+            if (symbol === null || typeof symbol == 'undefined') {
+                symbol = lex();
+            }
+            action = table[state] && table[state][symbol];
+        }
+                    if (typeof action === 'undefined' || !action.length || !action[0]) {
+                var errStr = '';
+                expected = [];
+                for (p in table[state]) {
+                    if (this.terminals_[p] && p > TERROR) {
+                        expected.push('\'' + this.terminals_[p] + '\'');
+                    }
+                }
+                if (lexer.showPosition) {
+                    errStr = 'Parse error on line ' + (yylineno + 1) + ':\n' + lexer.showPosition() + '\nExpecting ' + expected.join(', ') + ', got \'' + (this.terminals_[symbol] || symbol) + '\'';
+                } else {
+                    errStr = 'Parse error on line ' + (yylineno + 1) + ': Unexpected ' + (symbol == EOF ? 'end of input' : '\'' + (this.terminals_[symbol] || symbol) + '\'');
+                }
+                this.parseError(errStr, {
+                    text: lexer.match,
+                    token: this.terminals_[symbol] || symbol,
+                    line: lexer.yylineno,
+                    loc: yyloc,
+                    expected: expected
+                });
+            }
+        if (action[0] instanceof Array && action.length > 1) {
+            throw new Error('Parse Error: multiple actions possible at state: ' + state + ', token: ' + symbol);
+        }
+        switch (action[0]) {
+        case 1:
+            stack.push(symbol);
+            vstack.push(lexer.yytext);
+            lstack.push(lexer.yylloc);
+            stack.push(action[1]);
+            symbol = null;
+            if (!preErrorSymbol) {
+                yyleng = lexer.yyleng;
+                yytext = lexer.yytext;
+                yylineno = lexer.yylineno;
+                yyloc = lexer.yylloc;
+                if (recovering > 0) {
+                    recovering--;
+                }
+            } else {
+                symbol = preErrorSymbol;
+                preErrorSymbol = null;
+            }
+            break;
+        case 2:
+            len = this.productions_[action[1]][1];
+            yyval.$ = vstack[vstack.length - len];
+            yyval._$ = {
+                first_line: lstack[lstack.length - (len || 1)].first_line,
+                last_line: lstack[lstack.length - 1].last_line,
+                first_column: lstack[lstack.length - (len || 1)].first_column,
+                last_column: lstack[lstack.length - 1].last_column
+            };
+            if (ranges) {
+                yyval._$.range = [
+                    lstack[lstack.length - (len || 1)].range[0],
+                    lstack[lstack.length - 1].range[1]
+                ];
+            }
+            r = this.performAction.apply(yyval, [
+                yytext,
+                yyleng,
+                yylineno,
+                sharedState.yy,
+                action[1],
+                vstack,
+                lstack
+            ].concat(args));
+            if (typeof r !== 'undefined') {
+                return r;
+            }
+            if (len) {
+                stack = stack.slice(0, -1 * len * 2);
+                vstack = vstack.slice(0, -1 * len);
+                lstack = lstack.slice(0, -1 * len);
+            }
+            stack.push(this.productions_[action[1]][0]);
+            vstack.push(yyval.$);
+            lstack.push(yyval._$);
+            newState = table[stack[stack.length - 2]][stack[stack.length - 1]];
+            stack.push(newState);
+            break;
+        case 3:
+            return true;
+        }
+    }
+    return true;
+}};
+/* generated by jison-lex 0.3.4 */
+var lexer = (function(){
+var lexer = ({
+
+EOF:1,
+
+parseError:function parseError(str, hash) {
+        if (this.yy.parser) {
+            this.yy.parser.parseError(str, hash);
+        } else {
+            throw new Error(str);
+        }
+    },
+
+// resets the lexer, sets new input
+setInput:function (input, yy) {
+        this.yy = yy || this.yy || {};
+        this._input = input;
+        this._more = this._backtrack = this.done = false;
+        this.yylineno = this.yyleng = 0;
+        this.yytext = this.matched = this.match = '';
+        this.conditionStack = ['INITIAL'];
+        this.yylloc = {
+            first_line: 1,
+            first_column: 0,
+            last_line: 1,
+            last_column: 0
+        };
+        if (this.options.ranges) {
+            this.yylloc.range = [0,0];
+        }
+        this.offset = 0;
+        return this;
+    },
+
+// consumes and returns one char from the input
+input:function () {
+        var ch = this._input[0];
+        this.yytext += ch;
+        this.yyleng++;
+        this.offset++;
+        this.match += ch;
+        this.matched += ch;
+        var lines = ch.match(/(?:\r\n?|\n).*/g);
+        if (lines) {
+            this.yylineno++;
+            this.yylloc.last_line++;
+        } else {
+            this.yylloc.last_column++;
+        }
+        if (this.options.ranges) {
+            this.yylloc.range[1]++;
+        }
+
+        this._input = this._input.slice(1);
+        return ch;
+    },
+
+// unshifts one char (or a string) into the input
+unput:function (ch) {
+        var len = ch.length;
+        var lines = ch.split(/(?:\r\n?|\n)/g);
+
+        this._input = ch + this._input;
+        this.yytext = this.yytext.substr(0, this.yytext.length - len);
+        //this.yyleng -= len;
+        this.offset -= len;
+        var oldLines = this.match.split(/(?:\r\n?|\n)/g);
+        this.match = this.match.substr(0, this.match.length - 1);
+        this.matched = this.matched.substr(0, this.matched.length - 1);
+
+        if (lines.length - 1) {
+            this.yylineno -= lines.length - 1;
+        }
+        var r = this.yylloc.range;
+
+        this.yylloc = {
+            first_line: this.yylloc.first_line,
+            last_line: this.yylineno + 1,
+            first_column: this.yylloc.first_column,
+            last_column: lines ?
+                (lines.length === oldLines.length ? this.yylloc.first_column : 0)
+                 + oldLines[oldLines.length - lines.length].length - lines[0].length :
+              this.yylloc.first_column - len
+        };
+
+        if (this.options.ranges) {
+            this.yylloc.range = [r[0], r[0] + this.yyleng - len];
+        }
+        this.yyleng = this.yytext.length;
+        return this;
+    },
+
+// When called from action, caches matched text and appends it on next action
+more:function () {
+        this._more = true;
+        return this;
+    },
+
+// When called from action, signals the lexer that this rule fails to match the input, so the next matching rule (regex) should be tested instead.
+reject:function () {
+        if (this.options.backtrack_lexer) {
+            this._backtrack = true;
+        } else {
+            return this.parseError('Lexical error on line ' + (this.yylineno + 1) + '. You can only invoke reject() in the lexer when the lexer is of the backtracking persuasion (options.backtrack_lexer = true).\n' + this.showPosition(), {
+                text: "",
+                token: null,
+                line: this.yylineno
+            });
+
+        }
+        return this;
+    },
+
+// retain first n characters of the match
+less:function (n) {
+        this.unput(this.match.slice(n));
+    },
+
+// displays already matched input, i.e. for error messages
+pastInput:function () {
+        var past = this.matched.substr(0, this.matched.length - this.match.length);
+        return (past.length > 20 ? '...':'') + past.substr(-20).replace(/\n/g, "");
+    },
+
+// displays upcoming input, i.e. for error messages
+upcomingInput:function () {
+        var next = this.match;
+        if (next.length < 20) {
+            next += this._input.substr(0, 20-next.length);
+        }
+        return (next.substr(0,20) + (next.length > 20 ? '...' : '')).replace(/\n/g, "");
+    },
+
+// displays the character position where the lexing error occurred, i.e. for error messages
+showPosition:function () {
+        var pre = this.pastInput();
+        var c = new Array(pre.length + 1).join("-");
+        return pre + this.upcomingInput() + "\n" + c + "^";
+    },
+
+// test the lexed token: return FALSE when not a match, otherwise return token
+test_match:function (match, indexed_rule) {
+        var token,
+            lines,
+            backup;
+
+        if (this.options.backtrack_lexer) {
+            // save context
+            backup = {
+                yylineno: this.yylineno,
+                yylloc: {
+                    first_line: this.yylloc.first_line,
+                    last_line: this.last_line,
+                    first_column: this.yylloc.first_column,
+                    last_column: this.yylloc.last_column
+                },
+                yytext: this.yytext,
+                match: this.match,
+                matches: this.matches,
+                matched: this.matched,
+                yyleng: this.yyleng,
+                offset: this.offset,
+                _more: this._more,
+                _input: this._input,
+                yy: this.yy,
+                conditionStack: this.conditionStack.slice(0),
+                done: this.done
+            };
+            if (this.options.ranges) {
+                backup.yylloc.range = this.yylloc.range.slice(0);
+            }
+        }
+
+        lines = match[0].match(/(?:\r\n?|\n).*/g);
+        if (lines) {
+            this.yylineno += lines.length;
+        }
+        this.yylloc = {
+            first_line: this.yylloc.last_line,
+            last_line: this.yylineno + 1,
+            first_column: this.yylloc.last_column,
+            last_column: lines ?
+                         lines[lines.length - 1].length - lines[lines.length - 1].match(/\r?\n?/)[0].length :
+                         this.yylloc.last_column + match[0].length
+        };
+        this.yytext += match[0];
+        this.match += match[0];
+        this.matches = match;
+        this.yyleng = this.yytext.length;
+        if (this.options.ranges) {
+            this.yylloc.range = [this.offset, this.offset += this.yyleng];
+        }
+        this._more = false;
+        this._backtrack = false;
+        this._input = this._input.slice(match[0].length);
+        this.matched += match[0];
+        token = this.performAction.call(this, this.yy, this, indexed_rule, this.conditionStack[this.conditionStack.length - 1]);
+        if (this.done && this._input) {
+            this.done = false;
+        }
+        if (token) {
+            return token;
+        } else if (this._backtrack) {
+            // recover context
+            for (var k in backup) {
+                this[k] = backup[k];
+            }
+            return false; // rule action called reject() implying the next rule should be tested instead.
+        }
+        return false;
+    },
+
+// return next match in input
+next:function () {
+        if (this.done) {
+            return this.EOF;
+        }
+        if (!this._input) {
+            this.done = true;
+        }
+
+        var token,
+            match,
+            tempMatch,
+            index;
+        if (!this._more) {
+            this.yytext = '';
+            this.match = '';
+        }
+        var rules = this._currentRules();
+        for (var i = 0; i < rules.length; i++) {
+            tempMatch = this._input.match(this.rules[rules[i]]);
+            if (tempMatch && (!match || tempMatch[0].length > match[0].length)) {
+                match = tempMatch;
+                index = i;
+                if (this.options.backtrack_lexer) {
+                    token = this.test_match(tempMatch, rules[i]);
+                    if (token !== false) {
+                        return token;
+                    } else if (this._backtrack) {
+                        match = false;
+                        continue; // rule action called reject() implying a rule MISmatch.
+                    } else {
+                        // else: this is a lexer rule which consumes input without producing a token (e.g. whitespace)
+                        return false;
+                    }
+                } else if (!this.options.flex) {
+                    break;
+                }
+            }
+        }
+        if (match) {
+            token = this.test_match(match, rules[index]);
+            if (token !== false) {
+                return token;
+            }
+            // else: this is a lexer rule which consumes input without producing a token (e.g. whitespace)
+            return false;
+        }
+        if (this._input === "") {
+            return this.EOF;
+        } else {
+            return this.parseError('Lexical error on line ' + (this.yylineno + 1) + '. Unrecognized text.\n' + this.showPosition(), {
+                text: "",
+                token: null,
+                line: this.yylineno
+            });
+        }
+    },
+
+// return next match that has a token
+lex:function lex() {
+        var r = this.next();
+        if (r) {
+            return r;
+        } else {
+            return this.lex();
+        }
+    },
+
+// activates a new lexer condition state (pushes the new lexer condition state onto the condition stack)
+begin:function begin(condition) {
+        this.conditionStack.push(condition);
+    },
+
+// pop the previously active lexer condition state off the condition stack
+popState:function popState() {
+        var n = this.conditionStack.length - 1;
+        if (n > 0) {
+            return this.conditionStack.pop();
+        } else {
+            return this.conditionStack[0];
+        }
+    },
+
+// produce the lexer rule set which is active for the currently active lexer condition state
+_currentRules:function _currentRules() {
+        if (this.conditionStack.length && this.conditionStack[this.conditionStack.length - 1]) {
+            return this.conditions[this.conditionStack[this.conditionStack.length - 1]].rules;
+        } else {
+            return this.conditions["INITIAL"].rules;
+        }
+    },
+
+// return the currently active lexer condition state; when an index argument is provided it produces the N-th previous condition state, if available
+topState:function topState(n) {
+        n = this.conditionStack.length - 1 - Math.abs(n || 0);
+        if (n >= 0) {
+            return this.conditionStack[n];
+        } else {
+            return "INITIAL";
+        }
+    },
+
+// alias for begin(condition)
+pushState:function pushState(condition) {
+        this.begin(condition);
+    },
+
+// return the number of states currently on the stack
+stateStackSize:function stateStackSize() {
+        return this.conditionStack.length;
+    },
+options: {},
+performAction: function anonymous(yy,yy_,$avoiding_name_collisions,YY_START) {
+var YYSTATE=YY_START;
+switch($avoiding_name_collisions) {
+case 0:return 39;
+break;
+case 1:
+break;
+case 2:
+break;
+case 3:return 'CDO';
+break;
+case 4:return 'CDC';
+break;
+case 5:return 'INCLUDES';
+break;
+case 6:return 'DASHMATCH';
+break;
+case 7:return 28;
+break;
+case 8:return 32;
+break;
+case 9:return 29;
+break;
+case 10:return 29;
+break;
+case 11:return 33;
+break;
+case 12:return 34;
+break;
+case 13:return 'IMPORT_SYM';
+break;
+case 14:return 'PAGE_SYM';
+break;
+case 15:return 'MEDIA_SYM';
+break;
+case 16:return 'CHARSET_SYM';
+break;
+case 17:return 'UNICODERANGE';
+break;
+case 18:return 35;
+break;
+case 19:return 12;
+break;
+case 20:return 'ATKEYWORD';
+break;
+case 21:return 37;
+break;
+case 22:return 23;
+break;
+case 23:return 24;
+break;
+case 24:return 22;
+break;
+case 25:return 22;
+break;
+case 26:return 22;
+break;
+case 27:return 22;
+break;
+case 28:return 22;
+break;
+case 29:return 22;
+break;
+case 30:return 25;
+break;
+case 31:return 25;
+break;
+case 32:return 25;
+break;
+case 33:return 26;
+break;
+case 34:return 26;
+break;
+case 35:return 27;
+break;
+case 36:return 27;
+break;
+case 37:return 'DIMENSION';
+break;
+case 38:return 21;
+break;
+case 39:return 20;
+break;
+case 40:return yy_.yytext; /* 'DELIM'; */
+break;
+}
+},
+rules: [/^(?:([ \t\r\n\f]+))/,/^(?:\/\*[^*]*\*+([^/*][^*]*\*+)*\/)/,/^(?:((\/\*[^*]*\*+([^/*][^*]*\*+)*)|(\/\*[^*]*(\*+[^/*][^*]*)*)))/,/^(?:<!--)/,/^(?:-->)/,/^(?:~=)/,/^(?:\|=)/,/^(?:(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*")|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*')))/,/^(?:(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)))/,/^(?:[uU][rR][lL]\((([ \t\r\n\f]+)?)(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*")|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*'))(([ \t\r\n\f]+)?)\))/,/^(?:[uU][rR][lL]\((([ \t\r\n\f]+)?)(([!#$%&*-~]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*)(([ \t\r\n\f]+)?)\))/,/^(?:(([uU][rR][lL]\((([ \t\r\n\f]+)?)([!#$%&*-\[\]-~]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*(([ \t\r\n\f]+)?))|([uU][rR][lL]\((([ \t\r\n\f]+)?)(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*")|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*'))(([ \t\r\n\f]+)?))|([uU][rR][lL]\((([ \t\r\n\f]+)?)(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)))))/,/^(?:!((([ \t\r\n\f]+)?)|(\/\*[^*]*\*+([^/*][^*]*\*+)*\/))*(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(O|o|\\0{0,4}(4f|6f)(\r\n|[ \t\r\n\f])?|\\[o])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(N|n|\\0{0,4}(4e|6e)(\r\n|[ \t\r\n\f])?|\\[n])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:@(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(O|o|\\0{0,4}(4f|6f)(\r\n|[ \t\r\n\f])?|\\[o])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:@(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g])(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?))/,/^(?:@(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?)(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?))/,/^(?:@charset )/,/^(?:(U|u|\\0{0,4}(55|75)(\r\n|[ \t\r\n\f])?|\\[u])\+([0-9a-fA-F?]{1,6}(-[0-9a-fA-F]{1,6})?))/,/^(?:(-?([_a-zA-Z]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))([_a-zZ-Z0-9\-]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*)\()/,/^(?:(-?([_a-zA-Z]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))([_a-zZ-Z0-9\-]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*))/,/^(?:@(-?([_a-zA-Z]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))([_a-zZ-Z0-9\-]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*))/,/^(?:#(([_a-zZ-Z0-9\-]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))+))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(X|x|\\0{0,4}(58|78)(\r\n|[ \t\r\n\f])?|\\[x]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(X|x|\\0{0,4}(58|78)(\r\n|[ \t\r\n\f])?|\\[x]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(C|c|\\0{0,4}(43|63)(\r\n|[ \t\r\n\f])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(N|n|\\0{0,4}(4e|6e)(\r\n|[ \t\r\n\f])?|\\[n]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(C|c|\\0{0,4}(43|63)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(S|s|\\0{0,4}(53|73)(\r\n|[ \t\r\n\f])?|\\[s]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(S|s|\\0{0,4}(53|73)(\r\n|[ \t\r\n\f])?|\\[s]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(H|h|\\0{0,4}(48|68)(\r\n|[ \t\r\n\f])?|\\[h])(Z|z|\\0{0,4}(5a|7a)(\r\n|[ \t\r\n\f])?|\\[z]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(K|k|\\0{0,4}(4b|6b)(\r\n|[ \t\r\n\f])?|\\[k])(H|h|\\0{0,4}(48|68)(\r\n|[ \t\r\n\f])?|\\[h])(Z|z|\\0{0,4}(5a|7a)(\r\n|[ \t\r\n\f])?|\\[z]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(-?([_a-zA-Z]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))([_a-zZ-Z0-9\-]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)%)/,/^(?:([0-9]+|[0-9]*\.[0-9]+))/,/^(?:.)/],
+conditions: {"INITIAL":{"rules":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40],"inclusive":true}}
+});
+return lexer;
+})();
+parser.lexer = lexer;
+function Parser () {
+  this.yy = {};
+}
+Parser.prototype = parser;parser.Parser = Parser;
+return new Parser;
+})();
+
+
+if (typeof require !== 'undefined' && typeof exports !== 'undefined') {
+exports.parser = parser;
+exports.Parser = parser.Parser;
+exports.parse = function () { return parser.parse.apply(parser, arguments); };
+exports.main = function commonjsMain(args) {
+    if (!args[1]) {
+        console.log('Usage: '+args[0]+' FILE');
+        process.exit(1);
+    }
+    var source = require('fs').readFileSync(require('path').normalize(args[1]), "utf8");
+    return exports.parser.parse(source);
+};
+if (typeof module !== 'undefined' && require.main === module) {
+  exports.main(process.argv.slice(1));
+}
+}
+}).call(this,require('_process'))
+},{"_process":5,"fs":3,"path":4}],39:[function(require,module,exports){
+/* 
+Copyright (c) 2015, Yahoo Inc. All rights reserved.
+Copyrights licensed under the New BSD License.
+See the accompanying LICENSE file for terms.
+
+Authors: Nera Liu <neraliu@yahoo-inc.com>
+         Albert Yu <albertyu@yahoo-inc.com>
+         Adonis Fung <adon@yahoo-inc.com>
+*/
+(function () {
+"use strict";
+
+require('../src/polyfills/minimal.js');
+var cssParser = require("./css-parser/css-parser.js");
+
+var HtmlEntitiesDecoder = require("./html-decoder/html-decoder.js"),
+    htmlDecoder = new HtmlEntitiesDecoder(); 
+
+/////////////////////////////////////////////////////
+//
+// @module CSSParserUtils
+// 
+/////////////////////////////////////////////////////
+var CSSParserUtils = {};
+
+/* emum type of parseStyleAttributeValue */
+CSSParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED      = 1;
+CSSParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED = 2;
+CSSParserUtils.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED = 3;
+CSSParserUtils.STYLE_ATTRIBUTE_UNQUOTED          = 4;
+CSSParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED     = 5;
+CSSParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED     = 6;
+
+CSSParserUtils.STYLE_ATTRIBUTE_ERROR                     = -1;
+CSSParserUtils.SEMICOLON                                 = -2;
+
+/**
+* @function CSSParserUtils.parseStyleAttributeValue
+*/
+CSSParserUtils.parseStyleAttributeValue = function(str) {
+
+    var r = { prop: '', code: CSSParserUtils.STYLE_ATTRIBUTE_ERROR },
+        p = cssParser.parse(str),
+        l = p.length-1;
+
+    if (l >= 0) {
+        r.prop = p[l].key;
+        r.code = p[l].type;
+    }
+
+    return r;
+};
+
+/* exposing it */
+module.exports = CSSParserUtils;
+
+})();
+
+},{"../src/polyfills/minimal.js":44,"./css-parser/css-parser.js":38,"./html-decoder/html-decoder.js":42}],40:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -10012,11 +11236,524 @@ HandlebarsUtils.blacklistProtocol = function(s) {
     return (ns[0] !== es[0] || ns[1] !== es[1]);
 };
 
+// <iframe srcdoc=""> is a scriptable attribute too
+// Reference: https://html.spec.whatwg.org/multipage/embedded-content.html#attr-iframe-srcdoc
+HandlebarsUtils.scriptableTags = {
+    script:1,style:1,
+    svg:1,xml:1,math:1,
+    applet:1,object:1,embed:1,link:1,
+    scriptlet:1                  // IE-specific
+};
+
+/**
+ * @function HandlebarsUtils#isScriptableTag
+ *
+ * @returns {boolean} true if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ * @description
+ * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ */
+HandlebarsUtils.isScriptableTag = function(tag) {
+    return HandlebarsUtils.scriptableTags[tag] === 1;
+};
+
 module.exports = HandlebarsUtils;
 
 })();
 
-},{"xss-filters":39}],42:[function(require,module,exports){
+},{"xss-filters":36}],41:[function(require,module,exports){
+(function() {
+"use strict";
+var HTMLNamedCharReferenceTrie = {"A":{"a":{"c":{"u":{"t":{"e":{"0":{"codepoints":[193],"characters":"Á"},";":{"0":{"codepoints":[193],"characters":"Á"}}}}}}},"b":{"r":{"e":{"v":{"e":{";":{"0":{"codepoints":[258],"characters":"Ă"}}}}}}},"c":{"i":{"r":{"c":{"0":{"codepoints":[194],"characters":"Â"},";":{"0":{"codepoints":[194],"characters":"Â"}}}}},"y":{";":{"0":{"codepoints":[1040],"characters":"А"}}}},"E":{"l":{"i":{"g":{"0":{"codepoints":[198],"characters":"Æ"},";":{"0":{"codepoints":[198],"characters":"Æ"}}}}}},"f":{"r":{";":{"0":{"codepoints":[120068],"characters":"𝔄"}}}},"g":{"r":{"a":{"v":{"e":{"0":{"codepoints":[192],"characters":"À"},";":{"0":{"codepoints":[192],"characters":"À"}}}}}}},"l":{"p":{"h":{"a":{";":{"0":{"codepoints":[913],"characters":"Α"}}}}}},"m":{"a":{"c":{"r":{";":{"0":{"codepoints":[256],"characters":"Ā"}}}}}},"M":{"P":{"0":{"codepoints":[38],"characters":"&"},";":{"0":{"codepoints":[38],"characters":"&"}}}},"n":{"d":{";":{"0":{"codepoints":[10835],"characters":"⩓"}}}},"o":{"g":{"o":{"n":{";":{"0":{"codepoints":[260],"characters":"Ą"}}}}},"p":{"f":{";":{"0":{"codepoints":[120120],"characters":"𝔸"}}}}},"p":{"p":{"l":{"y":{"F":{"u":{"n":{"c":{"t":{"i":{"o":{"n":{";":{"0":{"codepoints":[8289],"characters":"⁡"}}}}}}}}}}}}}},"r":{"i":{"n":{"g":{"0":{"codepoints":[197],"characters":"Å"},";":{"0":{"codepoints":[197],"characters":"Å"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119964],"characters":"𝒜"}}}},"s":{"i":{"g":{"n":{";":{"0":{"codepoints":[8788],"characters":"≔"}}}}}}},"t":{"i":{"l":{"d":{"e":{"0":{"codepoints":[195],"characters":"Ã"},";":{"0":{"codepoints":[195],"characters":"Ã"}}}}}}},"u":{"m":{"l":{"0":{"codepoints":[196],"characters":"Ä"},";":{"0":{"codepoints":[196],"characters":"Ä"}}}}}},"a":{"a":{"c":{"u":{"t":{"e":{"0":{"codepoints":[225],"characters":"á"},";":{"0":{"codepoints":[225],"characters":"á"}}}}}}},"b":{"r":{"e":{"v":{"e":{";":{"0":{"codepoints":[259],"characters":"ă"}}}}}}},"c":{";":{"0":{"codepoints":[8766],"characters":"∾"}},"d":{";":{"0":{"codepoints":[8767],"characters":"∿"}}},"E":{";":{"0":{"codepoints":[8766,819],"characters":"∾̳"}}},"i":{"r":{"c":{"0":{"codepoints":[226],"characters":"â"},";":{"0":{"codepoints":[226],"characters":"â"}}}}},"u":{"t":{"e":{"0":{"codepoints":[180],"characters":"´"},";":{"0":{"codepoints":[180],"characters":"´"}}}}},"y":{";":{"0":{"codepoints":[1072],"characters":"а"}}}},"e":{"l":{"i":{"g":{"0":{"codepoints":[230],"characters":"æ"},";":{"0":{"codepoints":[230],"characters":"æ"}}}}}},"f":{";":{"0":{"codepoints":[8289],"characters":"⁡"}},"r":{";":{"0":{"codepoints":[120094],"characters":"𝔞"}}}},"g":{"r":{"a":{"v":{"e":{"0":{"codepoints":[224],"characters":"à"},";":{"0":{"codepoints":[224],"characters":"à"}}}}}}},"l":{"e":{"f":{"s":{"y":{"m":{";":{"0":{"codepoints":[8501],"characters":"ℵ"}}}}}},"p":{"h":{";":{"0":{"codepoints":[8501],"characters":"ℵ"}}}}},"p":{"h":{"a":{";":{"0":{"codepoints":[945],"characters":"α"}}}}}},"m":{"a":{"c":{"r":{";":{"0":{"codepoints":[257],"characters":"ā"}}}},"l":{"g":{";":{"0":{"codepoints":[10815],"characters":"⨿"}}}}},"p":{"0":{"codepoints":[38],"characters":"&"},";":{"0":{"codepoints":[38],"characters":"&"}}}},"n":{"d":{"a":{"n":{"d":{";":{"0":{"codepoints":[10837],"characters":"⩕"}}}}},";":{"0":{"codepoints":[8743],"characters":"∧"}},"d":{";":{"0":{"codepoints":[10844],"characters":"⩜"}}},"s":{"l":{"o":{"p":{"e":{";":{"0":{"codepoints":[10840],"characters":"⩘"}}}}}}},"v":{";":{"0":{"codepoints":[10842],"characters":"⩚"}}}},"g":{";":{"0":{"codepoints":[8736],"characters":"∠"}},"e":{";":{"0":{"codepoints":[10660],"characters":"⦤"}}},"l":{"e":{";":{"0":{"codepoints":[8736],"characters":"∠"}}}},"m":{"s":{"d":{"a":{"a":{";":{"0":{"codepoints":[10664],"characters":"⦨"}}},"b":{";":{"0":{"codepoints":[10665],"characters":"⦩"}}},"c":{";":{"0":{"codepoints":[10666],"characters":"⦪"}}},"d":{";":{"0":{"codepoints":[10667],"characters":"⦫"}}},"e":{";":{"0":{"codepoints":[10668],"characters":"⦬"}}},"f":{";":{"0":{"codepoints":[10669],"characters":"⦭"}}},"g":{";":{"0":{"codepoints":[10670],"characters":"⦮"}}},"h":{";":{"0":{"codepoints":[10671],"characters":"⦯"}}}},";":{"0":{"codepoints":[8737],"characters":"∡"}}}}},"r":{"t":{";":{"0":{"codepoints":[8735],"characters":"∟"}},"v":{"b":{";":{"0":{"codepoints":[8894],"characters":"⊾"}},"d":{";":{"0":{"codepoints":[10653],"characters":"⦝"}}}}}}},"s":{"p":{"h":{";":{"0":{"codepoints":[8738],"characters":"∢"}}}},"t":{";":{"0":{"codepoints":[197],"characters":"Å"}}}},"z":{"a":{"r":{"r":{";":{"0":{"codepoints":[9084],"characters":"⍼"}}}}}}}},"o":{"g":{"o":{"n":{";":{"0":{"codepoints":[261],"characters":"ą"}}}}},"p":{"f":{";":{"0":{"codepoints":[120146],"characters":"𝕒"}}}}},"p":{"a":{"c":{"i":{"r":{";":{"0":{"codepoints":[10863],"characters":"⩯"}}}}}},";":{"0":{"codepoints":[8776],"characters":"≈"}},"E":{";":{"0":{"codepoints":[10864],"characters":"⩰"}}},"e":{";":{"0":{"codepoints":[8778],"characters":"≊"}}},"i":{"d":{";":{"0":{"codepoints":[8779],"characters":"≋"}}}},"o":{"s":{";":{"0":{"codepoints":[39],"characters":"'"}}}},"p":{"r":{"o":{"x":{";":{"0":{"codepoints":[8776],"characters":"≈"}},"e":{"q":{";":{"0":{"codepoints":[8778],"characters":"≊"}}}}}}}}},"r":{"i":{"n":{"g":{"0":{"codepoints":[229],"characters":"å"},";":{"0":{"codepoints":[229],"characters":"å"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119990],"characters":"𝒶"}}}},"t":{";":{"0":{"codepoints":[42],"characters":"*"}}},"y":{"m":{"p":{";":{"0":{"codepoints":[8776],"characters":"≈"}},"e":{"q":{";":{"0":{"codepoints":[8781],"characters":"≍"}}}}}}}},"t":{"i":{"l":{"d":{"e":{"0":{"codepoints":[227],"characters":"ã"},";":{"0":{"codepoints":[227],"characters":"ã"}}}}}}},"u":{"m":{"l":{"0":{"codepoints":[228],"characters":"ä"},";":{"0":{"codepoints":[228],"characters":"ä"}}}}},"w":{"c":{"o":{"n":{"i":{"n":{"t":{";":{"0":{"codepoints":[8755],"characters":"∳"}}}}}}}},"i":{"n":{"t":{";":{"0":{"codepoints":[10769],"characters":"⨑"}}}}}}},"b":{"a":{"c":{"k":{"c":{"o":{"n":{"g":{";":{"0":{"codepoints":[8780],"characters":"≌"}}}}}},"e":{"p":{"s":{"i":{"l":{"o":{"n":{";":{"0":{"codepoints":[1014],"characters":"϶"}}}}}}}}},"p":{"r":{"i":{"m":{"e":{";":{"0":{"codepoints":[8245],"characters":"‵"}}}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8765],"characters":"∽"}},"e":{"q":{";":{"0":{"codepoints":[8909],"characters":"⋍"}}}}}}}}},"r":{"v":{"e":{"e":{";":{"0":{"codepoints":[8893],"characters":"⊽"}}}}},"w":{"e":{"d":{";":{"0":{"codepoints":[8965],"characters":"⌅"}},"g":{"e":{";":{"0":{"codepoints":[8965],"characters":"⌅"}}}}}}}}},"b":{"r":{"k":{";":{"0":{"codepoints":[9141],"characters":"⎵"}},"t":{"b":{"r":{"k":{";":{"0":{"codepoints":[9142],"characters":"⎶"}}}}}}}}},"c":{"o":{"n":{"g":{";":{"0":{"codepoints":[8780],"characters":"≌"}}}}},"y":{";":{"0":{"codepoints":[1073],"characters":"б"}}}},"d":{"q":{"u":{"o":{";":{"0":{"codepoints":[8222],"characters":"„"}}}}}},"e":{"c":{"a":{"u":{"s":{";":{"0":{"codepoints":[8757],"characters":"∵"}},"e":{";":{"0":{"codepoints":[8757],"characters":"∵"}}}}}}},"m":{"p":{"t":{"y":{"v":{";":{"0":{"codepoints":[10672],"characters":"⦰"}}}}}}},"p":{"s":{"i":{";":{"0":{"codepoints":[1014],"characters":"϶"}}}}},"r":{"n":{"o":{"u":{";":{"0":{"codepoints":[8492],"characters":"ℬ"}}}}}},"t":{"a":{";":{"0":{"codepoints":[946],"characters":"β"}}},"h":{";":{"0":{"codepoints":[8502],"characters":"ℶ"}}},"w":{"e":{"e":{"n":{";":{"0":{"codepoints":[8812],"characters":"≬"}}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120095],"characters":"𝔟"}}}},"i":{"g":{"c":{"a":{"p":{";":{"0":{"codepoints":[8898],"characters":"⋂"}}}},"i":{"r":{"c":{";":{"0":{"codepoints":[9711],"characters":"◯"}}}}},"u":{"p":{";":{"0":{"codepoints":[8899],"characters":"⋃"}}}}},"o":{"d":{"o":{"t":{";":{"0":{"codepoints":[10752],"characters":"⨀"}}}}},"p":{"l":{"u":{"s":{";":{"0":{"codepoints":[10753],"characters":"⨁"}}}}}},"t":{"i":{"m":{"e":{"s":{";":{"0":{"codepoints":[10754],"characters":"⨂"}}}}}}}},"s":{"q":{"c":{"u":{"p":{";":{"0":{"codepoints":[10758],"characters":"⨆"}}}}}},"t":{"a":{"r":{";":{"0":{"codepoints":[9733],"characters":"★"}}}}}},"t":{"r":{"i":{"a":{"n":{"g":{"l":{"e":{"d":{"o":{"w":{"n":{";":{"0":{"codepoints":[9661],"characters":"▽"}}}}}},"u":{"p":{";":{"0":{"codepoints":[9651],"characters":"△"}}}}}}}}}}}},"u":{"p":{"l":{"u":{"s":{";":{"0":{"codepoints":[10756],"characters":"⨄"}}}}}}},"v":{"e":{"e":{";":{"0":{"codepoints":[8897],"characters":"⋁"}}}}},"w":{"e":{"d":{"g":{"e":{";":{"0":{"codepoints":[8896],"characters":"⋀"}}}}}}}}},"k":{"a":{"r":{"o":{"w":{";":{"0":{"codepoints":[10509],"characters":"⤍"}}}}}}},"l":{"a":{"c":{"k":{"l":{"o":{"z":{"e":{"n":{"g":{"e":{";":{"0":{"codepoints":[10731],"characters":"⧫"}}}}}}}}},"s":{"q":{"u":{"a":{"r":{"e":{";":{"0":{"codepoints":[9642],"characters":"▪"}}}}}}}},"t":{"r":{"i":{"a":{"n":{"g":{"l":{"e":{";":{"0":{"codepoints":[9652],"characters":"▴"}},"d":{"o":{"w":{"n":{";":{"0":{"codepoints":[9662],"characters":"▾"}}}}}},"l":{"e":{"f":{"t":{";":{"0":{"codepoints":[9666],"characters":"◂"}}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":{"codepoints":[9656],"characters":"▸"}}}}}}}}}}}}}}}}},"n":{"k":{";":{"0":{"codepoints":[9251],"characters":"␣"}}}}},"k":{"1":{"2":{";":{"0":{"codepoints":[9618],"characters":"▒"}}},"4":{";":{"0":{"codepoints":[9617],"characters":"░"}}}},"3":{"4":{";":{"0":{"codepoints":[9619],"characters":"▓"}}}}},"o":{"c":{"k":{";":{"0":{"codepoints":[9608],"characters":"█"}}}}}},"n":{"e":{";":{"0":{"codepoints":[61,8421],"characters":"=⃥"}},"q":{"u":{"i":{"v":{";":{"0":{"codepoints":[8801,8421],"characters":"≡⃥"}}}}}}},"o":{"t":{";":{"0":{"codepoints":[8976],"characters":"⌐"}}}}},"N":{"o":{"t":{";":{"0":{"codepoints":[10989],"characters":"⫭"}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120147],"characters":"𝕓"}}}},"t":{";":{"0":{"codepoints":[8869],"characters":"⊥"}},"t":{"o":{"m":{";":{"0":{"codepoints":[8869],"characters":"⊥"}}}}}},"w":{"t":{"i":{"e":{";":{"0":{"codepoints":[8904],"characters":"⋈"}}}}}},"x":{"b":{"o":{"x":{";":{"0":{"codepoints":[10697],"characters":"⧉"}}}}},"d":{"l":{";":{"0":{"codepoints":[9488],"characters":"┐"}}},"L":{";":{"0":{"codepoints":[9557],"characters":"╕"}}},"r":{";":{"0":{"codepoints":[9484],"characters":"┌"}}},"R":{";":{"0":{"codepoints":[9554],"characters":"╒"}}}},"D":{"l":{";":{"0":{"codepoints":[9558],"characters":"╖"}}},"L":{";":{"0":{"codepoints":[9559],"characters":"╗"}}},"r":{";":{"0":{"codepoints":[9555],"characters":"╓"}}},"R":{";":{"0":{"codepoints":[9556],"characters":"╔"}}}},"h":{";":{"0":{"codepoints":[9472],"characters":"─"}},"d":{";":{"0":{"codepoints":[9516],"characters":"┬"}}},"D":{";":{"0":{"codepoints":[9573],"characters":"╥"}}},"u":{";":{"0":{"codepoints":[9524],"characters":"┴"}}},"U":{";":{"0":{"codepoints":[9576],"characters":"╨"}}}},"H":{";":{"0":{"codepoints":[9552],"characters":"═"}},"d":{";":{"0":{"codepoints":[9572],"characters":"╤"}}},"D":{";":{"0":{"codepoints":[9574],"characters":"╦"}}},"u":{";":{"0":{"codepoints":[9575],"characters":"╧"}}},"U":{";":{"0":{"codepoints":[9577],"characters":"╩"}}}},"m":{"i":{"n":{"u":{"s":{";":{"0":{"codepoints":[8863],"characters":"⊟"}}}}}}},"p":{"l":{"u":{"s":{";":{"0":{"codepoints":[8862],"characters":"⊞"}}}}}},"t":{"i":{"m":{"e":{"s":{";":{"0":{"codepoints":[8864],"characters":"⊠"}}}}}}},"u":{"l":{";":{"0":{"codepoints":[9496],"characters":"┘"}}},"L":{";":{"0":{"codepoints":[9563],"characters":"╛"}}},"r":{";":{"0":{"codepoints":[9492],"characters":"└"}}},"R":{";":{"0":{"codepoints":[9560],"characters":"╘"}}}},"U":{"l":{";":{"0":{"codepoints":[9564],"characters":"╜"}}},"L":{";":{"0":{"codepoints":[9565],"characters":"╝"}}},"r":{";":{"0":{"codepoints":[9561],"characters":"╙"}}},"R":{";":{"0":{"codepoints":[9562],"characters":"╚"}}}},"v":{";":{"0":{"codepoints":[9474],"characters":"│"}},"h":{";":{"0":{"codepoints":[9532],"characters":"┼"}}},"H":{";":{"0":{"codepoints":[9578],"characters":"╪"}}},"l":{";":{"0":{"codepoints":[9508],"characters":"┤"}}},"L":{";":{"0":{"codepoints":[9569],"characters":"╡"}}},"r":{";":{"0":{"codepoints":[9500],"characters":"├"}}},"R":{";":{"0":{"codepoints":[9566],"characters":"╞"}}}},"V":{";":{"0":{"codepoints":[9553],"characters":"║"}},"h":{";":{"0":{"codepoints":[9579],"characters":"╫"}}},"H":{";":{"0":{"codepoints":[9580],"characters":"╬"}}},"l":{";":{"0":{"codepoints":[9570],"characters":"╢"}}},"L":{";":{"0":{"codepoints":[9571],"characters":"╣"}}},"r":{";":{"0":{"codepoints":[9567],"characters":"╟"}}},"R":{";":{"0":{"codepoints":[9568],"characters":"╠"}}}}}},"p":{"r":{"i":{"m":{"e":{";":{"0":{"codepoints":[8245],"characters":"‵"}}}}}}},"r":{"e":{"v":{"e":{";":{"0":{"codepoints":[728],"characters":"˘"}}}}},"v":{"b":{"a":{"r":{"0":{"codepoints":[166],"characters":"¦"},";":{"0":{"codepoints":[166],"characters":"¦"}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119991],"characters":"𝒷"}}}},"e":{"m":{"i":{";":{"0":{"codepoints":[8271],"characters":"⁏"}}}}},"i":{"m":{";":{"0":{"codepoints":[8765],"characters":"∽"}},"e":{";":{"0":{"codepoints":[8909],"characters":"⋍"}}}}},"o":{"l":{"b":{";":{"0":{"codepoints":[10693],"characters":"⧅"}}},";":{"0":{"codepoints":[92],"characters":"\\"}},"h":{"s":{"u":{"b":{";":{"0":{"codepoints":[10184],"characters":"⟈"}}}}}}}}},"u":{"l":{"l":{";":{"0":{"codepoints":[8226],"characters":"•"}},"e":{"t":{";":{"0":{"codepoints":[8226],"characters":"•"}}}}}},"m":{"p":{";":{"0":{"codepoints":[8782],"characters":"≎"}},"E":{";":{"0":{"codepoints":[10926],"characters":"⪮"}}},"e":{";":{"0":{"codepoints":[8783],"characters":"≏"}},"q":{";":{"0":{"codepoints":[8783],"characters":"≏"}}}}}}}},"B":{"a":{"c":{"k":{"s":{"l":{"a":{"s":{"h":{";":{"0":{"codepoints":[8726],"characters":"∖"}}}}}}}}},"r":{"v":{";":{"0":{"codepoints":[10983],"characters":"⫧"}}},"w":{"e":{"d":{";":{"0":{"codepoints":[8966],"characters":"⌆"}}}}}}},"c":{"y":{";":{"0":{"codepoints":[1041],"characters":"Б"}}}},"e":{"c":{"a":{"u":{"s":{"e":{";":{"0":{"codepoints":[8757],"characters":"∵"}}}}}}},"r":{"n":{"o":{"u":{"l":{"l":{"i":{"s":{";":{"0":{"codepoints":[8492],"characters":"ℬ"}}}}}}}}}},"t":{"a":{";":{"0":{"codepoints":[914],"characters":"Β"}}}}},"f":{"r":{";":{"0":{"codepoints":[120069],"characters":"𝔅"}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120121],"characters":"𝔹"}}}}},"r":{"e":{"v":{"e":{";":{"0":{"codepoints":[728],"characters":"˘"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[8492],"characters":"ℬ"}}}}},"u":{"m":{"p":{"e":{"q":{";":{"0":{"codepoints":[8782],"characters":"≎"}}}}}}}},"C":{"a":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[262],"characters":"Ć"}}}}}},"p":{";":{"0":{"codepoints":[8914],"characters":"⋒"}},"i":{"t":{"a":{"l":{"D":{"i":{"f":{"f":{"e":{"r":{"e":{"n":{"t":{"i":{"a":{"l":{"D":{";":{"0":{"codepoints":[8517],"characters":"ⅅ"}}}}}}}}}}}}}}}}}}}},"y":{"l":{"e":{"y":{"s":{";":{"0":{"codepoints":[8493],"characters":"ℭ"}}}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[268],"characters":"Č"}}}}}},"e":{"d":{"i":{"l":{"0":{"codepoints":[199],"characters":"Ç"},";":{"0":{"codepoints":[199],"characters":"Ç"}}}}}},"i":{"r":{"c":{";":{"0":{"codepoints":[264],"characters":"Ĉ"}}}}},"o":{"n":{"i":{"n":{"t":{";":{"0":{"codepoints":[8752],"characters":"∰"}}}}}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[266],"characters":"Ċ"}}}}},"e":{"d":{"i":{"l":{"l":{"a":{";":{"0":{"codepoints":[184],"characters":"¸"}}}}}}},"n":{"t":{"e":{"r":{"D":{"o":{"t":{";":{"0":{"codepoints":[183],"characters":"·"}}}}}}}}}},"f":{"r":{";":{"0":{"codepoints":[8493],"characters":"ℭ"}}}},"H":{"c":{"y":{";":{"0":{"codepoints":[1063],"characters":"Ч"}}}}},"h":{"i":{";":{"0":{"codepoints":[935],"characters":"Χ"}}}},"i":{"r":{"c":{"l":{"e":{"D":{"o":{"t":{";":{"0":{"codepoints":[8857],"characters":"⊙"}}}}},"M":{"i":{"n":{"u":{"s":{";":{"0":{"codepoints":[8854],"characters":"⊖"}}}}}}},"P":{"l":{"u":{"s":{";":{"0":{"codepoints":[8853],"characters":"⊕"}}}}}},"T":{"i":{"m":{"e":{"s":{";":{"0":{"codepoints":[8855],"characters":"⊗"}}}}}}}}}}}},"l":{"o":{"c":{"k":{"w":{"i":{"s":{"e":{"C":{"o":{"n":{"t":{"o":{"u":{"r":{"I":{"n":{"t":{"e":{"g":{"r":{"a":{"l":{";":{"0":{"codepoints":[8754],"characters":"∲"}}}}}}}}}}}}}}}}}}}}}}},"s":{"e":{"C":{"u":{"r":{"l":{"y":{"D":{"o":{"u":{"b":{"l":{"e":{"Q":{"u":{"o":{"t":{"e":{";":{"0":{"codepoints":[8221],"characters":"”"}}}}}}}}}}}}},"Q":{"u":{"o":{"t":{"e":{";":{"0":{"codepoints":[8217],"characters":"’"}}}}}}}}}}}}}}}},"o":{"l":{"o":{"n":{";":{"0":{"codepoints":[8759],"characters":"∷"}},"e":{";":{"0":{"codepoints":[10868],"characters":"⩴"}}}}}},"n":{"g":{"r":{"u":{"e":{"n":{"t":{";":{"0":{"codepoints":[8801],"characters":"≡"}}}}}}}},"i":{"n":{"t":{";":{"0":{"codepoints":[8751],"characters":"∯"}}}}},"t":{"o":{"u":{"r":{"I":{"n":{"t":{"e":{"g":{"r":{"a":{"l":{";":{"0":{"codepoints":[8750],"characters":"∮"}}}}}}}}}}}}}}},"p":{"f":{";":{"0":{"codepoints":[8450],"characters":"ℂ"}}},"r":{"o":{"d":{"u":{"c":{"t":{";":{"0":{"codepoints":[8720],"characters":"∐"}}}}}}}}},"u":{"n":{"t":{"e":{"r":{"C":{"l":{"o":{"c":{"k":{"w":{"i":{"s":{"e":{"C":{"o":{"n":{"t":{"o":{"u":{"r":{"I":{"n":{"t":{"e":{"g":{"r":{"a":{"l":{";":{"0":{"codepoints":[8755],"characters":"∳"}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"O":{"P":{"Y":{"0":{"codepoints":[169],"characters":"©"},";":{"0":{"codepoints":[169],"characters":"©"}}}}},"r":{"o":{"s":{"s":{";":{"0":{"codepoints":[10799],"characters":"⨯"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119966],"characters":"𝒞"}}}}},"u":{"p":{"C":{"a":{"p":{";":{"0":{"codepoints":[8781],"characters":"≍"}}}}},";":{"0":{"codepoints":[8915],"characters":"⋓"}}}}},"c":{"a":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[263],"characters":"ć"}}}}}},"p":{"a":{"n":{"d":{";":{"0":{"codepoints":[10820],"characters":"⩄"}}}}},"b":{"r":{"c":{"u":{"p":{";":{"0":{"codepoints":[10825],"characters":"⩉"}}}}}}},"c":{"a":{"p":{";":{"0":{"codepoints":[10827],"characters":"⩋"}}}},"u":{"p":{";":{"0":{"codepoints":[10823],"characters":"⩇"}}}}},";":{"0":{"codepoints":[8745],"characters":"∩"}},"d":{"o":{"t":{";":{"0":{"codepoints":[10816],"characters":"⩀"}}}}},"s":{";":{"0":{"codepoints":[8745,65024],"characters":"∩︀"}}}},"r":{"e":{"t":{";":{"0":{"codepoints":[8257],"characters":"⁁"}}}},"o":{"n":{";":{"0":{"codepoints":[711],"characters":"ˇ"}}}}}},"c":{"a":{"p":{"s":{";":{"0":{"codepoints":[10829],"characters":"⩍"}}}},"r":{"o":{"n":{";":{"0":{"codepoints":[269],"characters":"č"}}}}}},"e":{"d":{"i":{"l":{"0":{"codepoints":[231],"characters":"ç"},";":{"0":{"codepoints":[231],"characters":"ç"}}}}}},"i":{"r":{"c":{";":{"0":{"codepoints":[265],"characters":"ĉ"}}}}},"u":{"p":{"s":{";":{"0":{"codepoints":[10828],"characters":"⩌"}},"s":{"m":{";":{"0":{"codepoints":[10832],"characters":"⩐"}}}}}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[267],"characters":"ċ"}}}}},"e":{"d":{"i":{"l":{"0":{"codepoints":[184],"characters":"¸"},";":{"0":{"codepoints":[184],"characters":"¸"}}}}},"m":{"p":{"t":{"y":{"v":{";":{"0":{"codepoints":[10674],"characters":"⦲"}}}}}}},"n":{"t":{"0":{"codepoints":[162],"characters":"¢"},";":{"0":{"codepoints":[162],"characters":"¢"}},"e":{"r":{"d":{"o":{"t":{";":{"0":{"codepoints":[183],"characters":"·"}}}}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120096],"characters":"𝔠"}}}},"h":{"c":{"y":{";":{"0":{"codepoints":[1095],"characters":"ч"}}}},"e":{"c":{"k":{";":{"0":{"codepoints":[10003],"characters":"✓"}},"m":{"a":{"r":{"k":{";":{"0":{"codepoints":[10003],"characters":"✓"}}}}}}}}},"i":{";":{"0":{"codepoints":[967],"characters":"χ"}}}},"i":{"r":{"c":{";":{"0":{"codepoints":[710],"characters":"ˆ"}},"e":{"q":{";":{"0":{"codepoints":[8791],"characters":"≗"}}}},"l":{"e":{"a":{"r":{"r":{"o":{"w":{"l":{"e":{"f":{"t":{";":{"0":{"codepoints":[8634],"characters":"↺"}}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":{"codepoints":[8635],"characters":"↻"}}}}}}}}}}}},"d":{"a":{"s":{"t":{";":{"0":{"codepoints":[8859],"characters":"⊛"}}}}},"c":{"i":{"r":{"c":{";":{"0":{"codepoints":[8858],"characters":"⊚"}}}}}},"d":{"a":{"s":{"h":{";":{"0":{"codepoints":[8861],"characters":"⊝"}}}}}},"R":{";":{"0":{"codepoints":[174],"characters":"®"}}},"S":{";":{"0":{"codepoints":[9416],"characters":"Ⓢ"}}}}}}},";":{"0":{"codepoints":[9675],"characters":"○"}},"E":{";":{"0":{"codepoints":[10691],"characters":"⧃"}}},"e":{";":{"0":{"codepoints":[8791],"characters":"≗"}}},"f":{"n":{"i":{"n":{"t":{";":{"0":{"codepoints":[10768],"characters":"⨐"}}}}}}},"m":{"i":{"d":{";":{"0":{"codepoints":[10991],"characters":"⫯"}}}}},"s":{"c":{"i":{"r":{";":{"0":{"codepoints":[10690],"characters":"⧂"}}}}}}}},"l":{"u":{"b":{"s":{";":{"0":{"codepoints":[9827],"characters":"♣"}},"u":{"i":{"t":{";":{"0":{"codepoints":[9827],"characters":"♣"}}}}}}}}},"o":{"l":{"o":{"n":{";":{"0":{"codepoints":[58],"characters":":"}},"e":{";":{"0":{"codepoints":[8788],"characters":"≔"}},"q":{";":{"0":{"codepoints":[8788],"characters":"≔"}}}}}}},"m":{"m":{"a":{";":{"0":{"codepoints":[44],"characters":","}},"t":{";":{"0":{"codepoints":[64],"characters":"@"}}}}},"p":{";":{"0":{"codepoints":[8705],"characters":"∁"}},"f":{"n":{";":{"0":{"codepoints":[8728],"characters":"∘"}}}},"l":{"e":{"m":{"e":{"n":{"t":{";":{"0":{"codepoints":[8705],"characters":"∁"}}}}}},"x":{"e":{"s":{";":{"0":{"codepoints":[8450],"characters":"ℂ"}}}}}}}}},"n":{"g":{";":{"0":{"codepoints":[8773],"characters":"≅"}},"d":{"o":{"t":{";":{"0":{"codepoints":[10861],"characters":"⩭"}}}}}},"i":{"n":{"t":{";":{"0":{"codepoints":[8750],"characters":"∮"}}}}}},"p":{"f":{";":{"0":{"codepoints":[120148],"characters":"𝕔"}}},"r":{"o":{"d":{";":{"0":{"codepoints":[8720],"characters":"∐"}}}}},"y":{"0":{"codepoints":[169],"characters":"©"},";":{"0":{"codepoints":[169],"characters":"©"}},"s":{"r":{";":{"0":{"codepoints":[8471],"characters":"℗"}}}}}}},"r":{"a":{"r":{"r":{";":{"0":{"codepoints":[8629],"characters":"↵"}}}}},"o":{"s":{"s":{";":{"0":{"codepoints":[10007],"characters":"✗"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119992],"characters":"𝒸"}}}},"u":{"b":{";":{"0":{"codepoints":[10959],"characters":"⫏"}},"e":{";":{"0":{"codepoints":[10961],"characters":"⫑"}}}},"p":{";":{"0":{"codepoints":[10960],"characters":"⫐"}},"e":{";":{"0":{"codepoints":[10962],"characters":"⫒"}}}}}},"t":{"d":{"o":{"t":{";":{"0":{"codepoints":[8943],"characters":"⋯"}}}}}},"u":{"d":{"a":{"r":{"r":{"l":{";":{"0":{"codepoints":[10552],"characters":"⤸"}}},"r":{";":{"0":{"codepoints":[10549],"characters":"⤵"}}}}}}},"e":{"p":{"r":{";":{"0":{"codepoints":[8926],"characters":"⋞"}}}},"s":{"c":{";":{"0":{"codepoints":[8927],"characters":"⋟"}}}}},"l":{"a":{"r":{"r":{";":{"0":{"codepoints":[8630],"characters":"↶"}},"p":{";":{"0":{"codepoints":[10557],"characters":"⤽"}}}}}}},"p":{"b":{"r":{"c":{"a":{"p":{";":{"0":{"codepoints":[10824],"characters":"⩈"}}}}}}},"c":{"a":{"p":{";":{"0":{"codepoints":[10822],"characters":"⩆"}}}},"u":{"p":{";":{"0":{"codepoints":[10826],"characters":"⩊"}}}}},";":{"0":{"codepoints":[8746],"characters":"∪"}},"d":{"o":{"t":{";":{"0":{"codepoints":[8845],"characters":"⊍"}}}}},"o":{"r":{";":{"0":{"codepoints":[10821],"characters":"⩅"}}}},"s":{";":{"0":{"codepoints":[8746,65024],"characters":"∪︀"}}}},"r":{"a":{"r":{"r":{";":{"0":{"codepoints":[8631],"characters":"↷"}},"m":{";":{"0":{"codepoints":[10556],"characters":"⤼"}}}}}},"l":{"y":{"e":{"q":{"p":{"r":{"e":{"c":{";":{"0":{"codepoints":[8926],"characters":"⋞"}}}}}},"s":{"u":{"c":{"c":{";":{"0":{"codepoints":[8927],"characters":"⋟"}}}}}}}},"v":{"e":{"e":{";":{"0":{"codepoints":[8910],"characters":"⋎"}}}}},"w":{"e":{"d":{"g":{"e":{";":{"0":{"codepoints":[8911],"characters":"⋏"}}}}}}}}},"r":{"e":{"n":{"0":{"codepoints":[164],"characters":"¤"},";":{"0":{"codepoints":[164],"characters":"¤"}}}}},"v":{"e":{"a":{"r":{"r":{"o":{"w":{"l":{"e":{"f":{"t":{";":{"0":{"codepoints":[8630],"characters":"↶"}}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":{"codepoints":[8631],"characters":"↷"}}}}}}}}}}}}}}},"v":{"e":{"e":{";":{"0":{"codepoints":[8910],"characters":"⋎"}}}}},"w":{"e":{"d":{";":{"0":{"codepoints":[8911],"characters":"⋏"}}}}}},"w":{"c":{"o":{"n":{"i":{"n":{"t":{";":{"0":{"codepoints":[8754],"characters":"∲"}}}}}}}},"i":{"n":{"t":{";":{"0":{"codepoints":[8753],"characters":"∱"}}}}}},"y":{"l":{"c":{"t":{"y":{";":{"0":{"codepoints":[9005],"characters":"⌭"}}}}}}}},"d":{"a":{"g":{"g":{"e":{"r":{";":{"0":{"codepoints":[8224],"characters":"†"}}}}}},"l":{"e":{"t":{"h":{";":{"0":{"codepoints":[8504],"characters":"ℸ"}}}}}},"r":{"r":{";":{"0":{"codepoints":[8595],"characters":"↓"}}}},"s":{"h":{";":{"0":{"codepoints":[8208],"characters":"‐"}},"v":{";":{"0":{"codepoints":[8867],"characters":"⊣"}}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[8659],"characters":"⇓"}}}}},"b":{"k":{"a":{"r":{"o":{"w":{";":{"0":{"codepoints":[10511],"characters":"⤏"}}}}}}},"l":{"a":{"c":{";":{"0":{"codepoints":[733],"characters":"˝"}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[271],"characters":"ď"}}}}}},"y":{";":{"0":{"codepoints":[1076],"characters":"д"}}}},"d":{"a":{"g":{"g":{"e":{"r":{";":{"0":{"codepoints":[8225],"characters":"‡"}}}}}},"r":{"r":{";":{"0":{"codepoints":[8650],"characters":"⇊"}}}}},";":{"0":{"codepoints":[8518],"characters":"ⅆ"}},"o":{"t":{"s":{"e":{"q":{";":{"0":{"codepoints":[10871],"characters":"⩷"}}}}}}}},"e":{"g":{"0":{"codepoints":[176],"characters":"°"},";":{"0":{"codepoints":[176],"characters":"°"}}},"l":{"t":{"a":{";":{"0":{"codepoints":[948],"characters":"δ"}}}}},"m":{"p":{"t":{"y":{"v":{";":{"0":{"codepoints":[10673],"characters":"⦱"}}}}}}}},"f":{"i":{"s":{"h":{"t":{";":{"0":{"codepoints":[10623],"characters":"⥿"}}}}}},"r":{";":{"0":{"codepoints":[120097],"characters":"𝔡"}}}},"H":{"a":{"r":{";":{"0":{"codepoints":[10597],"characters":"⥥"}}}}},"h":{"a":{"r":{"l":{";":{"0":{"codepoints":[8643],"characters":"⇃"}}},"r":{";":{"0":{"codepoints":[8642],"characters":"⇂"}}}}}},"i":{"a":{"m":{";":{"0":{"codepoints":[8900],"characters":"⋄"}},"o":{"n":{"d":{";":{"0":{"codepoints":[8900],"characters":"⋄"}},"s":{"u":{"i":{"t":{";":{"0":{"codepoints":[9830],"characters":"♦"}}}}}}}}},"s":{";":{"0":{"codepoints":[9830],"characters":"♦"}}}}},"e":{";":{"0":{"codepoints":[168],"characters":"¨"}}},"g":{"a":{"m":{"m":{"a":{";":{"0":{"codepoints":[989],"characters":"ϝ"}}}}}}},"s":{"i":{"n":{";":{"0":{"codepoints":[8946],"characters":"⋲"}}}}},"v":{";":{"0":{"codepoints":[247],"characters":"÷"}},"i":{"d":{"e":{"0":{"codepoints":[247],"characters":"÷"},";":{"0":{"codepoints":[247],"characters":"÷"}},"o":{"n":{"t":{"i":{"m":{"e":{"s":{";":{"0":{"codepoints":[8903],"characters":"⋇"}}}}}}}}}}}},"o":{"n":{"x":{";":{"0":{"codepoints":[8903],"characters":"⋇"}}}}}}},"j":{"c":{"y":{";":{"0":{"codepoints":[1106],"characters":"ђ"}}}}},"l":{"c":{"o":{"r":{"n":{";":{"0":{"codepoints":[8990],"characters":"⌞"}}}}},"r":{"o":{"p":{";":{"0":{"codepoints":[8973],"characters":"⌍"}}}}}}},"o":{"l":{"l":{"a":{"r":{";":{"0":{"codepoints":[36],"characters":"$"}}}}}},"p":{"f":{";":{"0":{"codepoints":[120149],"characters":"𝕕"}}}},"t":{";":{"0":{"codepoints":[729],"characters":"˙"}},"e":{"q":{";":{"0":{"codepoints":[8784],"characters":"≐"}},"d":{"o":{"t":{";":{"0":{"codepoints":[8785],"characters":"≑"}}}}}}},"m":{"i":{"n":{"u":{"s":{";":{"0":{"codepoints":[8760],"characters":"∸"}}}}}}},"p":{"l":{"u":{"s":{";":{"0":{"codepoints":[8724],"characters":"∔"}}}}}},"s":{"q":{"u":{"a":{"r":{"e":{";":{"0":{"codepoints":[8865],"characters":"⊡"}}}}}}}}},"u":{"b":{"l":{"e":{"b":{"a":{"r":{"w":{"e":{"d":{"g":{"e":{";":{"0":{"codepoints":[8966],"characters":"⌆"}}}}}}}}}}}}}},"w":{"n":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8595],"characters":"↓"}}}}}}},"d":{"o":{"w":{"n":{"a":{"r":{"r":{"o":{"w":{"s":{";":{"0":{"codepoints":[8650],"characters":"⇊"}}}}}}}}}}}},"h":{"a":{"r":{"p":{"o":{"o":{"n":{"l":{"e":{"f":{"t":{";":{"0":{"codepoints":[8643],"characters":"⇃"}}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":{"codepoints":[8642],"characters":"⇂"}}}}}}}}}}}}}}}}},"r":{"b":{"k":{"a":{"r":{"o":{"w":{";":{"0":{"codepoints":[10512],"characters":"⤐"}}}}}}}},"c":{"o":{"r":{"n":{";":{"0":{"codepoints":[8991],"characters":"⌟"}}}}},"r":{"o":{"p":{";":{"0":{"codepoints":[8972],"characters":"⌌"}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119993],"characters":"𝒹"}}},"y":{";":{"0":{"codepoints":[1109],"characters":"ѕ"}}}},"o":{"l":{";":{"0":{"codepoints":[10742],"characters":"⧶"}}}},"t":{"r":{"o":{"k":{";":{"0":{"codepoints":[273],"characters":"đ"}}}}}}},"t":{"d":{"o":{"t":{";":{"0":{"codepoints":[8945],"characters":"⋱"}}}}},"r":{"i":{";":{"0":{"codepoints":[9663],"characters":"▿"}},"f":{";":{"0":{"codepoints":[9662],"characters":"▾"}}}}}},"u":{"a":{"r":{"r":{";":{"0":{"codepoints":[8693],"characters":"⇵"}}}}},"h":{"a":{"r":{";":{"0":{"codepoints":[10607],"characters":"⥯"}}}}}},"w":{"a":{"n":{"g":{"l":{"e":{";":{"0":{"codepoints":[10662],"characters":"⦦"}}}}}}}},"z":{"c":{"y":{";":{"0":{"codepoints":[1119],"characters":"џ"}}}},"i":{"g":{"r":{"a":{"r":{"r":{";":{"0":{"codepoints":[10239],"characters":"⟿"}}}}}}}}}},"D":{"a":{"g":{"g":{"e":{"r":{";":{"0":{"codepoints":[8225],"characters":"‡"}}}}}},"r":{"r":{";":{"0":{"codepoints":[8609],"characters":"↡"}}}},"s":{"h":{"v":{";":{"0":{"codepoints":[10980],"characters":"⫤"}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[270],"characters":"Ď"}}}}}},"y":{";":{"0":{"codepoints":[1044],"characters":"Д"}}}},"D":{";":{"0":{"codepoints":[8517],"characters":"ⅅ"}},"o":{"t":{"r":{"a":{"h":{"d":{";":{"0":{"codepoints":[10513],"characters":"⤑"}}}}}}}}},"e":{"l":{";":{"0":{"codepoints":[8711],"characters":"∇"}},"t":{"a":{";":{"0":{"codepoints":[916],"characters":"Δ"}}}}}},"f":{"r":{";":{"0":{"codepoints":[120071],"characters":"𝔇"}}}},"i":{"a":{"c":{"r":{"i":{"t":{"i":{"c":{"a":{"l":{"A":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[180],"characters":"´"}}}}}}},"D":{"o":{"t":{";":{"0":{"codepoints":[729],"characters":"˙"}}},"u":{"b":{"l":{"e":{"A":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[733],"characters":"˝"}}}}}}}}}}}}},"G":{"r":{"a":{"v":{"e":{";":{"0":{"codepoints":[96],"characters":"`"}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[732],"characters":"˜"}}}}}}}}}}}}}}},"m":{"o":{"n":{"d":{";":{"0":{"codepoints":[8900],"characters":"⋄"}}}}}}},"f":{"f":{"e":{"r":{"e":{"n":{"t":{"i":{"a":{"l":{"D":{";":{"0":{"codepoints":[8518],"characters":"ⅆ"}}}}}}}}}}}}}},"J":{"c":{"y":{";":{"0":{"codepoints":[1026],"characters":"Ђ"}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120123],"characters":"𝔻"}}}},"t":{";":{"0":{"codepoints":[168],"characters":"¨"}},"D":{"o":{"t":{";":{"0":{"codepoints":[8412],"characters":"⃜"}}}}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8784],"characters":"≐"}}}}}}}},"u":{"b":{"l":{"e":{"C":{"o":{"n":{"t":{"o":{"u":{"r":{"I":{"n":{"t":{"e":{"g":{"r":{"a":{"l":{";":{"0":{"codepoints":[8751],"characters":"∯"}}}}}}}}}}}}}}}}},"D":{"o":{"t":{";":{"0":{"codepoints":[168],"characters":"¨"}}},"w":{"n":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8659],"characters":"⇓"}}}}}}}}}}},"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8656],"characters":"⇐"}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8660],"characters":"⇔"}}}}}}}}}}}},"T":{"e":{"e":{";":{"0":{"codepoints":[10980],"characters":"⫤"}}}}}}}},"o":{"n":{"g":{"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[10232],"characters":"⟸"}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[10234],"characters":"⟺"}}}}}}}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[10233],"characters":"⟹"}}}}}}}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8658],"characters":"⇒"}}}}}}},"T":{"e":{"e":{";":{"0":{"codepoints":[8872],"characters":"⊨"}}}}}}}}}},"U":{"p":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8657],"characters":"⇑"}}}}}}},"D":{"o":{"w":{"n":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8661],"characters":"⇕"}}}}}}}}}}}}},"V":{"e":{"r":{"t":{"i":{"c":{"a":{"l":{"B":{"a":{"r":{";":{"0":{"codepoints":[8741],"characters":"∥"}}}}}}}}}}}}}}}}},"w":{"n":{"A":{"r":{"r":{"o":{"w":{"B":{"a":{"r":{";":{"0":{"codepoints":[10515],"characters":"⤓"}}}}},";":{"0":{"codepoints":[8595],"characters":"↓"}},"U":{"p":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8693],"characters":"⇵"}}}}}}}}}}}}}},"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8659],"characters":"⇓"}}}}}}},"B":{"r":{"e":{"v":{"e":{";":{"0":{"codepoints":[785],"characters":"̑"}}}}}}},"L":{"e":{"f":{"t":{"R":{"i":{"g":{"h":{"t":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":{"codepoints":[10576],"characters":"⥐"}}}}}}}}}}}}},"T":{"e":{"e":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":{"codepoints":[10590],"characters":"⥞"}}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":{"codepoints":[10582],"characters":"⥖"}}}}},";":{"0":{"codepoints":[8637],"characters":"↽"}}}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"T":{"e":{"e":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":{"codepoints":[10591],"characters":"⥟"}}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":{"codepoints":[10583],"characters":"⥗"}}}}},";":{"0":{"codepoints":[8641],"characters":"⇁"}}}}}}}}}}}}},"T":{"e":{"e":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8615],"characters":"↧"}}}}}}},";":{"0":{"codepoints":[8868],"characters":"⊤"}}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119967],"characters":"𝒟"}}}},"t":{"r":{"o":{"k":{";":{"0":{"codepoints":[272],"characters":"Đ"}}}}}}},"S":{"c":{"y":{";":{"0":{"codepoints":[1029],"characters":"Ѕ"}}}}},"Z":{"c":{"y":{";":{"0":{"codepoints":[1039],"characters":"Џ"}}}}}},"E":{"a":{"c":{"u":{"t":{"e":{"0":{"codepoints":[201],"characters":"É"},";":{"0":{"codepoints":[201],"characters":"É"}}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[282],"characters":"Ě"}}}}}},"i":{"r":{"c":{"0":{"codepoints":[202],"characters":"Ê"},";":{"0":{"codepoints":[202],"characters":"Ê"}}}}},"y":{";":{"0":{"codepoints":[1069],"characters":"Э"}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[278],"characters":"Ė"}}}}},"f":{"r":{";":{"0":{"codepoints":[120072],"characters":"𝔈"}}}},"g":{"r":{"a":{"v":{"e":{"0":{"codepoints":[200],"characters":"È"},";":{"0":{"codepoints":[200],"characters":"È"}}}}}}},"l":{"e":{"m":{"e":{"n":{"t":{";":{"0":{"codepoints":[8712],"characters":"∈"}}}}}}}},"m":{"a":{"c":{"r":{";":{"0":{"codepoints":[274],"characters":"Ē"}}}}},"p":{"t":{"y":{"S":{"m":{"a":{"l":{"l":{"S":{"q":{"u":{"a":{"r":{"e":{";":{"0":{"codepoints":[9723],"characters":"◻"}}}}}}}}}}}}},"V":{"e":{"r":{"y":{"S":{"m":{"a":{"l":{"l":{"S":{"q":{"u":{"a":{"r":{"e":{";":{"0":{"codepoints":[9643],"characters":"▫"}}}}}}}}}}}}}}}}}}}}},"N":{"G":{";":{"0":{"codepoints":[330],"characters":"Ŋ"}}}},"o":{"g":{"o":{"n":{";":{"0":{"codepoints":[280],"characters":"Ę"}}}}},"p":{"f":{";":{"0":{"codepoints":[120124],"characters":"𝔼"}}}}},"p":{"s":{"i":{"l":{"o":{"n":{";":{"0":{"codepoints":[917],"characters":"Ε"}}}}}}}},"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[10869],"characters":"⩵"}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8770],"characters":"≂"}}}}}}}}},"i":{"l":{"i":{"b":{"r":{"i":{"u":{"m":{";":{"0":{"codepoints":[8652],"characters":"⇌"}}}}}}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[8496],"characters":"ℰ"}}}},"i":{"m":{";":{"0":{"codepoints":[10867],"characters":"⩳"}}}}},"t":{"a":{";":{"0":{"codepoints":[919],"characters":"Η"}}}},"T":{"H":{"0":{"codepoints":[208],"characters":"Ð"},";":{"0":{"codepoints":[208],"characters":"Ð"}}}},"u":{"m":{"l":{"0":{"codepoints":[203],"characters":"Ë"},";":{"0":{"codepoints":[203],"characters":"Ë"}}}}},"x":{"i":{"s":{"t":{"s":{";":{"0":{"codepoints":[8707],"characters":"∃"}}}}}},"p":{"o":{"n":{"e":{"n":{"t":{"i":{"a":{"l":{"E":{";":{"0":{"codepoints":[8519],"characters":"ⅇ"}}}}}}}}}}}}}},"e":{"a":{"c":{"u":{"t":{"e":{"0":{"codepoints":[233],"characters":"é"},";":{"0":{"codepoints":[233],"characters":"é"}}}}}},"s":{"t":{"e":{"r":{";":{"0":{"codepoints":[10862],"characters":"⩮"}}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[283],"characters":"ě"}}}}}},"i":{"r":{"c":{"0":{"codepoints":[234],"characters":"ê"},";":{"0":{"codepoints":[234],"characters":"ê"}}},";":{"0":{"codepoints":[8790],"characters":"≖"}}}},"o":{"l":{"o":{"n":{";":{"0":{"codepoints":[8789],"characters":"≕"}}}}}},"y":{";":{"0":{"codepoints":[1101],"characters":"э"}}}},"D":{"D":{"o":{"t":{";":{"0":{"codepoints":[10871],"characters":"⩷"}}}}},"o":{"t":{";":{"0":{"codepoints":[8785],"characters":"≑"}}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[279],"characters":"ė"}}}}},"e":{";":{"0":{"codepoints":[8519],"characters":"ⅇ"}}},"f":{"D":{"o":{"t":{";":{"0":{"codepoints":[8786],"characters":"≒"}}}}},"r":{";":{"0":{"codepoints":[120098],"characters":"𝔢"}}}},"g":{";":{"0":{"codepoints":[10906],"characters":"⪚"}},"r":{"a":{"v":{"e":{"0":{"codepoints":[232],"characters":"è"},";":{"0":{"codepoints":[232],"characters":"è"}}}}}},"s":{";":{"0":{"codepoints":[10902],"characters":"⪖"}},"d":{"o":{"t":{";":{"0":{"codepoints":[10904],"characters":"⪘"}}}}}}},"l":{";":{"0":{"codepoints":[10905],"characters":"⪙"}},"i":{"n":{"t":{"e":{"r":{"s":{";":{"0":{"codepoints":[9191],"characters":"⏧"}}}}}}}},"l":{";":{"0":{"codepoints":[8467],"characters":"ℓ"}}},"s":{";":{"0":{"codepoints":[10901],"characters":"⪕"}},"d":{"o":{"t":{";":{"0":{"codepoints":[10903],"characters":"⪗"}}}}}}},"m":{"a":{"c":{"r":{";":{"0":{"codepoints":[275],"characters":"ē"}}}}},"p":{"t":{"y":{";":{"0":{"codepoints":[8709],"characters":"∅"}},"s":{"e":{"t":{";":{"0":{"codepoints":[8709],"characters":"∅"}}}}},"v":{";":{"0":{"codepoints":[8709],"characters":"∅"}}}}}},"s":{"p":{"1":{"3":{";":{"0":{"codepoints":[8196],"characters":" "}}},"4":{";":{"0":{"codepoints":[8197],"characters":" "}}}},";":{"0":{"codepoints":[8195],"characters":" "}}}}},"n":{"g":{";":{"0":{"codepoints":[331],"characters":"ŋ"}}},"s":{"p":{";":{"0":{"codepoints":[8194],"characters":" "}}}}},"o":{"g":{"o":{"n":{";":{"0":{"codepoints":[281],"characters":"ę"}}}}},"p":{"f":{";":{"0":{"codepoints":[120150],"characters":"𝕖"}}}}},"p":{"a":{"r":{";":{"0":{"codepoints":[8917],"characters":"⋕"}},"s":{"l":{";":{"0":{"codepoints":[10723],"characters":"⧣"}}}}}},"l":{"u":{"s":{";":{"0":{"codepoints":[10865],"characters":"⩱"}}}}},"s":{"i":{";":{"0":{"codepoints":[949],"characters":"ε"}},"l":{"o":{"n":{";":{"0":{"codepoints":[949],"characters":"ε"}}}}},"v":{";":{"0":{"codepoints":[1013],"characters":"ϵ"}}}}}},"q":{"c":{"i":{"r":{"c":{";":{"0":{"codepoints":[8790],"characters":"≖"}}}}},"o":{"l":{"o":{"n":{";":{"0":{"codepoints":[8789],"characters":"≕"}}}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8770],"characters":"≂"}}}},"l":{"a":{"n":{"t":{"g":{"t":{"r":{";":{"0":{"codepoints":[10902],"characters":"⪖"}}}}},"l":{"e":{"s":{"s":{";":{"0":{"codepoints":[10901],"characters":"⪕"}}}}}}}}}}},"u":{"a":{"l":{"s":{";":{"0":{"codepoints":[61],"characters":"="}}}}},"e":{"s":{"t":{";":{"0":{"codepoints":[8799],"characters":"≟"}}}}},"i":{"v":{";":{"0":{"codepoints":[8801],"characters":"≡"}},"D":{"D":{";":{"0":{"codepoints":[10872],"characters":"⩸"}}}}}}},"v":{"p":{"a":{"r":{"s":{"l":{";":{"0":{"codepoints":[10725],"characters":"⧥"}}}}}}}}},"r":{"a":{"r":{"r":{";":{"0":{"codepoints":[10609],"characters":"⥱"}}}}},"D":{"o":{"t":{";":{"0":{"codepoints":[8787],"characters":"≓"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[8495],"characters":"ℯ"}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[8784],"characters":"≐"}}}}},"i":{"m":{";":{"0":{"codepoints":[8770],"characters":"≂"}}}}},"t":{"a":{";":{"0":{"codepoints":[951],"characters":"η"}}},"h":{"0":{"codepoints":[240],"characters":"ð"},";":{"0":{"codepoints":[240],"characters":"ð"}}}},"u":{"m":{"l":{"0":{"codepoints":[235],"characters":"ë"},";":{"0":{"codepoints":[235],"characters":"ë"}}}},"r":{"o":{";":{"0":{"codepoints":[8364],"characters":"€"}}}}},"x":{"c":{"l":{";":{"0":{"codepoints":[33],"characters":"!"}}}},"i":{"s":{"t":{";":{"0":{"codepoints":[8707],"characters":"∃"}}}}},"p":{"e":{"c":{"t":{"a":{"t":{"i":{"o":{"n":{";":{"0":{"codepoints":[8496],"characters":"ℰ"}}}}}}}}}},"o":{"n":{"e":{"n":{"t":{"i":{"a":{"l":{"e":{";":{"0":{"codepoints":[8519],"characters":"ⅇ"}}}}}}}}}}}}}},"f":{"a":{"l":{"l":{"i":{"n":{"g":{"d":{"o":{"t":{"s":{"e":{"q":{";":{"0":{"codepoints":[8786],"characters":"≒"}}}}}}}}}}}}}},"c":{"y":{";":{"0":{"codepoints":[1092],"characters":"ф"}}}},"e":{"m":{"a":{"l":{"e":{";":{"0":{"codepoints":[9792],"characters":"♀"}}}}}}},"f":{"i":{"l":{"i":{"g":{";":{"0":{"codepoints":[64259],"characters":"ﬃ"}}}}}},"l":{"i":{"g":{";":{"0":{"codepoints":[64256],"characters":"ﬀ"}}}},"l":{"i":{"g":{";":{"0":{"codepoints":[64260],"characters":"ﬄ"}}}}}},"r":{";":{"0":{"codepoints":[120099],"characters":"𝔣"}}}},"i":{"l":{"i":{"g":{";":{"0":{"codepoints":[64257],"characters":"ﬁ"}}}}}},"j":{"l":{"i":{"g":{";":{"0":{"codepoints":[102,106],"characters":"fj"}}}}}},"l":{"a":{"t":{";":{"0":{"codepoints":[9837],"characters":"♭"}}}},"l":{"i":{"g":{";":{"0":{"codepoints":[64258],"characters":"ﬂ"}}}}},"t":{"n":{"s":{";":{"0":{"codepoints":[9649],"characters":"▱"}}}}}},"n":{"o":{"f":{";":{"0":{"codepoints":[402],"characters":"ƒ"}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120151],"characters":"𝕗"}}}},"r":{"a":{"l":{"l":{";":{"0":{"codepoints":[8704],"characters":"∀"}}}}},"k":{";":{"0":{"codepoints":[8916],"characters":"⋔"}},"v":{";":{"0":{"codepoints":[10969],"characters":"⫙"}}}}}},"p":{"a":{"r":{"t":{"i":{"n":{"t":{";":{"0":{"codepoints":[10765],"characters":"⨍"}}}}}}}}},"r":{"a":{"c":{"1":{"2":{"0":{"codepoints":[189],"characters":"½"},";":{"0":{"codepoints":[189],"characters":"½"}}},"3":{";":{"0":{"codepoints":[8531],"characters":"⅓"}}},"4":{"0":{"codepoints":[188],"characters":"¼"},";":{"0":{"codepoints":[188],"characters":"¼"}}},"5":{";":{"0":{"codepoints":[8533],"characters":"⅕"}}},"6":{";":{"0":{"codepoints":[8537],"characters":"⅙"}}},"8":{";":{"0":{"codepoints":[8539],"characters":"⅛"}}}},"2":{"3":{";":{"0":{"codepoints":[8532],"characters":"⅔"}}},"5":{";":{"0":{"codepoints":[8534],"characters":"⅖"}}}},"3":{"4":{"0":{"codepoints":[190],"characters":"¾"},";":{"0":{"codepoints":[190],"characters":"¾"}}},"5":{";":{"0":{"codepoints":[8535],"characters":"⅗"}}},"8":{";":{"0":{"codepoints":[8540],"characters":"⅜"}}}},"4":{"5":{";":{"0":{"codepoints":[8536],"characters":"⅘"}}}},"5":{"6":{";":{"0":{"codepoints":[8538],"characters":"⅚"}}},"8":{";":{"0":{"codepoints":[8541],"characters":"⅝"}}}},"7":{"8":{";":{"0":{"codepoints":[8542],"characters":"⅞"}}}}},"s":{"l":{";":{"0":{"codepoints":[8260],"characters":"⁄"}}}}},"o":{"w":{"n":{";":{"0":{"codepoints":[8994],"characters":"⌢"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119995],"characters":"𝒻"}}}}}},"F":{"c":{"y":{";":{"0":{"codepoints":[1060],"characters":"Ф"}}}},"f":{"r":{";":{"0":{"codepoints":[120073],"characters":"𝔉"}}}},"i":{"l":{"l":{"e":{"d":{"S":{"m":{"a":{"l":{"l":{"S":{"q":{"u":{"a":{"r":{"e":{";":{"0":{"codepoints":[9724],"characters":"◼"}}}}}}}}}}}}},"V":{"e":{"r":{"y":{"S":{"m":{"a":{"l":{"l":{"S":{"q":{"u":{"a":{"r":{"e":{";":{"0":{"codepoints":[9642],"characters":"▪"}}}}}}}}}}}}}}}}}}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120125],"characters":"𝔽"}}}},"r":{"A":{"l":{"l":{";":{"0":{"codepoints":[8704],"characters":"∀"}}}}}},"u":{"r":{"i":{"e":{"r":{"t":{"r":{"f":{";":{"0":{"codepoints":[8497],"characters":"ℱ"}}}}}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[8497],"characters":"ℱ"}}}}}},"g":{"a":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[501],"characters":"ǵ"}}}}}},"m":{"m":{"a":{";":{"0":{"codepoints":[947],"characters":"γ"}},"d":{";":{"0":{"codepoints":[989],"characters":"ϝ"}}}}}},"p":{";":{"0":{"codepoints":[10886],"characters":"⪆"}}}},"b":{"r":{"e":{"v":{"e":{";":{"0":{"codepoints":[287],"characters":"ğ"}}}}}}},"c":{"i":{"r":{"c":{";":{"0":{"codepoints":[285],"characters":"ĝ"}}}}},"y":{";":{"0":{"codepoints":[1075],"characters":"г"}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[289],"characters":"ġ"}}}}},"e":{";":{"0":{"codepoints":[8805],"characters":"≥"}},"l":{";":{"0":{"codepoints":[8923],"characters":"⋛"}}},"q":{";":{"0":{"codepoints":[8805],"characters":"≥"}},"q":{";":{"0":{"codepoints":[8807],"characters":"≧"}}},"s":{"l":{"a":{"n":{"t":{";":{"0":{"codepoints":[10878],"characters":"⩾"}}}}}}}},"s":{"c":{"c":{";":{"0":{"codepoints":[10921],"characters":"⪩"}}}},";":{"0":{"codepoints":[10878],"characters":"⩾"}},"d":{"o":{"t":{";":{"0":{"codepoints":[10880],"characters":"⪀"}},"o":{";":{"0":{"codepoints":[10882],"characters":"⪂"}},"l":{";":{"0":{"codepoints":[10884],"characters":"⪄"}}}}}}},"l":{";":{"0":{"codepoints":[8923,65024],"characters":"⋛︀"}},"e":{"s":{";":{"0":{"codepoints":[10900],"characters":"⪔"}}}}}}},"E":{";":{"0":{"codepoints":[8807],"characters":"≧"}},"l":{";":{"0":{"codepoints":[10892],"characters":"⪌"}}}},"f":{"r":{";":{"0":{"codepoints":[120100],"characters":"𝔤"}}}},"g":{";":{"0":{"codepoints":[8811],"characters":"≫"}},"g":{";":{"0":{"codepoints":[8921],"characters":"⋙"}}}},"i":{"m":{"e":{"l":{";":{"0":{"codepoints":[8503],"characters":"ℷ"}}}}}},"j":{"c":{"y":{";":{"0":{"codepoints":[1107],"characters":"ѓ"}}}}},"l":{"a":{";":{"0":{"codepoints":[10917],"characters":"⪥"}}},";":{"0":{"codepoints":[8823],"characters":"≷"}},"E":{";":{"0":{"codepoints":[10898],"characters":"⪒"}}},"j":{";":{"0":{"codepoints":[10916],"characters":"⪤"}}}},"n":{"a":{"p":{";":{"0":{"codepoints":[10890],"characters":"⪊"}},"p":{"r":{"o":{"x":{";":{"0":{"codepoints":[10890],"characters":"⪊"}}}}}}}},"e":{";":{"0":{"codepoints":[10888],"characters":"⪈"}},"q":{";":{"0":{"codepoints":[10888],"characters":"⪈"}},"q":{";":{"0":{"codepoints":[8809],"characters":"≩"}}}}},"E":{";":{"0":{"codepoints":[8809],"characters":"≩"}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8935],"characters":"⋧"}}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120152],"characters":"𝕘"}}}}},"r":{"a":{"v":{"e":{";":{"0":{"codepoints":[96],"characters":"`"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[8458],"characters":"ℊ"}}}},"i":{"m":{";":{"0":{"codepoints":[8819],"characters":"≳"}},"e":{";":{"0":{"codepoints":[10894],"characters":"⪎"}}},"l":{";":{"0":{"codepoints":[10896],"characters":"⪐"}}}}}},"t":{"0":{"codepoints":[62],"characters":">"},"c":{"c":{";":{"0":{"codepoints":[10919],"characters":"⪧"}}},"i":{"r":{";":{"0":{"codepoints":[10874],"characters":"⩺"}}}}},";":{"0":{"codepoints":[62],"characters":">"}},"d":{"o":{"t":{";":{"0":{"codepoints":[8919],"characters":"⋗"}}}}},"l":{"P":{"a":{"r":{";":{"0":{"codepoints":[10645],"characters":"⦕"}}}}}},"q":{"u":{"e":{"s":{"t":{";":{"0":{"codepoints":[10876],"characters":"⩼"}}}}}}},"r":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":{"codepoints":[10886],"characters":"⪆"}}}}}}},"r":{"r":{";":{"0":{"codepoints":[10616],"characters":"⥸"}}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[8919],"characters":"⋗"}}}}},"e":{"q":{"l":{"e":{"s":{"s":{";":{"0":{"codepoints":[8923],"characters":"⋛"}}}}}},"q":{"l":{"e":{"s":{"s":{";":{"0":{"codepoints":[10892],"characters":"⪌"}}}}}}}}},"l":{"e":{"s":{"s":{";":{"0":{"codepoints":[8823],"characters":"≷"}}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8819],"characters":"≳"}}}}}}},"v":{"e":{"r":{"t":{"n":{"e":{"q":{"q":{";":{"0":{"codepoints":[8809,65024],"characters":"≩︀"}}}}}}}}},"n":{"E":{";":{"0":{"codepoints":[8809,65024],"characters":"≩︀"}}}}}},"G":{"a":{"m":{"m":{"a":{";":{"0":{"codepoints":[915],"characters":"Γ"}},"d":{";":{"0":{"codepoints":[988],"characters":"Ϝ"}}}}}}},"b":{"r":{"e":{"v":{"e":{";":{"0":{"codepoints":[286],"characters":"Ğ"}}}}}}},"c":{"e":{"d":{"i":{"l":{";":{"0":{"codepoints":[290],"characters":"Ģ"}}}}}},"i":{"r":{"c":{";":{"0":{"codepoints":[284],"characters":"Ĝ"}}}}},"y":{";":{"0":{"codepoints":[1043],"characters":"Г"}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[288],"characters":"Ġ"}}}}},"f":{"r":{";":{"0":{"codepoints":[120074],"characters":"𝔊"}}}},"g":{";":{"0":{"codepoints":[8921],"characters":"⋙"}}},"J":{"c":{"y":{";":{"0":{"codepoints":[1027],"characters":"Ѓ"}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120126],"characters":"𝔾"}}}}},"r":{"e":{"a":{"t":{"e":{"r":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8805],"characters":"≥"}},"L":{"e":{"s":{"s":{";":{"0":{"codepoints":[8923],"characters":"⋛"}}}}}}}}}}},"F":{"u":{"l":{"l":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8807],"characters":"≧"}}}}}}}}}}},"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":{"codepoints":[10914],"characters":"⪢"}}}}}}}}},"L":{"e":{"s":{"s":{";":{"0":{"codepoints":[8823],"characters":"≷"}}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[10878],"characters":"⩾"}}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8819],"characters":"≳"}}}}}}}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119970],"characters":"𝒢"}}}}},"T":{"0":{"codepoints":[62],"characters":">"},";":{"0":{"codepoints":[62],"characters":">"}}},"t":{";":{"0":{"codepoints":[8811],"characters":"≫"}}}},"H":{"a":{"c":{"e":{"k":{";":{"0":{"codepoints":[711],"characters":"ˇ"}}}}},"t":{";":{"0":{"codepoints":[94],"characters":"^"}}}},"A":{"R":{"D":{"c":{"y":{";":{"0":{"codepoints":[1066],"characters":"Ъ"}}}}}}},"c":{"i":{"r":{"c":{";":{"0":{"codepoints":[292],"characters":"Ĥ"}}}}}},"f":{"r":{";":{"0":{"codepoints":[8460],"characters":"ℌ"}}}},"i":{"l":{"b":{"e":{"r":{"t":{"S":{"p":{"a":{"c":{"e":{";":{"0":{"codepoints":[8459],"characters":"ℋ"}}}}}}}}}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[8461],"characters":"ℍ"}}}},"r":{"i":{"z":{"o":{"n":{"t":{"a":{"l":{"L":{"i":{"n":{"e":{";":{"0":{"codepoints":[9472],"characters":"─"}}}}}}}}}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[8459],"characters":"ℋ"}}}},"t":{"r":{"o":{"k":{";":{"0":{"codepoints":[294],"characters":"Ħ"}}}}}}},"u":{"m":{"p":{"D":{"o":{"w":{"n":{"H":{"u":{"m":{"p":{";":{"0":{"codepoints":[8782],"characters":"≎"}}}}}}}}}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8783],"characters":"≏"}}}}}}}}}}},"h":{"a":{"i":{"r":{"s":{"p":{";":{"0":{"codepoints":[8202],"characters":" "}}}}}},"l":{"f":{";":{"0":{"codepoints":[189],"characters":"½"}}}},"m":{"i":{"l":{"t":{";":{"0":{"codepoints":[8459],"characters":"ℋ"}}}}}},"r":{"d":{"c":{"y":{";":{"0":{"codepoints":[1098],"characters":"ъ"}}}}},"r":{"c":{"i":{"r":{";":{"0":{"codepoints":[10568],"characters":"⥈"}}}}},";":{"0":{"codepoints":[8596],"characters":"↔"}},"w":{";":{"0":{"codepoints":[8621],"characters":"↭"}}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[8660],"characters":"⇔"}}}}},"b":{"a":{"r":{";":{"0":{"codepoints":[8463],"characters":"ℏ"}}}}},"c":{"i":{"r":{"c":{";":{"0":{"codepoints":[293],"characters":"ĥ"}}}}}},"e":{"a":{"r":{"t":{"s":{";":{"0":{"codepoints":[9829],"characters":"♥"}},"u":{"i":{"t":{";":{"0":{"codepoints":[9829],"characters":"♥"}}}}}}}}},"l":{"l":{"i":{"p":{";":{"0":{"codepoints":[8230],"characters":"…"}}}}}},"r":{"c":{"o":{"n":{";":{"0":{"codepoints":[8889],"characters":"⊹"}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120101],"characters":"𝔥"}}}},"k":{"s":{"e":{"a":{"r":{"o":{"w":{";":{"0":{"codepoints":[10533],"characters":"⤥"}}}}}}},"w":{"a":{"r":{"o":{"w":{";":{"0":{"codepoints":[10534],"characters":"⤦"}}}}}}}}},"o":{"a":{"r":{"r":{";":{"0":{"codepoints":[8703],"characters":"⇿"}}}}},"m":{"t":{"h":{"t":{";":{"0":{"codepoints":[8763],"characters":"∻"}}}}}},"o":{"k":{"l":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8617],"characters":"↩"}}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8618],"characters":"↪"}}}}}}}}}}}}}},"p":{"f":{";":{"0":{"codepoints":[120153],"characters":"𝕙"}}}},"r":{"b":{"a":{"r":{";":{"0":{"codepoints":[8213],"characters":"―"}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119997],"characters":"𝒽"}}}},"l":{"a":{"s":{"h":{";":{"0":{"codepoints":[8463],"characters":"ℏ"}}}}}},"t":{"r":{"o":{"k":{";":{"0":{"codepoints":[295],"characters":"ħ"}}}}}}},"y":{"b":{"u":{"l":{"l":{";":{"0":{"codepoints":[8259],"characters":"⁃"}}}}}},"p":{"h":{"e":{"n":{";":{"0":{"codepoints":[8208],"characters":"‐"}}}}}}}},"I":{"a":{"c":{"u":{"t":{"e":{"0":{"codepoints":[205],"characters":"Í"},";":{"0":{"codepoints":[205],"characters":"Í"}}}}}}},"c":{"i":{"r":{"c":{"0":{"codepoints":[206],"characters":"Î"},";":{"0":{"codepoints":[206],"characters":"Î"}}}}},"y":{";":{"0":{"codepoints":[1048],"characters":"И"}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[304],"characters":"İ"}}}}},"E":{"c":{"y":{";":{"0":{"codepoints":[1045],"characters":"Е"}}}}},"f":{"r":{";":{"0":{"codepoints":[8465],"characters":"ℑ"}}}},"g":{"r":{"a":{"v":{"e":{"0":{"codepoints":[204],"characters":"Ì"},";":{"0":{"codepoints":[204],"characters":"Ì"}}}}}}},"J":{"l":{"i":{"g":{";":{"0":{"codepoints":[306],"characters":"Ĳ"}}}}}},"m":{"a":{"c":{"r":{";":{"0":{"codepoints":[298],"characters":"Ī"}}}},"g":{"i":{"n":{"a":{"r":{"y":{"I":{";":{"0":{"codepoints":[8520],"characters":"ⅈ"}}}}}}}}}},";":{"0":{"codepoints":[8465],"characters":"ℑ"}},"p":{"l":{"i":{"e":{"s":{";":{"0":{"codepoints":[8658],"characters":"⇒"}}}}}}}},"n":{"t":{";":{"0":{"codepoints":[8748],"characters":"∬"}},"e":{"g":{"r":{"a":{"l":{";":{"0":{"codepoints":[8747],"characters":"∫"}}}}}},"r":{"s":{"e":{"c":{"t":{"i":{"o":{"n":{";":{"0":{"codepoints":[8898],"characters":"⋂"}}}}}}}}}}}},"v":{"i":{"s":{"i":{"b":{"l":{"e":{"C":{"o":{"m":{"m":{"a":{";":{"0":{"codepoints":[8291],"characters":"⁣"}}}}}}},"T":{"i":{"m":{"e":{"s":{";":{"0":{"codepoints":[8290],"characters":"⁢"}}}}}}}}}}}}}}},"O":{"c":{"y":{";":{"0":{"codepoints":[1025],"characters":"Ё"}}}}},"o":{"g":{"o":{"n":{";":{"0":{"codepoints":[302],"characters":"Į"}}}}},"p":{"f":{";":{"0":{"codepoints":[120128],"characters":"𝕀"}}}},"t":{"a":{";":{"0":{"codepoints":[921],"characters":"Ι"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[8464],"characters":"ℐ"}}}}},"t":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[296],"characters":"Ĩ"}}}}}}},"u":{"k":{"c":{"y":{";":{"0":{"codepoints":[1030],"characters":"І"}}}}},"m":{"l":{"0":{"codepoints":[207],"characters":"Ï"},";":{"0":{"codepoints":[207],"characters":"Ï"}}}}}},"i":{"a":{"c":{"u":{"t":{"e":{"0":{"codepoints":[237],"characters":"í"},";":{"0":{"codepoints":[237],"characters":"í"}}}}}}},"c":{";":{"0":{"codepoints":[8291],"characters":"⁣"}},"i":{"r":{"c":{"0":{"codepoints":[238],"characters":"î"},";":{"0":{"codepoints":[238],"characters":"î"}}}}},"y":{";":{"0":{"codepoints":[1080],"characters":"и"}}}},"e":{"c":{"y":{";":{"0":{"codepoints":[1077],"characters":"е"}}}},"x":{"c":{"l":{"0":{"codepoints":[161],"characters":"¡"},";":{"0":{"codepoints":[161],"characters":"¡"}}}}}},"f":{"f":{";":{"0":{"codepoints":[8660],"characters":"⇔"}}},"r":{";":{"0":{"codepoints":[120102],"characters":"𝔦"}}}},"g":{"r":{"a":{"v":{"e":{"0":{"codepoints":[236],"characters":"ì"},";":{"0":{"codepoints":[236],"characters":"ì"}}}}}}},"i":{";":{"0":{"codepoints":[8520],"characters":"ⅈ"}},"i":{"i":{"n":{"t":{";":{"0":{"codepoints":[10764],"characters":"⨌"}}}}},"n":{"t":{";":{"0":{"codepoints":[8749],"characters":"∭"}}}}},"n":{"f":{"i":{"n":{";":{"0":{"codepoints":[10716],"characters":"⧜"}}}}}},"o":{"t":{"a":{";":{"0":{"codepoints":[8489],"characters":"℩"}}}}}},"j":{"l":{"i":{"g":{";":{"0":{"codepoints":[307],"characters":"ĳ"}}}}}},"m":{"a":{"c":{"r":{";":{"0":{"codepoints":[299],"characters":"ī"}}}},"g":{"e":{";":{"0":{"codepoints":[8465],"characters":"ℑ"}}},"l":{"i":{"n":{"e":{";":{"0":{"codepoints":[8464],"characters":"ℐ"}}}}}},"p":{"a":{"r":{"t":{";":{"0":{"codepoints":[8465],"characters":"ℑ"}}}}}}},"t":{"h":{";":{"0":{"codepoints":[305],"characters":"ı"}}}}},"o":{"f":{";":{"0":{"codepoints":[8887],"characters":"⊷"}}}},"p":{"e":{"d":{";":{"0":{"codepoints":[437],"characters":"Ƶ"}}}}}},"n":{"c":{"a":{"r":{"e":{";":{"0":{"codepoints":[8453],"characters":"℅"}}}}}},";":{"0":{"codepoints":[8712],"characters":"∈"}},"f":{"i":{"n":{";":{"0":{"codepoints":[8734],"characters":"∞"}},"t":{"i":{"e":{";":{"0":{"codepoints":[10717],"characters":"⧝"}}}}}}}},"o":{"d":{"o":{"t":{";":{"0":{"codepoints":[305],"characters":"ı"}}}}}},"t":{"c":{"a":{"l":{";":{"0":{"codepoints":[8890],"characters":"⊺"}}}}},";":{"0":{"codepoints":[8747],"characters":"∫"}},"e":{"g":{"e":{"r":{"s":{";":{"0":{"codepoints":[8484],"characters":"ℤ"}}}}}},"r":{"c":{"a":{"l":{";":{"0":{"codepoints":[8890],"characters":"⊺"}}}}}}},"l":{"a":{"r":{"h":{"k":{";":{"0":{"codepoints":[10775],"characters":"⨗"}}}}}}},"p":{"r":{"o":{"d":{";":{"0":{"codepoints":[10812],"characters":"⨼"}}}}}}}},"o":{"c":{"y":{";":{"0":{"codepoints":[1105],"characters":"ё"}}}},"g":{"o":{"n":{";":{"0":{"codepoints":[303],"characters":"į"}}}}},"p":{"f":{";":{"0":{"codepoints":[120154],"characters":"𝕚"}}}},"t":{"a":{";":{"0":{"codepoints":[953],"characters":"ι"}}}}},"p":{"r":{"o":{"d":{";":{"0":{"codepoints":[10812],"characters":"⨼"}}}}}},"q":{"u":{"e":{"s":{"t":{"0":{"codepoints":[191],"characters":"¿"},";":{"0":{"codepoints":[191],"characters":"¿"}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119998],"characters":"𝒾"}}}},"i":{"n":{";":{"0":{"codepoints":[8712],"characters":"∈"}},"d":{"o":{"t":{";":{"0":{"codepoints":[8949],"characters":"⋵"}}}}},"E":{";":{"0":{"codepoints":[8953],"characters":"⋹"}}},"s":{";":{"0":{"codepoints":[8948],"characters":"⋴"}},"v":{";":{"0":{"codepoints":[8947],"characters":"⋳"}}}},"v":{";":{"0":{"codepoints":[8712],"characters":"∈"}}}}}},"t":{";":{"0":{"codepoints":[8290],"characters":"⁢"}},"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[297],"characters":"ĩ"}}}}}}},"u":{"k":{"c":{"y":{";":{"0":{"codepoints":[1110],"characters":"і"}}}}},"m":{"l":{"0":{"codepoints":[239],"characters":"ï"},";":{"0":{"codepoints":[239],"characters":"ï"}}}}}},"J":{"c":{"i":{"r":{"c":{";":{"0":{"codepoints":[308],"characters":"Ĵ"}}}}},"y":{";":{"0":{"codepoints":[1049],"characters":"Й"}}}},"f":{"r":{";":{"0":{"codepoints":[120077],"characters":"𝔍"}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120129],"characters":"𝕁"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119973],"characters":"𝒥"}}}},"e":{"r":{"c":{"y":{";":{"0":{"codepoints":[1032],"characters":"Ј"}}}}}}},"u":{"k":{"c":{"y":{";":{"0":{"codepoints":[1028],"characters":"Є"}}}}}}},"j":{"c":{"i":{"r":{"c":{";":{"0":{"codepoints":[309],"characters":"ĵ"}}}}},"y":{";":{"0":{"codepoints":[1081],"characters":"й"}}}},"f":{"r":{";":{"0":{"codepoints":[120103],"characters":"𝔧"}}}},"m":{"a":{"t":{"h":{";":{"0":{"codepoints":[567],"characters":"ȷ"}}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120155],"characters":"𝕛"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119999],"characters":"𝒿"}}}},"e":{"r":{"c":{"y":{";":{"0":{"codepoints":[1112],"characters":"ј"}}}}}}},"u":{"k":{"c":{"y":{";":{"0":{"codepoints":[1108],"characters":"є"}}}}}}},"K":{"a":{"p":{"p":{"a":{";":{"0":{"codepoints":[922],"characters":"Κ"}}}}}},"c":{"e":{"d":{"i":{"l":{";":{"0":{"codepoints":[310],"characters":"Ķ"}}}}}},"y":{";":{"0":{"codepoints":[1050],"characters":"К"}}}},"f":{"r":{";":{"0":{"codepoints":[120078],"characters":"𝔎"}}}},"H":{"c":{"y":{";":{"0":{"codepoints":[1061],"characters":"Х"}}}}},"J":{"c":{"y":{";":{"0":{"codepoints":[1036],"characters":"Ќ"}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120130],"characters":"𝕂"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119974],"characters":"𝒦"}}}}}},"k":{"a":{"p":{"p":{"a":{";":{"0":{"codepoints":[954],"characters":"κ"}},"v":{";":{"0":{"codepoints":[1008],"characters":"ϰ"}}}}}}},"c":{"e":{"d":{"i":{"l":{";":{"0":{"codepoints":[311],"characters":"ķ"}}}}}},"y":{";":{"0":{"codepoints":[1082],"characters":"к"}}}},"f":{"r":{";":{"0":{"codepoints":[120104],"characters":"𝔨"}}}},"g":{"r":{"e":{"e":{"n":{";":{"0":{"codepoints":[312],"characters":"ĸ"}}}}}}},"h":{"c":{"y":{";":{"0":{"codepoints":[1093],"characters":"х"}}}}},"j":{"c":{"y":{";":{"0":{"codepoints":[1116],"characters":"ќ"}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120156],"characters":"𝕜"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[120000],"characters":"𝓀"}}}}}},"l":{"A":{"a":{"r":{"r":{";":{"0":{"codepoints":[8666],"characters":"⇚"}}}}},"r":{"r":{";":{"0":{"codepoints":[8656],"characters":"⇐"}}}},"t":{"a":{"i":{"l":{";":{"0":{"codepoints":[10523],"characters":"⤛"}}}}}}},"a":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[314],"characters":"ĺ"}}}}}},"e":{"m":{"p":{"t":{"y":{"v":{";":{"0":{"codepoints":[10676],"characters":"⦴"}}}}}}}},"g":{"r":{"a":{"n":{";":{"0":{"codepoints":[8466],"characters":"ℒ"}}}}}},"m":{"b":{"d":{"a":{";":{"0":{"codepoints":[955],"characters":"λ"}}}}}},"n":{"g":{";":{"0":{"codepoints":[10216],"characters":"⟨"}},"d":{";":{"0":{"codepoints":[10641],"characters":"⦑"}}},"l":{"e":{";":{"0":{"codepoints":[10216],"characters":"⟨"}}}}}},"p":{";":{"0":{"codepoints":[10885],"characters":"⪅"}}},"q":{"u":{"o":{"0":{"codepoints":[171],"characters":"«"},";":{"0":{"codepoints":[171],"characters":"«"}}}}},"r":{"r":{"b":{";":{"0":{"codepoints":[8676],"characters":"⇤"}},"f":{"s":{";":{"0":{"codepoints":[10527],"characters":"⤟"}}}}},";":{"0":{"codepoints":[8592],"characters":"←"}},"f":{"s":{";":{"0":{"codepoints":[10525],"characters":"⤝"}}}},"h":{"k":{";":{"0":{"codepoints":[8617],"characters":"↩"}}}},"l":{"p":{";":{"0":{"codepoints":[8619],"characters":"↫"}}}},"p":{"l":{";":{"0":{"codepoints":[10553],"characters":"⤹"}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[10611],"characters":"⥳"}}}}},"t":{"l":{";":{"0":{"codepoints":[8610],"characters":"↢"}}}}}},"t":{"a":{"i":{"l":{";":{"0":{"codepoints":[10521],"characters":"⤙"}}}}},";":{"0":{"codepoints":[10923],"characters":"⪫"}},"e":{";":{"0":{"codepoints":[10925],"characters":"⪭"}},"s":{";":{"0":{"codepoints":[10925,65024],"characters":"⪭︀"}}}}}},"b":{"a":{"r":{"r":{";":{"0":{"codepoints":[10508],"characters":"⤌"}}}}},"b":{"r":{"k":{";":{"0":{"codepoints":[10098],"characters":"❲"}}}}},"r":{"a":{"c":{"e":{";":{"0":{"codepoints":[123],"characters":"{"}}},"k":{";":{"0":{"codepoints":[91],"characters":"["}}}}},"k":{"e":{";":{"0":{"codepoints":[10635],"characters":"⦋"}}},"s":{"l":{"d":{";":{"0":{"codepoints":[10639],"characters":"⦏"}}},"u":{";":{"0":{"codepoints":[10637],"characters":"⦍"}}}}}}}},"B":{"a":{"r":{"r":{";":{"0":{"codepoints":[10510],"characters":"⤎"}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[318],"characters":"ľ"}}}}}},"e":{"d":{"i":{"l":{";":{"0":{"codepoints":[316],"characters":"ļ"}}}}},"i":{"l":{";":{"0":{"codepoints":[8968],"characters":"⌈"}}}}},"u":{"b":{";":{"0":{"codepoints":[123],"characters":"{"}}}},"y":{";":{"0":{"codepoints":[1083],"characters":"л"}}}},"d":{"c":{"a":{";":{"0":{"codepoints":[10550],"characters":"⤶"}}}},"q":{"u":{"o":{";":{"0":{"codepoints":[8220],"characters":"“"}},"r":{";":{"0":{"codepoints":[8222],"characters":"„"}}}}}},"r":{"d":{"h":{"a":{"r":{";":{"0":{"codepoints":[10599],"characters":"⥧"}}}}}},"u":{"s":{"h":{"a":{"r":{";":{"0":{"codepoints":[10571],"characters":"⥋"}}}}}}}},"s":{"h":{";":{"0":{"codepoints":[8626],"characters":"↲"}}}}},"e":{";":{"0":{"codepoints":[8804],"characters":"≤"}},"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8592],"characters":"←"}},"t":{"a":{"i":{"l":{";":{"0":{"codepoints":[8610],"characters":"↢"}}}}}}}}}}},"h":{"a":{"r":{"p":{"o":{"o":{"n":{"d":{"o":{"w":{"n":{";":{"0":{"codepoints":[8637],"characters":"↽"}}}}}},"u":{"p":{";":{"0":{"codepoints":[8636],"characters":"↼"}}}}}}}}}}},"l":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{"s":{";":{"0":{"codepoints":[8647],"characters":"⇇"}}}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8596],"characters":"↔"}},"s":{";":{"0":{"codepoints":[8646],"characters":"⇆"}}}}}}}},"h":{"a":{"r":{"p":{"o":{"o":{"n":{"s":{";":{"0":{"codepoints":[8651],"characters":"⇋"}}}}}}}}}},"s":{"q":{"u":{"i":{"g":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8621],"characters":"↭"}}}}}}}}}}}}}}}}},"t":{"h":{"r":{"e":{"e":{"t":{"i":{"m":{"e":{"s":{";":{"0":{"codepoints":[8907],"characters":"⋋"}}}}}}}}}}}}}},"g":{";":{"0":{"codepoints":[8922],"characters":"⋚"}}},"q":{";":{"0":{"codepoints":[8804],"characters":"≤"}},"q":{";":{"0":{"codepoints":[8806],"characters":"≦"}}},"s":{"l":{"a":{"n":{"t":{";":{"0":{"codepoints":[10877],"characters":"⩽"}}}}}}}},"s":{"c":{"c":{";":{"0":{"codepoints":[10920],"characters":"⪨"}}}},";":{"0":{"codepoints":[10877],"characters":"⩽"}},"d":{"o":{"t":{";":{"0":{"codepoints":[10879],"characters":"⩿"}},"o":{";":{"0":{"codepoints":[10881],"characters":"⪁"}},"r":{";":{"0":{"codepoints":[10883],"characters":"⪃"}}}}}}},"g":{";":{"0":{"codepoints":[8922,65024],"characters":"⋚︀"}},"e":{"s":{";":{"0":{"codepoints":[10899],"characters":"⪓"}}}}},"s":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":{"codepoints":[10885],"characters":"⪅"}}}}}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[8918],"characters":"⋖"}}}}},"e":{"q":{"g":{"t":{"r":{";":{"0":{"codepoints":[8922],"characters":"⋚"}}}}},"q":{"g":{"t":{"r":{";":{"0":{"codepoints":[10891],"characters":"⪋"}}}}}}}},"g":{"t":{"r":{";":{"0":{"codepoints":[8822],"characters":"≶"}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8818],"characters":"≲"}}}}}}}},"E":{";":{"0":{"codepoints":[8806],"characters":"≦"}},"g":{";":{"0":{"codepoints":[10891],"characters":"⪋"}}}},"f":{"i":{"s":{"h":{"t":{";":{"0":{"codepoints":[10620],"characters":"⥼"}}}}}},"l":{"o":{"o":{"r":{";":{"0":{"codepoints":[8970],"characters":"⌊"}}}}}},"r":{";":{"0":{"codepoints":[120105],"characters":"𝔩"}}}},"g":{";":{"0":{"codepoints":[8822],"characters":"≶"}},"E":{";":{"0":{"codepoints":[10897],"characters":"⪑"}}}},"H":{"a":{"r":{";":{"0":{"codepoints":[10594],"characters":"⥢"}}}}},"h":{"a":{"r":{"d":{";":{"0":{"codepoints":[8637],"characters":"↽"}}},"u":{";":{"0":{"codepoints":[8636],"characters":"↼"}},"l":{";":{"0":{"codepoints":[10602],"characters":"⥪"}}}}}},"b":{"l":{"k":{";":{"0":{"codepoints":[9604],"characters":"▄"}}}}}},"j":{"c":{"y":{";":{"0":{"codepoints":[1113],"characters":"љ"}}}}},"l":{"a":{"r":{"r":{";":{"0":{"codepoints":[8647],"characters":"⇇"}}}}},";":{"0":{"codepoints":[8810],"characters":"≪"}},"c":{"o":{"r":{"n":{"e":{"r":{";":{"0":{"codepoints":[8990],"characters":"⌞"}}}}}}}},"h":{"a":{"r":{"d":{";":{"0":{"codepoints":[10603],"characters":"⥫"}}}}}},"t":{"r":{"i":{";":{"0":{"codepoints":[9722],"characters":"◺"}}}}}},"m":{"i":{"d":{"o":{"t":{";":{"0":{"codepoints":[320],"characters":"ŀ"}}}}}},"o":{"u":{"s":{"t":{"a":{"c":{"h":{"e":{";":{"0":{"codepoints":[9136],"characters":"⎰"}}}}}},";":{"0":{"codepoints":[9136],"characters":"⎰"}}}}}}},"n":{"a":{"p":{";":{"0":{"codepoints":[10889],"characters":"⪉"}},"p":{"r":{"o":{"x":{";":{"0":{"codepoints":[10889],"characters":"⪉"}}}}}}}},"e":{";":{"0":{"codepoints":[10887],"characters":"⪇"}},"q":{";":{"0":{"codepoints":[10887],"characters":"⪇"}},"q":{";":{"0":{"codepoints":[8808],"characters":"≨"}}}}},"E":{";":{"0":{"codepoints":[8808],"characters":"≨"}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8934],"characters":"⋦"}}}}}},"o":{"a":{"n":{"g":{";":{"0":{"codepoints":[10220],"characters":"⟬"}}}},"r":{"r":{";":{"0":{"codepoints":[8701],"characters":"⇽"}}}}},"b":{"r":{"k":{";":{"0":{"codepoints":[10214],"characters":"⟦"}}}}},"n":{"g":{"l":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[10229],"characters":"⟵"}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[10231],"characters":"⟷"}}}}}}}}}}}}}}}},"m":{"a":{"p":{"s":{"t":{"o":{";":{"0":{"codepoints":[10236],"characters":"⟼"}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[10230],"characters":"⟶"}}}}}}}}}}}}}},"o":{"p":{"a":{"r":{"r":{"o":{"w":{"l":{"e":{"f":{"t":{";":{"0":{"codepoints":[8619],"characters":"↫"}}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":{"codepoints":[8620],"characters":"↬"}}}}}}}}}}}}}},"p":{"a":{"r":{";":{"0":{"codepoints":[10629],"characters":"⦅"}}}},"f":{";":{"0":{"codepoints":[120157],"characters":"𝕝"}}},"l":{"u":{"s":{";":{"0":{"codepoints":[10797],"characters":"⨭"}}}}}},"t":{"i":{"m":{"e":{"s":{";":{"0":{"codepoints":[10804],"characters":"⨴"}}}}}}},"w":{"a":{"s":{"t":{";":{"0":{"codepoints":[8727],"characters":"∗"}}}}},"b":{"a":{"r":{";":{"0":{"codepoints":[95],"characters":"_"}}}}}},"z":{";":{"0":{"codepoints":[9674],"characters":"◊"}},"e":{"n":{"g":{"e":{";":{"0":{"codepoints":[9674],"characters":"◊"}}}}}},"f":{";":{"0":{"codepoints":[10731],"characters":"⧫"}}}}},"p":{"a":{"r":{";":{"0":{"codepoints":[40],"characters":"("}},"l":{"t":{";":{"0":{"codepoints":[10643],"characters":"⦓"}}}}}}},"r":{"a":{"r":{"r":{";":{"0":{"codepoints":[8646],"characters":"⇆"}}}}},"c":{"o":{"r":{"n":{"e":{"r":{";":{"0":{"codepoints":[8991],"characters":"⌟"}}}}}}}},"h":{"a":{"r":{";":{"0":{"codepoints":[8651],"characters":"⇋"}},"d":{";":{"0":{"codepoints":[10605],"characters":"⥭"}}}}}},"m":{";":{"0":{"codepoints":[8206],"characters":"‎"}}},"t":{"r":{"i":{";":{"0":{"codepoints":[8895],"characters":"⊿"}}}}}},"s":{"a":{"q":{"u":{"o":{";":{"0":{"codepoints":[8249],"characters":"‹"}}}}}},"c":{"r":{";":{"0":{"codepoints":[120001],"characters":"𝓁"}}}},"h":{";":{"0":{"codepoints":[8624],"characters":"↰"}}},"i":{"m":{";":{"0":{"codepoints":[8818],"characters":"≲"}},"e":{";":{"0":{"codepoints":[10893],"characters":"⪍"}}},"g":{";":{"0":{"codepoints":[10895],"characters":"⪏"}}}}},"q":{"b":{";":{"0":{"codepoints":[91],"characters":"["}}},"u":{"o":{";":{"0":{"codepoints":[8216],"characters":"‘"}},"r":{";":{"0":{"codepoints":[8218],"characters":"‚"}}}}}},"t":{"r":{"o":{"k":{";":{"0":{"codepoints":[322],"characters":"ł"}}}}}}},"t":{"0":{"codepoints":[60],"characters":"<"},"c":{"c":{";":{"0":{"codepoints":[10918],"characters":"⪦"}}},"i":{"r":{";":{"0":{"codepoints":[10873],"characters":"⩹"}}}}},";":{"0":{"codepoints":[60],"characters":"<"}},"d":{"o":{"t":{";":{"0":{"codepoints":[8918],"characters":"⋖"}}}}},"h":{"r":{"e":{"e":{";":{"0":{"codepoints":[8907],"characters":"⋋"}}}}}},"i":{"m":{"e":{"s":{";":{"0":{"codepoints":[8905],"characters":"⋉"}}}}}},"l":{"a":{"r":{"r":{";":{"0":{"codepoints":[10614],"characters":"⥶"}}}}}},"q":{"u":{"e":{"s":{"t":{";":{"0":{"codepoints":[10875],"characters":"⩻"}}}}}}},"r":{"i":{";":{"0":{"codepoints":[9667],"characters":"◃"}},"e":{";":{"0":{"codepoints":[8884],"characters":"⊴"}}},"f":{";":{"0":{"codepoints":[9666],"characters":"◂"}}}},"P":{"a":{"r":{";":{"0":{"codepoints":[10646],"characters":"⦖"}}}}}}},"u":{"r":{"d":{"s":{"h":{"a":{"r":{";":{"0":{"codepoints":[10570],"characters":"⥊"}}}}}}},"u":{"h":{"a":{"r":{";":{"0":{"codepoints":[10598],"characters":"⥦"}}}}}}}},"v":{"e":{"r":{"t":{"n":{"e":{"q":{"q":{";":{"0":{"codepoints":[8808,65024],"characters":"≨︀"}}}}}}}}},"n":{"E":{";":{"0":{"codepoints":[8808,65024],"characters":"≨︀"}}}}}},"L":{"a":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[313],"characters":"Ĺ"}}}}}},"m":{"b":{"d":{"a":{";":{"0":{"codepoints":[923],"characters":"Λ"}}}}}},"n":{"g":{";":{"0":{"codepoints":[10218],"characters":"⟪"}}}},"p":{"l":{"a":{"c":{"e":{"t":{"r":{"f":{";":{"0":{"codepoints":[8466],"characters":"ℒ"}}}}}}}}}},"r":{"r":{";":{"0":{"codepoints":[8606],"characters":"↞"}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[317],"characters":"Ľ"}}}}}},"e":{"d":{"i":{"l":{";":{"0":{"codepoints":[315],"characters":"Ļ"}}}}}},"y":{";":{"0":{"codepoints":[1051],"characters":"Л"}}}},"e":{"f":{"t":{"A":{"n":{"g":{"l":{"e":{"B":{"r":{"a":{"c":{"k":{"e":{"t":{";":{"0":{"codepoints":[10216],"characters":"⟨"}}}}}}}}}}}}},"r":{"r":{"o":{"w":{"B":{"a":{"r":{";":{"0":{"codepoints":[8676],"characters":"⇤"}}}}},";":{"0":{"codepoints":[8592],"characters":"←"}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8646],"characters":"⇆"}}}}}}}}}}}}}}}}},"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8656],"characters":"⇐"}}}}}}},"C":{"e":{"i":{"l":{"i":{"n":{"g":{";":{"0":{"codepoints":[8968],"characters":"⌈"}}}}}}}}},"D":{"o":{"u":{"b":{"l":{"e":{"B":{"r":{"a":{"c":{"k":{"e":{"t":{";":{"0":{"codepoints":[10214],"characters":"⟦"}}}}}}}}}}}}},"w":{"n":{"T":{"e":{"e":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":{"codepoints":[10593],"characters":"⥡"}}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":{"codepoints":[10585],"characters":"⥙"}}}}},";":{"0":{"codepoints":[8643],"characters":"⇃"}}}}}}}}}}}},"F":{"l":{"o":{"o":{"r":{";":{"0":{"codepoints":[8970],"characters":"⌊"}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8596],"characters":"↔"}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":{"codepoints":[10574],"characters":"⥎"}}}}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8660],"characters":"⇔"}}}}}}}}}}}},"T":{"e":{"e":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8612],"characters":"↤"}}}}}}},";":{"0":{"codepoints":[8867],"characters":"⊣"}},"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":{"codepoints":[10586],"characters":"⥚"}}}}}}}}}},"r":{"i":{"a":{"n":{"g":{"l":{"e":{"B":{"a":{"r":{";":{"0":{"codepoints":[10703],"characters":"⧏"}}}}},";":{"0":{"codepoints":[8882],"characters":"⊲"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8884],"characters":"⊴"}}}}}}}}}}}}}}},"U":{"p":{"D":{"o":{"w":{"n":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":{"codepoints":[10577],"characters":"⥑"}}}}}}}}}}}},"T":{"e":{"e":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":{"codepoints":[10592],"characters":"⥠"}}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":{"codepoints":[10584],"characters":"⥘"}}}}},";":{"0":{"codepoints":[8639],"characters":"↿"}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":{"codepoints":[10578],"characters":"⥒"}}}}},";":{"0":{"codepoints":[8636],"characters":"↼"}}}}}}}}}},"s":{"s":{"E":{"q":{"u":{"a":{"l":{"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":{"codepoints":[8922],"characters":"⋚"}}}}}}}}}}}}}},"F":{"u":{"l":{"l":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8806],"characters":"≦"}}}}}}}}}}},"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":{"codepoints":[8822],"characters":"≶"}}}}}}}}},"L":{"e":{"s":{"s":{";":{"0":{"codepoints":[10913],"characters":"⪡"}}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[10877],"characters":"⩽"}}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8818],"characters":"≲"}}}}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120079],"characters":"𝔏"}}}},"J":{"c":{"y":{";":{"0":{"codepoints":[1033],"characters":"Љ"}}}}},"l":{";":{"0":{"codepoints":[8920],"characters":"⋘"}},"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8666],"characters":"⇚"}}}}}}}}}}},"m":{"i":{"d":{"o":{"t":{";":{"0":{"codepoints":[319],"characters":"Ŀ"}}}}}}},"o":{"n":{"g":{"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[10229],"characters":"⟵"}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[10231],"characters":"⟷"}}}}}}}}}}}}}}}},"l":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[10232],"characters":"⟸"}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[10234],"characters":"⟺"}}}}}}}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[10230],"characters":"⟶"}}}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[10233],"characters":"⟹"}}}}}}}}}}}}}},"p":{"f":{";":{"0":{"codepoints":[120131],"characters":"𝕃"}}}},"w":{"e":{"r":{"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8601],"characters":"↙"}}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8600],"characters":"↘"}}}}}}}}}}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[8466],"characters":"ℒ"}}}},"h":{";":{"0":{"codepoints":[8624],"characters":"↰"}}},"t":{"r":{"o":{"k":{";":{"0":{"codepoints":[321],"characters":"Ł"}}}}}}},"T":{"0":{"codepoints":[60],"characters":"<"},";":{"0":{"codepoints":[60],"characters":"<"}}},"t":{";":{"0":{"codepoints":[8810],"characters":"≪"}}}},"m":{"a":{"c":{"r":{"0":{"codepoints":[175],"characters":"¯"},";":{"0":{"codepoints":[175],"characters":"¯"}}}},"l":{"e":{";":{"0":{"codepoints":[9794],"characters":"♂"}}},"t":{";":{"0":{"codepoints":[10016],"characters":"✠"}},"e":{"s":{"e":{";":{"0":{"codepoints":[10016],"characters":"✠"}}}}}}},"p":{";":{"0":{"codepoints":[8614],"characters":"↦"}},"s":{"t":{"o":{";":{"0":{"codepoints":[8614],"characters":"↦"}},"d":{"o":{"w":{"n":{";":{"0":{"codepoints":[8615],"characters":"↧"}}}}}},"l":{"e":{"f":{"t":{";":{"0":{"codepoints":[8612],"characters":"↤"}}}}}},"u":{"p":{";":{"0":{"codepoints":[8613],"characters":"↥"}}}}}}}},"r":{"k":{"e":{"r":{";":{"0":{"codepoints":[9646],"characters":"▮"}}}}}}},"c":{"o":{"m":{"m":{"a":{";":{"0":{"codepoints":[10793],"characters":"⨩"}}}}}},"y":{";":{"0":{"codepoints":[1084],"characters":"м"}}}},"d":{"a":{"s":{"h":{";":{"0":{"codepoints":[8212],"characters":"—"}}}}}},"D":{"D":{"o":{"t":{";":{"0":{"codepoints":[8762],"characters":"∺"}}}}}},"e":{"a":{"s":{"u":{"r":{"e":{"d":{"a":{"n":{"g":{"l":{"e":{";":{"0":{"codepoints":[8737],"characters":"∡"}}}}}}}}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120106],"characters":"𝔪"}}}},"h":{"o":{";":{"0":{"codepoints":[8487],"characters":"℧"}}}},"i":{"c":{"r":{"o":{"0":{"codepoints":[181],"characters":"µ"},";":{"0":{"codepoints":[181],"characters":"µ"}}}}},"d":{"a":{"s":{"t":{";":{"0":{"codepoints":[42],"characters":"*"}}}}},"c":{"i":{"r":{";":{"0":{"codepoints":[10992],"characters":"⫰"}}}}},";":{"0":{"codepoints":[8739],"characters":"∣"}},"d":{"o":{"t":{"0":{"codepoints":[183],"characters":"·"},";":{"0":{"codepoints":[183],"characters":"·"}}}}}},"n":{"u":{"s":{"b":{";":{"0":{"codepoints":[8863],"characters":"⊟"}}},";":{"0":{"codepoints":[8722],"characters":"−"}},"d":{";":{"0":{"codepoints":[8760],"characters":"∸"}},"u":{";":{"0":{"codepoints":[10794],"characters":"⨪"}}}}}}}},"l":{"c":{"p":{";":{"0":{"codepoints":[10971],"characters":"⫛"}}}},"d":{"r":{";":{"0":{"codepoints":[8230],"characters":"…"}}}}},"n":{"p":{"l":{"u":{"s":{";":{"0":{"codepoints":[8723],"characters":"∓"}}}}}}},"o":{"d":{"e":{"l":{"s":{";":{"0":{"codepoints":[8871],"characters":"⊧"}}}}}},"p":{"f":{";":{"0":{"codepoints":[120158],"characters":"𝕞"}}}}},"p":{";":{"0":{"codepoints":[8723],"characters":"∓"}}},"s":{"c":{"r":{";":{"0":{"codepoints":[120002],"characters":"𝓂"}}}},"t":{"p":{"o":{"s":{";":{"0":{"codepoints":[8766],"characters":"∾"}}}}}}},"u":{";":{"0":{"codepoints":[956],"characters":"μ"}},"l":{"t":{"i":{"m":{"a":{"p":{";":{"0":{"codepoints":[8888],"characters":"⊸"}}}}}}}},"m":{"a":{"p":{";":{"0":{"codepoints":[8888],"characters":"⊸"}}}}}}},"M":{"a":{"p":{";":{"0":{"codepoints":[10501],"characters":"⤅"}}}},"c":{"y":{";":{"0":{"codepoints":[1052],"characters":"М"}}}},"e":{"d":{"i":{"u":{"m":{"S":{"p":{"a":{"c":{"e":{";":{"0":{"codepoints":[8287],"characters":" "}}}}}}}}}}},"l":{"l":{"i":{"n":{"t":{"r":{"f":{";":{"0":{"codepoints":[8499],"characters":"ℳ"}}}}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120080],"characters":"𝔐"}}}},"i":{"n":{"u":{"s":{"P":{"l":{"u":{"s":{";":{"0":{"codepoints":[8723],"characters":"∓"}}}}}}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120132],"characters":"𝕄"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[8499],"characters":"ℳ"}}}}},"u":{";":{"0":{"codepoints":[924],"characters":"Μ"}}}},"n":{"a":{"b":{"l":{"a":{";":{"0":{"codepoints":[8711],"characters":"∇"}}}}},"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[324],"characters":"ń"}}}}}},"n":{"g":{";":{"0":{"codepoints":[8736,8402],"characters":"∠⃒"}}}},"p":{";":{"0":{"codepoints":[8777],"characters":"≉"}},"E":{";":{"0":{"codepoints":[10864,824],"characters":"⩰̸"}}},"i":{"d":{";":{"0":{"codepoints":[8779,824],"characters":"≋̸"}}}},"o":{"s":{";":{"0":{"codepoints":[329],"characters":"ŉ"}}}},"p":{"r":{"o":{"x":{";":{"0":{"codepoints":[8777],"characters":"≉"}}}}}}},"t":{"u":{"r":{"a":{"l":{";":{"0":{"codepoints":[9838],"characters":"♮"}},"s":{";":{"0":{"codepoints":[8469],"characters":"ℕ"}}}}},";":{"0":{"codepoints":[9838],"characters":"♮"}}}}}},"b":{"s":{"p":{"0":{"codepoints":[160],"characters":" "},";":{"0":{"codepoints":[160],"characters":" "}}}},"u":{"m":{"p":{";":{"0":{"codepoints":[8782,824],"characters":"≎̸"}},"e":{";":{"0":{"codepoints":[8783,824],"characters":"≏̸"}}}}}}},"c":{"a":{"p":{";":{"0":{"codepoints":[10819],"characters":"⩃"}}},"r":{"o":{"n":{";":{"0":{"codepoints":[328],"characters":"ň"}}}}}},"e":{"d":{"i":{"l":{";":{"0":{"codepoints":[326],"characters":"ņ"}}}}}},"o":{"n":{"g":{";":{"0":{"codepoints":[8775],"characters":"≇"}},"d":{"o":{"t":{";":{"0":{"codepoints":[10861,824],"characters":"⩭̸"}}}}}}}},"u":{"p":{";":{"0":{"codepoints":[10818],"characters":"⩂"}}}},"y":{";":{"0":{"codepoints":[1085],"characters":"н"}}}},"d":{"a":{"s":{"h":{";":{"0":{"codepoints":[8211],"characters":"–"}}}}}},"e":{"a":{"r":{"h":{"k":{";":{"0":{"codepoints":[10532],"characters":"⤤"}}}},"r":{";":{"0":{"codepoints":[8599],"characters":"↗"}},"o":{"w":{";":{"0":{"codepoints":[8599],"characters":"↗"}}}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[8663],"characters":"⇗"}}}}},";":{"0":{"codepoints":[8800],"characters":"≠"}},"d":{"o":{"t":{";":{"0":{"codepoints":[8784,824],"characters":"≐̸"}}}}},"q":{"u":{"i":{"v":{";":{"0":{"codepoints":[8802],"characters":"≢"}}}}}},"s":{"e":{"a":{"r":{";":{"0":{"codepoints":[10536],"characters":"⤨"}}}}},"i":{"m":{";":{"0":{"codepoints":[8770,824],"characters":"≂̸"}}}}},"x":{"i":{"s":{"t":{";":{"0":{"codepoints":[8708],"characters":"∄"}},"s":{";":{"0":{"codepoints":[8708],"characters":"∄"}}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120107],"characters":"𝔫"}}}},"g":{"E":{";":{"0":{"codepoints":[8807,824],"characters":"≧̸"}}},"e":{";":{"0":{"codepoints":[8817],"characters":"≱"}},"q":{";":{"0":{"codepoints":[8817],"characters":"≱"}},"q":{";":{"0":{"codepoints":[8807,824],"characters":"≧̸"}}},"s":{"l":{"a":{"n":{"t":{";":{"0":{"codepoints":[10878,824],"characters":"⩾̸"}}}}}}}},"s":{";":{"0":{"codepoints":[10878,824],"characters":"⩾̸"}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8821],"characters":"≵"}}}}},"t":{";":{"0":{"codepoints":[8815],"characters":"≯"}},"r":{";":{"0":{"codepoints":[8815],"characters":"≯"}}}}},"G":{"g":{";":{"0":{"codepoints":[8921,824],"characters":"⋙̸"}}},"t":{";":{"0":{"codepoints":[8811,8402],"characters":"≫⃒"}},"v":{";":{"0":{"codepoints":[8811,824],"characters":"≫̸"}}}}},"h":{"a":{"r":{"r":{";":{"0":{"codepoints":[8622],"characters":"↮"}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[8654],"characters":"⇎"}}}}},"p":{"a":{"r":{";":{"0":{"codepoints":[10994],"characters":"⫲"}}}}}},"i":{";":{"0":{"codepoints":[8715],"characters":"∋"}},"s":{";":{"0":{"codepoints":[8956],"characters":"⋼"}},"d":{";":{"0":{"codepoints":[8954],"characters":"⋺"}}}},"v":{";":{"0":{"codepoints":[8715],"characters":"∋"}}}},"j":{"c":{"y":{";":{"0":{"codepoints":[1114],"characters":"њ"}}}}},"l":{"a":{"r":{"r":{";":{"0":{"codepoints":[8602],"characters":"↚"}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[8653],"characters":"⇍"}}}}},"d":{"r":{";":{"0":{"codepoints":[8229],"characters":"‥"}}}},"E":{";":{"0":{"codepoints":[8806,824],"characters":"≦̸"}}},"e":{";":{"0":{"codepoints":[8816],"characters":"≰"}},"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8602],"characters":"↚"}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8622],"characters":"↮"}}}}}}}}}}}}}},"q":{";":{"0":{"codepoints":[8816],"characters":"≰"}},"q":{";":{"0":{"codepoints":[8806,824],"characters":"≦̸"}}},"s":{"l":{"a":{"n":{"t":{";":{"0":{"codepoints":[10877,824],"characters":"⩽̸"}}}}}}}},"s":{";":{"0":{"codepoints":[10877,824],"characters":"⩽̸"}},"s":{";":{"0":{"codepoints":[8814],"characters":"≮"}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8820],"characters":"≴"}}}}},"t":{";":{"0":{"codepoints":[8814],"characters":"≮"}},"r":{"i":{";":{"0":{"codepoints":[8938],"characters":"⋪"}},"e":{";":{"0":{"codepoints":[8940],"characters":"⋬"}}}}}}},"L":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8653],"characters":"⇍"}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8654],"characters":"⇎"}}}}}}}}}}}}}}},"l":{";":{"0":{"codepoints":[8920,824],"characters":"⋘̸"}}},"t":{";":{"0":{"codepoints":[8810,8402],"characters":"≪⃒"}},"v":{";":{"0":{"codepoints":[8810,824],"characters":"≪̸"}}}}},"m":{"i":{"d":{";":{"0":{"codepoints":[8740],"characters":"∤"}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120159],"characters":"𝕟"}}}},"t":{"0":{"codepoints":[172],"characters":"¬"},";":{"0":{"codepoints":[172],"characters":"¬"}},"i":{"n":{";":{"0":{"codepoints":[8713],"characters":"∉"}},"d":{"o":{"t":{";":{"0":{"codepoints":[8949,824],"characters":"⋵̸"}}}}},"E":{";":{"0":{"codepoints":[8953,824],"characters":"⋹̸"}}},"v":{"a":{";":{"0":{"codepoints":[8713],"characters":"∉"}}},"b":{";":{"0":{"codepoints":[8951],"characters":"⋷"}}},"c":{";":{"0":{"codepoints":[8950],"characters":"⋶"}}}}}},"n":{"i":{";":{"0":{"codepoints":[8716],"characters":"∌"}},"v":{"a":{";":{"0":{"codepoints":[8716],"characters":"∌"}}},"b":{";":{"0":{"codepoints":[8958],"characters":"⋾"}}},"c":{";":{"0":{"codepoints":[8957],"characters":"⋽"}}}}}}}},"p":{"a":{"r":{"a":{"l":{"l":{"e":{"l":{";":{"0":{"codepoints":[8742],"characters":"∦"}}}}}}},";":{"0":{"codepoints":[8742],"characters":"∦"}},"s":{"l":{";":{"0":{"codepoints":[11005,8421],"characters":"⫽⃥"}}}},"t":{";":{"0":{"codepoints":[8706,824],"characters":"∂̸"}}}}},"o":{"l":{"i":{"n":{"t":{";":{"0":{"codepoints":[10772],"characters":"⨔"}}}}}}},"r":{";":{"0":{"codepoints":[8832],"characters":"⊀"}},"c":{"u":{"e":{";":{"0":{"codepoints":[8928],"characters":"⋠"}}}}},"e":{"c":{";":{"0":{"codepoints":[8832],"characters":"⊀"}},"e":{"q":{";":{"0":{"codepoints":[10927,824],"characters":"⪯̸"}}}}},";":{"0":{"codepoints":[10927,824],"characters":"⪯̸"}}}}},"r":{"a":{"r":{"r":{"c":{";":{"0":{"codepoints":[10547,824],"characters":"⤳̸"}}},";":{"0":{"codepoints":[8603],"characters":"↛"}},"w":{";":{"0":{"codepoints":[8605,824],"characters":"↝̸"}}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[8655],"characters":"⇏"}}}}},"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8603],"characters":"↛"}}}}}}}}}}},"t":{"r":{"i":{";":{"0":{"codepoints":[8939],"characters":"⋫"}},"e":{";":{"0":{"codepoints":[8941],"characters":"⋭"}}}}}}},"R":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8655],"characters":"⇏"}}}}}}}}}}}},"s":{"c":{";":{"0":{"codepoints":[8833],"characters":"⊁"}},"c":{"u":{"e":{";":{"0":{"codepoints":[8929],"characters":"⋡"}}}}},"e":{";":{"0":{"codepoints":[10928,824],"characters":"⪰̸"}}},"r":{";":{"0":{"codepoints":[120003],"characters":"𝓃"}}}},"h":{"o":{"r":{"t":{"m":{"i":{"d":{";":{"0":{"codepoints":[8740],"characters":"∤"}}}}},"p":{"a":{"r":{"a":{"l":{"l":{"e":{"l":{";":{"0":{"codepoints":[8742],"characters":"∦"}}}}}}}}}}}}}},"i":{"m":{";":{"0":{"codepoints":[8769],"characters":"≁"}},"e":{";":{"0":{"codepoints":[8772],"characters":"≄"}},"q":{";":{"0":{"codepoints":[8772],"characters":"≄"}}}}}},"m":{"i":{"d":{";":{"0":{"codepoints":[8740],"characters":"∤"}}}}},"p":{"a":{"r":{";":{"0":{"codepoints":[8742],"characters":"∦"}}}}},"q":{"s":{"u":{"b":{"e":{";":{"0":{"codepoints":[8930],"characters":"⋢"}}}},"p":{"e":{";":{"0":{"codepoints":[8931],"characters":"⋣"}}}}}}},"u":{"b":{";":{"0":{"codepoints":[8836],"characters":"⊄"}},"E":{";":{"0":{"codepoints":[10949,824],"characters":"⫅̸"}}},"e":{";":{"0":{"codepoints":[8840],"characters":"⊈"}}},"s":{"e":{"t":{";":{"0":{"codepoints":[8834,8402],"characters":"⊂⃒"}},"e":{"q":{";":{"0":{"codepoints":[8840],"characters":"⊈"}},"q":{";":{"0":{"codepoints":[10949,824],"characters":"⫅̸"}}}}}}}}},"c":{"c":{";":{"0":{"codepoints":[8833],"characters":"⊁"}},"e":{"q":{";":{"0":{"codepoints":[10928,824],"characters":"⪰̸"}}}}}},"p":{";":{"0":{"codepoints":[8837],"characters":"⊅"}},"E":{";":{"0":{"codepoints":[10950,824],"characters":"⫆̸"}}},"e":{";":{"0":{"codepoints":[8841],"characters":"⊉"}}},"s":{"e":{"t":{";":{"0":{"codepoints":[8835,8402],"characters":"⊃⃒"}},"e":{"q":{";":{"0":{"codepoints":[8841],"characters":"⊉"}},"q":{";":{"0":{"codepoints":[10950,824],"characters":"⫆̸"}}}}}}}}}}},"t":{"g":{"l":{";":{"0":{"codepoints":[8825],"characters":"≹"}}}},"i":{"l":{"d":{"e":{"0":{"codepoints":[241],"characters":"ñ"},";":{"0":{"codepoints":[241],"characters":"ñ"}}}}}},"l":{"g":{";":{"0":{"codepoints":[8824],"characters":"≸"}}}},"r":{"i":{"a":{"n":{"g":{"l":{"e":{"l":{"e":{"f":{"t":{";":{"0":{"codepoints":[8938],"characters":"⋪"}},"e":{"q":{";":{"0":{"codepoints":[8940],"characters":"⋬"}}}}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":{"codepoints":[8939],"characters":"⋫"}},"e":{"q":{";":{"0":{"codepoints":[8941],"characters":"⋭"}}}}}}}}}}}}}}}}},"u":{";":{"0":{"codepoints":[957],"characters":"ν"}},"m":{";":{"0":{"codepoints":[35],"characters":"#"}},"e":{"r":{"o":{";":{"0":{"codepoints":[8470],"characters":"№"}}}}},"s":{"p":{";":{"0":{"codepoints":[8199],"characters":" "}}}}}},"v":{"a":{"p":{";":{"0":{"codepoints":[8781,8402],"characters":"≍⃒"}}}},"d":{"a":{"s":{"h":{";":{"0":{"codepoints":[8876],"characters":"⊬"}}}}}},"D":{"a":{"s":{"h":{";":{"0":{"codepoints":[8877],"characters":"⊭"}}}}}},"g":{"e":{";":{"0":{"codepoints":[8805,8402],"characters":"≥⃒"}}},"t":{";":{"0":{"codepoints":[62,8402],"characters":">⃒"}}}},"H":{"a":{"r":{"r":{";":{"0":{"codepoints":[10500],"characters":"⤄"}}}}}},"i":{"n":{"f":{"i":{"n":{";":{"0":{"codepoints":[10718],"characters":"⧞"}}}}}}},"l":{"A":{"r":{"r":{";":{"0":{"codepoints":[10498],"characters":"⤂"}}}}},"e":{";":{"0":{"codepoints":[8804,8402],"characters":"≤⃒"}}},"t":{";":{"0":{"codepoints":[60,8402],"characters":"<⃒"}},"r":{"i":{"e":{";":{"0":{"codepoints":[8884,8402],"characters":"⊴⃒"}}}}}}},"r":{"A":{"r":{"r":{";":{"0":{"codepoints":[10499],"characters":"⤃"}}}}},"t":{"r":{"i":{"e":{";":{"0":{"codepoints":[8885,8402],"characters":"⊵⃒"}}}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8764,8402],"characters":"∼⃒"}}}}}},"V":{"d":{"a":{"s":{"h":{";":{"0":{"codepoints":[8878],"characters":"⊮"}}}}}},"D":{"a":{"s":{"h":{";":{"0":{"codepoints":[8879],"characters":"⊯"}}}}}}},"w":{"a":{"r":{"h":{"k":{";":{"0":{"codepoints":[10531],"characters":"⤣"}}}},"r":{";":{"0":{"codepoints":[8598],"characters":"↖"}},"o":{"w":{";":{"0":{"codepoints":[8598],"characters":"↖"}}}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[8662],"characters":"⇖"}}}}},"n":{"e":{"a":{"r":{";":{"0":{"codepoints":[10535],"characters":"⤧"}}}}}}}},"N":{"a":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[323],"characters":"Ń"}}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[327],"characters":"Ň"}}}}}},"e":{"d":{"i":{"l":{";":{"0":{"codepoints":[325],"characters":"Ņ"}}}}}},"y":{";":{"0":{"codepoints":[1053],"characters":"Н"}}}},"e":{"g":{"a":{"t":{"i":{"v":{"e":{"M":{"e":{"d":{"i":{"u":{"m":{"S":{"p":{"a":{"c":{"e":{";":{"0":{"codepoints":[8203],"characters":"​"}}}}}}}}}}}}},"T":{"h":{"i":{"c":{"k":{"S":{"p":{"a":{"c":{"e":{";":{"0":{"codepoints":[8203],"characters":"​"}}}}}}}}},"n":{"S":{"p":{"a":{"c":{"e":{";":{"0":{"codepoints":[8203],"characters":"​"}}}}}}}}}}},"V":{"e":{"r":{"y":{"T":{"h":{"i":{"n":{"S":{"p":{"a":{"c":{"e":{";":{"0":{"codepoints":[8203],"characters":"​"}}}}}}}}}}}}}}}}}}}}},"s":{"t":{"e":{"d":{"G":{"r":{"e":{"a":{"t":{"e":{"r":{"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":{"codepoints":[8811],"characters":"≫"}}}}}}}}}}}}}}}},"L":{"e":{"s":{"s":{"L":{"e":{"s":{"s":{";":{"0":{"codepoints":[8810],"characters":"≪"}}}}}}}}}}}}}},"w":{"L":{"i":{"n":{"e":{";":{"0":{"codepoints":[10],"characters":"\n"}}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120081],"characters":"𝔑"}}}},"J":{"c":{"y":{";":{"0":{"codepoints":[1034],"characters":"Њ"}}}}},"o":{"B":{"r":{"e":{"a":{"k":{";":{"0":{"codepoints":[8288],"characters":"⁠"}}}}}}},"n":{"B":{"r":{"e":{"a":{"k":{"i":{"n":{"g":{"S":{"p":{"a":{"c":{"e":{";":{"0":{"codepoints":[160],"characters":" "}}}}}}}}}}}}}}}},"p":{"f":{";":{"0":{"codepoints":[8469],"characters":"ℕ"}}}},"t":{";":{"0":{"codepoints":[10988],"characters":"⫬"}},"C":{"o":{"n":{"g":{"r":{"u":{"e":{"n":{"t":{";":{"0":{"codepoints":[8802],"characters":"≢"}}}}}}}}}},"u":{"p":{"C":{"a":{"p":{";":{"0":{"codepoints":[8813],"characters":"≭"}}}}}}}},"D":{"o":{"u":{"b":{"l":{"e":{"V":{"e":{"r":{"t":{"i":{"c":{"a":{"l":{"B":{"a":{"r":{";":{"0":{"codepoints":[8742],"characters":"∦"}}}}}}}}}}}}}}}}}}},"E":{"l":{"e":{"m":{"e":{"n":{"t":{";":{"0":{"codepoints":[8713],"characters":"∉"}}}}}}}},"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8800],"characters":"≠"}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8770,824],"characters":"≂̸"}}}}}}}}}}},"x":{"i":{"s":{"t":{"s":{";":{"0":{"codepoints":[8708],"characters":"∄"}}}}}}}},"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":{"codepoints":[8815],"characters":"≯"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8817],"characters":"≱"}}}}}}},"F":{"u":{"l":{"l":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8807,824],"characters":"≧̸"}}}}}}}}}}},"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":{"codepoints":[8811,824],"characters":"≫̸"}}}}}}}}},"L":{"e":{"s":{"s":{";":{"0":{"codepoints":[8825],"characters":"≹"}}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[10878,824],"characters":"⩾̸"}}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8821],"characters":"≵"}}}}}}}}}}}}}},"H":{"u":{"m":{"p":{"D":{"o":{"w":{"n":{"H":{"u":{"m":{"p":{";":{"0":{"codepoints":[8782,824],"characters":"≎̸"}}}}}}}}}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8783,824],"characters":"≏̸"}}}}}}}}}}},"L":{"e":{"f":{"t":{"T":{"r":{"i":{"a":{"n":{"g":{"l":{"e":{"B":{"a":{"r":{";":{"0":{"codepoints":[10703,824],"characters":"⧏̸"}}}}},";":{"0":{"codepoints":[8938],"characters":"⋪"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8940],"characters":"⋬"}}}}}}}}}}}}}}}}},"s":{"s":{";":{"0":{"codepoints":[8814],"characters":"≮"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8816],"characters":"≰"}}}}}}},"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":{"codepoints":[8824],"characters":"≸"}}}}}}}}},"L":{"e":{"s":{"s":{";":{"0":{"codepoints":[8810,824],"characters":"≪̸"}}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[10877,824],"characters":"⩽̸"}}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8820],"characters":"≴"}}}}}}}}}}},"N":{"e":{"s":{"t":{"e":{"d":{"G":{"r":{"e":{"a":{"t":{"e":{"r":{"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":{"codepoints":[10914,824],"characters":"⪢̸"}}}}}}}}}}}}}}}},"L":{"e":{"s":{"s":{"L":{"e":{"s":{"s":{";":{"0":{"codepoints":[10913,824],"characters":"⪡̸"}}}}}}}}}}}}}}}},"P":{"r":{"e":{"c":{"e":{"d":{"e":{"s":{";":{"0":{"codepoints":[8832],"characters":"⊀"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[10927,824],"characters":"⪯̸"}}}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8928],"characters":"⋠"}}}}}}}}}}}}}}}}}}}},"R":{"e":{"v":{"e":{"r":{"s":{"e":{"E":{"l":{"e":{"m":{"e":{"n":{"t":{";":{"0":{"codepoints":[8716],"characters":"∌"}}}}}}}}}}}}}}},"i":{"g":{"h":{"t":{"T":{"r":{"i":{"a":{"n":{"g":{"l":{"e":{"B":{"a":{"r":{";":{"0":{"codepoints":[10704,824],"characters":"⧐̸"}}}}},";":{"0":{"codepoints":[8939],"characters":"⋫"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8941],"characters":"⋭"}}}}}}}}}}}}}}}}}}}},"S":{"q":{"u":{"a":{"r":{"e":{"S":{"u":{"b":{"s":{"e":{"t":{";":{"0":{"codepoints":[8847,824],"characters":"⊏̸"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8930],"characters":"⋢"}}}}}}}}}}},"p":{"e":{"r":{"s":{"e":{"t":{";":{"0":{"codepoints":[8848,824],"characters":"⊐̸"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8931],"characters":"⋣"}}}}}}}}}}}}}}}}}}}},"u":{"b":{"s":{"e":{"t":{";":{"0":{"codepoints":[8834,8402],"characters":"⊂⃒"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8840],"characters":"⊈"}}}}}}}}}}},"c":{"c":{"e":{"e":{"d":{"s":{";":{"0":{"codepoints":[8833],"characters":"⊁"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[10928,824],"characters":"⪰̸"}}}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8929],"characters":"⋡"}}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8831,824],"characters":"≿̸"}}}}}}}}}}}}},"p":{"e":{"r":{"s":{"e":{"t":{";":{"0":{"codepoints":[8835,8402],"characters":"⊃⃒"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8841],"characters":"⊉"}}}}}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8769],"characters":"≁"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8772],"characters":"≄"}}}}}}},"F":{"u":{"l":{"l":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8775],"characters":"≇"}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8777],"characters":"≉"}}}}}}}}}}}},"V":{"e":{"r":{"t":{"i":{"c":{"a":{"l":{"B":{"a":{"r":{";":{"0":{"codepoints":[8740],"characters":"∤"}}}}}}}}}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119977],"characters":"𝒩"}}}}},"t":{"i":{"l":{"d":{"e":{"0":{"codepoints":[209],"characters":"Ñ"},";":{"0":{"codepoints":[209],"characters":"Ñ"}}}}}}},"u":{";":{"0":{"codepoints":[925],"characters":"Ν"}}}},"O":{"a":{"c":{"u":{"t":{"e":{"0":{"codepoints":[211],"characters":"Ó"},";":{"0":{"codepoints":[211],"characters":"Ó"}}}}}}},"c":{"i":{"r":{"c":{"0":{"codepoints":[212],"characters":"Ô"},";":{"0":{"codepoints":[212],"characters":"Ô"}}}}},"y":{";":{"0":{"codepoints":[1054],"characters":"О"}}}},"d":{"b":{"l":{"a":{"c":{";":{"0":{"codepoints":[336],"characters":"Ő"}}}}}}},"E":{"l":{"i":{"g":{";":{"0":{"codepoints":[338],"characters":"Œ"}}}}}},"f":{"r":{";":{"0":{"codepoints":[120082],"characters":"𝔒"}}}},"g":{"r":{"a":{"v":{"e":{"0":{"codepoints":[210],"characters":"Ò"},";":{"0":{"codepoints":[210],"characters":"Ò"}}}}}}},"m":{"a":{"c":{"r":{";":{"0":{"codepoints":[332],"characters":"Ō"}}}}},"e":{"g":{"a":{";":{"0":{"codepoints":[937],"characters":"Ω"}}}}},"i":{"c":{"r":{"o":{"n":{";":{"0":{"codepoints":[927],"characters":"Ο"}}}}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120134],"characters":"𝕆"}}}}},"p":{"e":{"n":{"C":{"u":{"r":{"l":{"y":{"D":{"o":{"u":{"b":{"l":{"e":{"Q":{"u":{"o":{"t":{"e":{";":{"0":{"codepoints":[8220],"characters":"“"}}}}}}}}}}}}},"Q":{"u":{"o":{"t":{"e":{";":{"0":{"codepoints":[8216],"characters":"‘"}}}}}}}}}}}}}}},"r":{";":{"0":{"codepoints":[10836],"characters":"⩔"}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119978],"characters":"𝒪"}}}},"l":{"a":{"s":{"h":{"0":{"codepoints":[216],"characters":"Ø"},";":{"0":{"codepoints":[216],"characters":"Ø"}}}}}}},"t":{"i":{"l":{"d":{"e":{"0":{"codepoints":[213],"characters":"Õ"},";":{"0":{"codepoints":[213],"characters":"Õ"}}}}},"m":{"e":{"s":{";":{"0":{"codepoints":[10807],"characters":"⨷"}}}}}}},"u":{"m":{"l":{"0":{"codepoints":[214],"characters":"Ö"},";":{"0":{"codepoints":[214],"characters":"Ö"}}}}},"v":{"e":{"r":{"B":{"a":{"r":{";":{"0":{"codepoints":[8254],"characters":"‾"}}}},"r":{"a":{"c":{"e":{";":{"0":{"codepoints":[9182],"characters":"⏞"}}},"k":{"e":{"t":{";":{"0":{"codepoints":[9140],"characters":"⎴"}}}}}}}}},"P":{"a":{"r":{"e":{"n":{"t":{"h":{"e":{"s":{"i":{"s":{";":{"0":{"codepoints":[9180],"characters":"⏜"}}}}}}}}}}}}}}}}},"o":{"a":{"c":{"u":{"t":{"e":{"0":{"codepoints":[243],"characters":"ó"},";":{"0":{"codepoints":[243],"characters":"ó"}}}}}},"s":{"t":{";":{"0":{"codepoints":[8859],"characters":"⊛"}}}}},"c":{"i":{"r":{"c":{"0":{"codepoints":[244],"characters":"ô"},";":{"0":{"codepoints":[244],"characters":"ô"}}},";":{"0":{"codepoints":[8858],"characters":"⊚"}}}},"y":{";":{"0":{"codepoints":[1086],"characters":"о"}}}},"d":{"a":{"s":{"h":{";":{"0":{"codepoints":[8861],"characters":"⊝"}}}}},"b":{"l":{"a":{"c":{";":{"0":{"codepoints":[337],"characters":"ő"}}}}}},"i":{"v":{";":{"0":{"codepoints":[10808],"characters":"⨸"}}}},"o":{"t":{";":{"0":{"codepoints":[8857],"characters":"⊙"}}}},"s":{"o":{"l":{"d":{";":{"0":{"codepoints":[10684],"characters":"⦼"}}}}}}},"e":{"l":{"i":{"g":{";":{"0":{"codepoints":[339],"characters":"œ"}}}}}},"f":{"c":{"i":{"r":{";":{"0":{"codepoints":[10687],"characters":"⦿"}}}}},"r":{";":{"0":{"codepoints":[120108],"characters":"𝔬"}}}},"g":{"o":{"n":{";":{"0":{"codepoints":[731],"characters":"˛"}}}},"r":{"a":{"v":{"e":{"0":{"codepoints":[242],"characters":"ò"},";":{"0":{"codepoints":[242],"characters":"ò"}}}}}},"t":{";":{"0":{"codepoints":[10689],"characters":"⧁"}}}},"h":{"b":{"a":{"r":{";":{"0":{"codepoints":[10677],"characters":"⦵"}}}}},"m":{";":{"0":{"codepoints":[937],"characters":"Ω"}}}},"i":{"n":{"t":{";":{"0":{"codepoints":[8750],"characters":"∮"}}}}},"l":{"a":{"r":{"r":{";":{"0":{"codepoints":[8634],"characters":"↺"}}}}},"c":{"i":{"r":{";":{"0":{"codepoints":[10686],"characters":"⦾"}}}},"r":{"o":{"s":{"s":{";":{"0":{"codepoints":[10683],"characters":"⦻"}}}}}}},"i":{"n":{"e":{";":{"0":{"codepoints":[8254],"characters":"‾"}}}}},"t":{";":{"0":{"codepoints":[10688],"characters":"⧀"}}}},"m":{"a":{"c":{"r":{";":{"0":{"codepoints":[333],"characters":"ō"}}}}},"e":{"g":{"a":{";":{"0":{"codepoints":[969],"characters":"ω"}}}}},"i":{"c":{"r":{"o":{"n":{";":{"0":{"codepoints":[959],"characters":"ο"}}}}}},"d":{";":{"0":{"codepoints":[10678],"characters":"⦶"}}},"n":{"u":{"s":{";":{"0":{"codepoints":[8854],"characters":"⊖"}}}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120160],"characters":"𝕠"}}}}},"p":{"a":{"r":{";":{"0":{"codepoints":[10679],"characters":"⦷"}}}},"e":{"r":{"p":{";":{"0":{"codepoints":[10681],"characters":"⦹"}}}}},"l":{"u":{"s":{";":{"0":{"codepoints":[8853],"characters":"⊕"}}}}}},"r":{"a":{"r":{"r":{";":{"0":{"codepoints":[8635],"characters":"↻"}}}}},";":{"0":{"codepoints":[8744],"characters":"∨"}},"d":{";":{"0":{"codepoints":[10845],"characters":"⩝"}},"e":{"r":{";":{"0":{"codepoints":[8500],"characters":"ℴ"}},"o":{"f":{";":{"0":{"codepoints":[8500],"characters":"ℴ"}}}}}},"f":{"0":{"codepoints":[170],"characters":"ª"},";":{"0":{"codepoints":[170],"characters":"ª"}}},"m":{"0":{"codepoints":[186],"characters":"º"},";":{"0":{"codepoints":[186],"characters":"º"}}}},"i":{"g":{"o":{"f":{";":{"0":{"codepoints":[8886],"characters":"⊶"}}}}}},"o":{"r":{";":{"0":{"codepoints":[10838],"characters":"⩖"}}}},"s":{"l":{"o":{"p":{"e":{";":{"0":{"codepoints":[10839],"characters":"⩗"}}}}}}},"v":{";":{"0":{"codepoints":[10843],"characters":"⩛"}}}},"S":{";":{"0":{"codepoints":[9416],"characters":"Ⓢ"}}},"s":{"c":{"r":{";":{"0":{"codepoints":[8500],"characters":"ℴ"}}}},"l":{"a":{"s":{"h":{"0":{"codepoints":[248],"characters":"ø"},";":{"0":{"codepoints":[248],"characters":"ø"}}}}}},"o":{"l":{";":{"0":{"codepoints":[8856],"characters":"⊘"}}}}},"t":{"i":{"l":{"d":{"e":{"0":{"codepoints":[245],"characters":"õ"},";":{"0":{"codepoints":[245],"characters":"õ"}}}}},"m":{"e":{"s":{"a":{"s":{";":{"0":{"codepoints":[10806],"characters":"⨶"}}}},";":{"0":{"codepoints":[8855],"characters":"⊗"}}}}}}},"u":{"m":{"l":{"0":{"codepoints":[246],"characters":"ö"},";":{"0":{"codepoints":[246],"characters":"ö"}}}}},"v":{"b":{"a":{"r":{";":{"0":{"codepoints":[9021],"characters":"⌽"}}}}}}},"p":{"a":{"r":{"a":{"0":{"codepoints":[182],"characters":"¶"},";":{"0":{"codepoints":[182],"characters":"¶"}},"l":{"l":{"e":{"l":{";":{"0":{"codepoints":[8741],"characters":"∥"}}}}}}},";":{"0":{"codepoints":[8741],"characters":"∥"}},"s":{"i":{"m":{";":{"0":{"codepoints":[10995],"characters":"⫳"}}}},"l":{";":{"0":{"codepoints":[11005],"characters":"⫽"}}}},"t":{";":{"0":{"codepoints":[8706],"characters":"∂"}}}}},"c":{"y":{";":{"0":{"codepoints":[1087],"characters":"п"}}}},"e":{"r":{"c":{"n":{"t":{";":{"0":{"codepoints":[37],"characters":"%"}}}}},"i":{"o":{"d":{";":{"0":{"codepoints":[46],"characters":"."}}}}},"m":{"i":{"l":{";":{"0":{"codepoints":[8240],"characters":"‰"}}}}},"p":{";":{"0":{"codepoints":[8869],"characters":"⊥"}}},"t":{"e":{"n":{"k":{";":{"0":{"codepoints":[8241],"characters":"‱"}}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120109],"characters":"𝔭"}}}},"h":{"i":{";":{"0":{"codepoints":[966],"characters":"φ"}},"v":{";":{"0":{"codepoints":[981],"characters":"ϕ"}}}},"m":{"m":{"a":{"t":{";":{"0":{"codepoints":[8499],"characters":"ℳ"}}}}}},"o":{"n":{"e":{";":{"0":{"codepoints":[9742],"characters":"☎"}}}}}},"i":{";":{"0":{"codepoints":[960],"characters":"π"}},"t":{"c":{"h":{"f":{"o":{"r":{"k":{";":{"0":{"codepoints":[8916],"characters":"⋔"}}}}}}}}},"v":{";":{"0":{"codepoints":[982],"characters":"ϖ"}}}},"l":{"a":{"n":{"c":{"k":{";":{"0":{"codepoints":[8463],"characters":"ℏ"}},"h":{";":{"0":{"codepoints":[8462],"characters":"ℎ"}}}}},"k":{"v":{";":{"0":{"codepoints":[8463],"characters":"ℏ"}}}}}},"u":{"s":{"a":{"c":{"i":{"r":{";":{"0":{"codepoints":[10787],"characters":"⨣"}}}}}},"b":{";":{"0":{"codepoints":[8862],"characters":"⊞"}}},"c":{"i":{"r":{";":{"0":{"codepoints":[10786],"characters":"⨢"}}}}},";":{"0":{"codepoints":[43],"characters":"+"}},"d":{"o":{";":{"0":{"codepoints":[8724],"characters":"∔"}}},"u":{";":{"0":{"codepoints":[10789],"characters":"⨥"}}}},"e":{";":{"0":{"codepoints":[10866],"characters":"⩲"}}},"m":{"n":{"0":{"codepoints":[177],"characters":"±"},";":{"0":{"codepoints":[177],"characters":"±"}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[10790],"characters":"⨦"}}}}},"t":{"w":{"o":{";":{"0":{"codepoints":[10791],"characters":"⨧"}}}}}}}},"m":{";":{"0":{"codepoints":[177],"characters":"±"}}},"o":{"i":{"n":{"t":{"i":{"n":{"t":{";":{"0":{"codepoints":[10773],"characters":"⨕"}}}}}}}},"p":{"f":{";":{"0":{"codepoints":[120161],"characters":"𝕡"}}}},"u":{"n":{"d":{"0":{"codepoints":[163],"characters":"£"},";":{"0":{"codepoints":[163],"characters":"£"}}}}}},"r":{"a":{"p":{";":{"0":{"codepoints":[10935],"characters":"⪷"}}}},";":{"0":{"codepoints":[8826],"characters":"≺"}},"c":{"u":{"e":{";":{"0":{"codepoints":[8828],"characters":"≼"}}}}},"e":{"c":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":{"codepoints":[10935],"characters":"⪷"}}}}}}}},";":{"0":{"codepoints":[8826],"characters":"≺"}},"c":{"u":{"r":{"l":{"y":{"e":{"q":{";":{"0":{"codepoints":[8828],"characters":"≼"}}}}}}}}},"e":{"q":{";":{"0":{"codepoints":[10927],"characters":"⪯"}}}},"n":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":{"codepoints":[10937],"characters":"⪹"}}}}}}}},"e":{"q":{"q":{";":{"0":{"codepoints":[10933],"characters":"⪵"}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8936],"characters":"⋨"}}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8830],"characters":"≾"}}}}}},";":{"0":{"codepoints":[10927],"characters":"⪯"}}},"E":{";":{"0":{"codepoints":[10931],"characters":"⪳"}}},"i":{"m":{"e":{";":{"0":{"codepoints":[8242],"characters":"′"}},"s":{";":{"0":{"codepoints":[8473],"characters":"ℙ"}}}}}},"n":{"a":{"p":{";":{"0":{"codepoints":[10937],"characters":"⪹"}}}},"E":{";":{"0":{"codepoints":[10933],"characters":"⪵"}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8936],"characters":"⋨"}}}}}},"o":{"d":{";":{"0":{"codepoints":[8719],"characters":"∏"}}},"f":{"a":{"l":{"a":{"r":{";":{"0":{"codepoints":[9006],"characters":"⌮"}}}}}},"l":{"i":{"n":{"e":{";":{"0":{"codepoints":[8978],"characters":"⌒"}}}}}},"s":{"u":{"r":{"f":{";":{"0":{"codepoints":[8979],"characters":"⌓"}}}}}}},"p":{";":{"0":{"codepoints":[8733],"characters":"∝"}},"t":{"o":{";":{"0":{"codepoints":[8733],"characters":"∝"}}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8830],"characters":"≾"}}}}},"u":{"r":{"e":{"l":{";":{"0":{"codepoints":[8880],"characters":"⊰"}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[120005],"characters":"𝓅"}}}},"i":{";":{"0":{"codepoints":[968],"characters":"ψ"}}}},"u":{"n":{"c":{"s":{"p":{";":{"0":{"codepoints":[8200],"characters":" "}}}}}}}},"P":{"a":{"r":{"t":{"i":{"a":{"l":{"D":{";":{"0":{"codepoints":[8706],"characters":"∂"}}}}}}}}},"c":{"y":{";":{"0":{"codepoints":[1055],"characters":"П"}}}},"f":{"r":{";":{"0":{"codepoints":[120083],"characters":"𝔓"}}}},"h":{"i":{";":{"0":{"codepoints":[934],"characters":"Φ"}}}},"i":{";":{"0":{"codepoints":[928],"characters":"Π"}}},"l":{"u":{"s":{"M":{"i":{"n":{"u":{"s":{";":{"0":{"codepoints":[177],"characters":"±"}}}}}}}}}},"o":{"i":{"n":{"c":{"a":{"r":{"e":{"p":{"l":{"a":{"n":{"e":{";":{"0":{"codepoints":[8460],"characters":"ℌ"}}}}}}}}}}}}},"p":{"f":{";":{"0":{"codepoints":[8473],"characters":"ℙ"}}}}},"r":{";":{"0":{"codepoints":[10939],"characters":"⪻"}},"e":{"c":{"e":{"d":{"e":{"s":{";":{"0":{"codepoints":[8826],"characters":"≺"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[10927],"characters":"⪯"}}}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8828],"characters":"≼"}}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8830],"characters":"≾"}}}}}}}}}}}}},"i":{"m":{"e":{";":{"0":{"codepoints":[8243],"characters":"″"}}}}},"o":{"d":{"u":{"c":{"t":{";":{"0":{"codepoints":[8719],"characters":"∏"}}}}}},"p":{"o":{"r":{"t":{"i":{"o":{"n":{"a":{"l":{";":{"0":{"codepoints":[8733],"characters":"∝"}}}},";":{"0":{"codepoints":[8759],"characters":"∷"}}}}}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119979],"characters":"𝒫"}}}},"i":{";":{"0":{"codepoints":[936],"characters":"Ψ"}}}}},"Q":{"f":{"r":{";":{"0":{"codepoints":[120084],"characters":"𝔔"}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[8474],"characters":"ℚ"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119980],"characters":"𝒬"}}}}},"U":{"O":{"T":{"0":{"codepoints":[34],"characters":"\""},";":{"0":{"codepoints":[34],"characters":"\""}}}}}},"q":{"f":{"r":{";":{"0":{"codepoints":[120110],"characters":"𝔮"}}}},"i":{"n":{"t":{";":{"0":{"codepoints":[10764],"characters":"⨌"}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120162],"characters":"𝕢"}}}}},"p":{"r":{"i":{"m":{"e":{";":{"0":{"codepoints":[8279],"characters":"⁗"}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[120006],"characters":"𝓆"}}}}},"u":{"a":{"t":{"e":{"r":{"n":{"i":{"o":{"n":{"s":{";":{"0":{"codepoints":[8461],"characters":"ℍ"}}}}}}}}},"i":{"n":{"t":{";":{"0":{"codepoints":[10774],"characters":"⨖"}}}}}}},"e":{"s":{"t":{";":{"0":{"codepoints":[63],"characters":"?"}},"e":{"q":{";":{"0":{"codepoints":[8799],"characters":"≟"}}}}}}},"o":{"t":{"0":{"codepoints":[34],"characters":"\""},";":{"0":{"codepoints":[34],"characters":"\""}}}}}},"r":{"A":{"a":{"r":{"r":{";":{"0":{"codepoints":[8667],"characters":"⇛"}}}}},"r":{"r":{";":{"0":{"codepoints":[8658],"characters":"⇒"}}}},"t":{"a":{"i":{"l":{";":{"0":{"codepoints":[10524],"characters":"⤜"}}}}}}},"a":{"c":{"e":{";":{"0":{"codepoints":[8765,817],"characters":"∽̱"}}},"u":{"t":{"e":{";":{"0":{"codepoints":[341],"characters":"ŕ"}}}}}},"d":{"i":{"c":{";":{"0":{"codepoints":[8730],"characters":"√"}}}}},"e":{"m":{"p":{"t":{"y":{"v":{";":{"0":{"codepoints":[10675],"characters":"⦳"}}}}}}}},"n":{"g":{";":{"0":{"codepoints":[10217],"characters":"⟩"}},"d":{";":{"0":{"codepoints":[10642],"characters":"⦒"}}},"e":{";":{"0":{"codepoints":[10661],"characters":"⦥"}}},"l":{"e":{";":{"0":{"codepoints":[10217],"characters":"⟩"}}}}}},"q":{"u":{"o":{"0":{"codepoints":[187],"characters":"»"},";":{"0":{"codepoints":[187],"characters":"»"}}}}},"r":{"r":{"a":{"p":{";":{"0":{"codepoints":[10613],"characters":"⥵"}}}},"b":{";":{"0":{"codepoints":[8677],"characters":"⇥"}},"f":{"s":{";":{"0":{"codepoints":[10528],"characters":"⤠"}}}}},"c":{";":{"0":{"codepoints":[10547],"characters":"⤳"}}},";":{"0":{"codepoints":[8594],"characters":"→"}},"f":{"s":{";":{"0":{"codepoints":[10526],"characters":"⤞"}}}},"h":{"k":{";":{"0":{"codepoints":[8618],"characters":"↪"}}}},"l":{"p":{";":{"0":{"codepoints":[8620],"characters":"↬"}}}},"p":{"l":{";":{"0":{"codepoints":[10565],"characters":"⥅"}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[10612],"characters":"⥴"}}}}},"t":{"l":{";":{"0":{"codepoints":[8611],"characters":"↣"}}}},"w":{";":{"0":{"codepoints":[8605],"characters":"↝"}}}}},"t":{"a":{"i":{"l":{";":{"0":{"codepoints":[10522],"characters":"⤚"}}}}},"i":{"o":{";":{"0":{"codepoints":[8758],"characters":"∶"}},"n":{"a":{"l":{"s":{";":{"0":{"codepoints":[8474],"characters":"ℚ"}}}}}}}}}},"b":{"a":{"r":{"r":{";":{"0":{"codepoints":[10509],"characters":"⤍"}}}}},"b":{"r":{"k":{";":{"0":{"codepoints":[10099],"characters":"❳"}}}}},"r":{"a":{"c":{"e":{";":{"0":{"codepoints":[125],"characters":"}"}}},"k":{";":{"0":{"codepoints":[93],"characters":"]"}}}}},"k":{"e":{";":{"0":{"codepoints":[10636],"characters":"⦌"}}},"s":{"l":{"d":{";":{"0":{"codepoints":[10638],"characters":"⦎"}}},"u":{";":{"0":{"codepoints":[10640],"characters":"⦐"}}}}}}}},"B":{"a":{"r":{"r":{";":{"0":{"codepoints":[10511],"characters":"⤏"}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[345],"characters":"ř"}}}}}},"e":{"d":{"i":{"l":{";":{"0":{"codepoints":[343],"characters":"ŗ"}}}}},"i":{"l":{";":{"0":{"codepoints":[8969],"characters":"⌉"}}}}},"u":{"b":{";":{"0":{"codepoints":[125],"characters":"}"}}}},"y":{";":{"0":{"codepoints":[1088],"characters":"р"}}}},"d":{"c":{"a":{";":{"0":{"codepoints":[10551],"characters":"⤷"}}}},"l":{"d":{"h":{"a":{"r":{";":{"0":{"codepoints":[10601],"characters":"⥩"}}}}}}},"q":{"u":{"o":{";":{"0":{"codepoints":[8221],"characters":"”"}},"r":{";":{"0":{"codepoints":[8221],"characters":"”"}}}}}},"s":{"h":{";":{"0":{"codepoints":[8627],"characters":"↳"}}}}},"e":{"a":{"l":{";":{"0":{"codepoints":[8476],"characters":"ℜ"}},"i":{"n":{"e":{";":{"0":{"codepoints":[8475],"characters":"ℛ"}}}}},"p":{"a":{"r":{"t":{";":{"0":{"codepoints":[8476],"characters":"ℜ"}}}}}},"s":{";":{"0":{"codepoints":[8477],"characters":"ℝ"}}}}},"c":{"t":{";":{"0":{"codepoints":[9645],"characters":"▭"}}}},"g":{"0":{"codepoints":[174],"characters":"®"},";":{"0":{"codepoints":[174],"characters":"®"}}}},"f":{"i":{"s":{"h":{"t":{";":{"0":{"codepoints":[10621],"characters":"⥽"}}}}}},"l":{"o":{"o":{"r":{";":{"0":{"codepoints":[8971],"characters":"⌋"}}}}}},"r":{";":{"0":{"codepoints":[120111],"characters":"𝔯"}}}},"H":{"a":{"r":{";":{"0":{"codepoints":[10596],"characters":"⥤"}}}}},"h":{"a":{"r":{"d":{";":{"0":{"codepoints":[8641],"characters":"⇁"}}},"u":{";":{"0":{"codepoints":[8640],"characters":"⇀"}},"l":{";":{"0":{"codepoints":[10604],"characters":"⥬"}}}}}},"o":{";":{"0":{"codepoints":[961],"characters":"ρ"}},"v":{";":{"0":{"codepoints":[1009],"characters":"ϱ"}}}}},"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8594],"characters":"→"}},"t":{"a":{"i":{"l":{";":{"0":{"codepoints":[8611],"characters":"↣"}}}}}}}}}}},"h":{"a":{"r":{"p":{"o":{"o":{"n":{"d":{"o":{"w":{"n":{";":{"0":{"codepoints":[8641],"characters":"⇁"}}}}}},"u":{"p":{";":{"0":{"codepoints":[8640],"characters":"⇀"}}}}}}}}}}},"l":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{"s":{";":{"0":{"codepoints":[8644],"characters":"⇄"}}}}}}}},"h":{"a":{"r":{"p":{"o":{"o":{"n":{"s":{";":{"0":{"codepoints":[8652],"characters":"⇌"}}}}}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{"s":{";":{"0":{"codepoints":[8649],"characters":"⇉"}}}}}}}}}}}}},"s":{"q":{"u":{"i":{"g":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8605],"characters":"↝"}}}}}}}}}}}},"t":{"h":{"r":{"e":{"e":{"t":{"i":{"m":{"e":{"s":{";":{"0":{"codepoints":[8908],"characters":"⋌"}}}}}}}}}}}}}}},"n":{"g":{";":{"0":{"codepoints":[730],"characters":"˚"}}}},"s":{"i":{"n":{"g":{"d":{"o":{"t":{"s":{"e":{"q":{";":{"0":{"codepoints":[8787],"characters":"≓"}}}}}}}}}}}}},"l":{"a":{"r":{"r":{";":{"0":{"codepoints":[8644],"characters":"⇄"}}}}},"h":{"a":{"r":{";":{"0":{"codepoints":[8652],"characters":"⇌"}}}}},"m":{";":{"0":{"codepoints":[8207],"characters":"‏"}}}},"m":{"o":{"u":{"s":{"t":{"a":{"c":{"h":{"e":{";":{"0":{"codepoints":[9137],"characters":"⎱"}}}}}},";":{"0":{"codepoints":[9137],"characters":"⎱"}}}}}}},"n":{"m":{"i":{"d":{";":{"0":{"codepoints":[10990],"characters":"⫮"}}}}}},"o":{"a":{"n":{"g":{";":{"0":{"codepoints":[10221],"characters":"⟭"}}}},"r":{"r":{";":{"0":{"codepoints":[8702],"characters":"⇾"}}}}},"b":{"r":{"k":{";":{"0":{"codepoints":[10215],"characters":"⟧"}}}}},"p":{"a":{"r":{";":{"0":{"codepoints":[10630],"characters":"⦆"}}}},"f":{";":{"0":{"codepoints":[120163],"characters":"𝕣"}}},"l":{"u":{"s":{";":{"0":{"codepoints":[10798],"characters":"⨮"}}}}}},"t":{"i":{"m":{"e":{"s":{";":{"0":{"codepoints":[10805],"characters":"⨵"}}}}}}}},"p":{"a":{"r":{";":{"0":{"codepoints":[41],"characters":")"}},"g":{"t":{";":{"0":{"codepoints":[10644],"characters":"⦔"}}}}}},"p":{"o":{"l":{"i":{"n":{"t":{";":{"0":{"codepoints":[10770],"characters":"⨒"}}}}}}}}},"r":{"a":{"r":{"r":{";":{"0":{"codepoints":[8649],"characters":"⇉"}}}}}},"s":{"a":{"q":{"u":{"o":{";":{"0":{"codepoints":[8250],"characters":"›"}}}}}},"c":{"r":{";":{"0":{"codepoints":[120007],"characters":"𝓇"}}}},"h":{";":{"0":{"codepoints":[8625],"characters":"↱"}}},"q":{"b":{";":{"0":{"codepoints":[93],"characters":"]"}}},"u":{"o":{";":{"0":{"codepoints":[8217],"characters":"’"}},"r":{";":{"0":{"codepoints":[8217],"characters":"’"}}}}}}},"t":{"h":{"r":{"e":{"e":{";":{"0":{"codepoints":[8908],"characters":"⋌"}}}}}},"i":{"m":{"e":{"s":{";":{"0":{"codepoints":[8906],"characters":"⋊"}}}}}},"r":{"i":{";":{"0":{"codepoints":[9657],"characters":"▹"}},"e":{";":{"0":{"codepoints":[8885],"characters":"⊵"}}},"f":{";":{"0":{"codepoints":[9656],"characters":"▸"}}},"l":{"t":{"r":{"i":{";":{"0":{"codepoints":[10702],"characters":"⧎"}}}}}}}}},"u":{"l":{"u":{"h":{"a":{"r":{";":{"0":{"codepoints":[10600],"characters":"⥨"}}}}}}}},"x":{";":{"0":{"codepoints":[8478],"characters":"℞"}}}},"R":{"a":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[340],"characters":"Ŕ"}}}}}},"n":{"g":{";":{"0":{"codepoints":[10219],"characters":"⟫"}}}},"r":{"r":{";":{"0":{"codepoints":[8608],"characters":"↠"}},"t":{"l":{";":{"0":{"codepoints":[10518],"characters":"⤖"}}}}}}},"B":{"a":{"r":{"r":{";":{"0":{"codepoints":[10512],"characters":"⤐"}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[344],"characters":"Ř"}}}}}},"e":{"d":{"i":{"l":{";":{"0":{"codepoints":[342],"characters":"Ŗ"}}}}}},"y":{";":{"0":{"codepoints":[1056],"characters":"Р"}}}},"e":{";":{"0":{"codepoints":[8476],"characters":"ℜ"}},"v":{"e":{"r":{"s":{"e":{"E":{"l":{"e":{"m":{"e":{"n":{"t":{";":{"0":{"codepoints":[8715],"characters":"∋"}}}}}}}},"q":{"u":{"i":{"l":{"i":{"b":{"r":{"i":{"u":{"m":{";":{"0":{"codepoints":[8651],"characters":"⇋"}}}}}}}}}}}}},"U":{"p":{"E":{"q":{"u":{"i":{"l":{"i":{"b":{"r":{"i":{"u":{"m":{";":{"0":{"codepoints":[10607],"characters":"⥯"}}}}}}}}}}}}}}}}}}}}},"E":{"G":{"0":{"codepoints":[174],"characters":"®"},";":{"0":{"codepoints":[174],"characters":"®"}}}},"f":{"r":{";":{"0":{"codepoints":[8476],"characters":"ℜ"}}}},"h":{"o":{";":{"0":{"codepoints":[929],"characters":"Ρ"}}}},"i":{"g":{"h":{"t":{"A":{"n":{"g":{"l":{"e":{"B":{"r":{"a":{"c":{"k":{"e":{"t":{";":{"0":{"codepoints":[10217],"characters":"⟩"}}}}}}}}}}}}},"r":{"r":{"o":{"w":{"B":{"a":{"r":{";":{"0":{"codepoints":[8677],"characters":"⇥"}}}}},";":{"0":{"codepoints":[8594],"characters":"→"}},"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8644],"characters":"⇄"}}}}}}}}}}}}}}}},"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8658],"characters":"⇒"}}}}}}},"C":{"e":{"i":{"l":{"i":{"n":{"g":{";":{"0":{"codepoints":[8969],"characters":"⌉"}}}}}}}}},"D":{"o":{"u":{"b":{"l":{"e":{"B":{"r":{"a":{"c":{"k":{"e":{"t":{";":{"0":{"codepoints":[10215],"characters":"⟧"}}}}}}}}}}}}},"w":{"n":{"T":{"e":{"e":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":{"codepoints":[10589],"characters":"⥝"}}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":{"codepoints":[10581],"characters":"⥕"}}}}},";":{"0":{"codepoints":[8642],"characters":"⇂"}}}}}}}}}}}},"F":{"l":{"o":{"o":{"r":{";":{"0":{"codepoints":[8971],"characters":"⌋"}}}}}}},"T":{"e":{"e":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8614],"characters":"↦"}}}}}}},";":{"0":{"codepoints":[8866],"characters":"⊢"}},"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":{"codepoints":[10587],"characters":"⥛"}}}}}}}}}},"r":{"i":{"a":{"n":{"g":{"l":{"e":{"B":{"a":{"r":{";":{"0":{"codepoints":[10704],"characters":"⧐"}}}}},";":{"0":{"codepoints":[8883],"characters":"⊳"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8885],"characters":"⊵"}}}}}}}}}}}}}}},"U":{"p":{"D":{"o":{"w":{"n":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":{"codepoints":[10575],"characters":"⥏"}}}}}}}}}}}},"T":{"e":{"e":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":{"codepoints":[10588],"characters":"⥜"}}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":{"codepoints":[10580],"characters":"⥔"}}}}},";":{"0":{"codepoints":[8638],"characters":"↾"}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":{"codepoints":[10579],"characters":"⥓"}}}}},";":{"0":{"codepoints":[8640],"characters":"⇀"}}}}}}}}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[8477],"characters":"ℝ"}}}},"u":{"n":{"d":{"I":{"m":{"p":{"l":{"i":{"e":{"s":{";":{"0":{"codepoints":[10608],"characters":"⥰"}}}}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8667],"characters":"⇛"}}}}}}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[8475],"characters":"ℛ"}}}},"h":{";":{"0":{"codepoints":[8625],"characters":"↱"}}}},"u":{"l":{"e":{"D":{"e":{"l":{"a":{"y":{"e":{"d":{";":{"0":{"codepoints":[10740],"characters":"⧴"}}}}}}}}}}}}},"S":{"a":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[346],"characters":"Ś"}}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[352],"characters":"Š"}}}}}},";":{"0":{"codepoints":[10940],"characters":"⪼"}},"e":{"d":{"i":{"l":{";":{"0":{"codepoints":[350],"characters":"Ş"}}}}}},"i":{"r":{"c":{";":{"0":{"codepoints":[348],"characters":"Ŝ"}}}}},"y":{";":{"0":{"codepoints":[1057],"characters":"С"}}}},"f":{"r":{";":{"0":{"codepoints":[120086],"characters":"𝔖"}}}},"H":{"C":{"H":{"c":{"y":{";":{"0":{"codepoints":[1065],"characters":"Щ"}}}}}},"c":{"y":{";":{"0":{"codepoints":[1064],"characters":"Ш"}}}}},"h":{"o":{"r":{"t":{"D":{"o":{"w":{"n":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8595],"characters":"↓"}}}}}}}}}}},"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8592],"characters":"←"}}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8594],"characters":"→"}}}}}}}}}}}},"U":{"p":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8593],"characters":"↑"}}}}}}}}}}}}},"i":{"g":{"m":{"a":{";":{"0":{"codepoints":[931],"characters":"Σ"}}}}}},"m":{"a":{"l":{"l":{"C":{"i":{"r":{"c":{"l":{"e":{";":{"0":{"codepoints":[8728],"characters":"∘"}}}}}}}}}}}},"O":{"F":{"T":{"c":{"y":{";":{"0":{"codepoints":[1068],"characters":"Ь"}}}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120138],"characters":"𝕊"}}}}},"q":{"r":{"t":{";":{"0":{"codepoints":[8730],"characters":"√"}}}},"u":{"a":{"r":{"e":{";":{"0":{"codepoints":[9633],"characters":"□"}},"I":{"n":{"t":{"e":{"r":{"s":{"e":{"c":{"t":{"i":{"o":{"n":{";":{"0":{"codepoints":[8851],"characters":"⊓"}}}}}}}}}}}}}},"S":{"u":{"b":{"s":{"e":{"t":{";":{"0":{"codepoints":[8847],"characters":"⊏"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8849],"characters":"⊑"}}}}}}}}}}},"p":{"e":{"r":{"s":{"e":{"t":{";":{"0":{"codepoints":[8848],"characters":"⊐"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8850],"characters":"⊒"}}}}}}}}}}}}}}},"U":{"n":{"i":{"o":{"n":{";":{"0":{"codepoints":[8852],"characters":"⊔"}}}}}}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119982],"characters":"𝒮"}}}}},"t":{"a":{"r":{";":{"0":{"codepoints":[8902],"characters":"⋆"}}}}},"u":{"b":{";":{"0":{"codepoints":[8912],"characters":"⋐"}},"s":{"e":{"t":{";":{"0":{"codepoints":[8912],"characters":"⋐"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8838],"characters":"⊆"}}}}}}}}}}},"c":{"c":{"e":{"e":{"d":{"s":{";":{"0":{"codepoints":[8827],"characters":"≻"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[10928],"characters":"⪰"}}}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8829],"characters":"≽"}}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8831],"characters":"≿"}}}}}}}}}}}},"h":{"T":{"h":{"a":{"t":{";":{"0":{"codepoints":[8715],"characters":"∋"}}}}}}}},"m":{";":{"0":{"codepoints":[8721],"characters":"∑"}}},"p":{";":{"0":{"codepoints":[8913],"characters":"⋑"}},"e":{"r":{"s":{"e":{"t":{";":{"0":{"codepoints":[8835],"characters":"⊃"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8839],"characters":"⊇"}}}}}}}}}}}},"s":{"e":{"t":{";":{"0":{"codepoints":[8913],"characters":"⋑"}}}}}}}},"s":{"a":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[347],"characters":"ś"}}}}}}},"b":{"q":{"u":{"o":{";":{"0":{"codepoints":[8218],"characters":"‚"}}}}}},"c":{"a":{"p":{";":{"0":{"codepoints":[10936],"characters":"⪸"}}},"r":{"o":{"n":{";":{"0":{"codepoints":[353],"characters":"š"}}}}}},";":{"0":{"codepoints":[8827],"characters":"≻"}},"c":{"u":{"e":{";":{"0":{"codepoints":[8829],"characters":"≽"}}}}},"e":{";":{"0":{"codepoints":[10928],"characters":"⪰"}},"d":{"i":{"l":{";":{"0":{"codepoints":[351],"characters":"ş"}}}}}},"E":{";":{"0":{"codepoints":[10932],"characters":"⪴"}}},"i":{"r":{"c":{";":{"0":{"codepoints":[349],"characters":"ŝ"}}}}},"n":{"a":{"p":{";":{"0":{"codepoints":[10938],"characters":"⪺"}}}},"E":{";":{"0":{"codepoints":[10934],"characters":"⪶"}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8937],"characters":"⋩"}}}}}},"p":{"o":{"l":{"i":{"n":{"t":{";":{"0":{"codepoints":[10771],"characters":"⨓"}}}}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8831],"characters":"≿"}}}}},"y":{";":{"0":{"codepoints":[1089],"characters":"с"}}}},"d":{"o":{"t":{"b":{";":{"0":{"codepoints":[8865],"characters":"⊡"}}},";":{"0":{"codepoints":[8901],"characters":"⋅"}},"e":{";":{"0":{"codepoints":[10854],"characters":"⩦"}}}}}},"e":{"a":{"r":{"h":{"k":{";":{"0":{"codepoints":[10533],"characters":"⤥"}}}},"r":{";":{"0":{"codepoints":[8600],"characters":"↘"}},"o":{"w":{";":{"0":{"codepoints":[8600],"characters":"↘"}}}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[8664],"characters":"⇘"}}}}},"c":{"t":{"0":{"codepoints":[167],"characters":"§"},";":{"0":{"codepoints":[167],"characters":"§"}}}},"m":{"i":{";":{"0":{"codepoints":[59],"characters":";"}}}},"s":{"w":{"a":{"r":{";":{"0":{"codepoints":[10537],"characters":"⤩"}}}}}},"t":{"m":{"i":{"n":{"u":{"s":{";":{"0":{"codepoints":[8726],"characters":"∖"}}}}}},"n":{";":{"0":{"codepoints":[8726],"characters":"∖"}}}}},"x":{"t":{";":{"0":{"codepoints":[10038],"characters":"✶"}}}}},"f":{"r":{";":{"0":{"codepoints":[120112],"characters":"𝔰"}},"o":{"w":{"n":{";":{"0":{"codepoints":[8994],"characters":"⌢"}}}}}}},"h":{"a":{"r":{"p":{";":{"0":{"codepoints":[9839],"characters":"♯"}}}}},"c":{"h":{"c":{"y":{";":{"0":{"codepoints":[1097],"characters":"щ"}}}}},"y":{";":{"0":{"codepoints":[1096],"characters":"ш"}}}},"o":{"r":{"t":{"m":{"i":{"d":{";":{"0":{"codepoints":[8739],"characters":"∣"}}}}},"p":{"a":{"r":{"a":{"l":{"l":{"e":{"l":{";":{"0":{"codepoints":[8741],"characters":"∥"}}}}}}}}}}}}},"y":{"0":{"codepoints":[173],"characters":"­"},";":{"0":{"codepoints":[173],"characters":"­"}}}},"i":{"g":{"m":{"a":{";":{"0":{"codepoints":[963],"characters":"σ"}},"f":{";":{"0":{"codepoints":[962],"characters":"ς"}}},"v":{";":{"0":{"codepoints":[962],"characters":"ς"}}}}}},"m":{";":{"0":{"codepoints":[8764],"characters":"∼"}},"d":{"o":{"t":{";":{"0":{"codepoints":[10858],"characters":"⩪"}}}}},"e":{";":{"0":{"codepoints":[8771],"characters":"≃"}},"q":{";":{"0":{"codepoints":[8771],"characters":"≃"}}}},"g":{";":{"0":{"codepoints":[10910],"characters":"⪞"}},"E":{";":{"0":{"codepoints":[10912],"characters":"⪠"}}}},"l":{";":{"0":{"codepoints":[10909],"characters":"⪝"}},"E":{";":{"0":{"codepoints":[10911],"characters":"⪟"}}}},"n":{"e":{";":{"0":{"codepoints":[8774],"characters":"≆"}}}},"p":{"l":{"u":{"s":{";":{"0":{"codepoints":[10788],"characters":"⨤"}}}}}},"r":{"a":{"r":{"r":{";":{"0":{"codepoints":[10610],"characters":"⥲"}}}}}}}},"l":{"a":{"r":{"r":{";":{"0":{"codepoints":[8592],"characters":"←"}}}}}},"m":{"a":{"l":{"l":{"s":{"e":{"t":{"m":{"i":{"n":{"u":{"s":{";":{"0":{"codepoints":[8726],"characters":"∖"}}}}}}}}}}}},"s":{"h":{"p":{";":{"0":{"codepoints":[10803],"characters":"⨳"}}}}}},"e":{"p":{"a":{"r":{"s":{"l":{";":{"0":{"codepoints":[10724],"characters":"⧤"}}}}}}}},"i":{"d":{";":{"0":{"codepoints":[8739],"characters":"∣"}}},"l":{"e":{";":{"0":{"codepoints":[8995],"characters":"⌣"}}}}},"t":{";":{"0":{"codepoints":[10922],"characters":"⪪"}},"e":{";":{"0":{"codepoints":[10924],"characters":"⪬"}},"s":{";":{"0":{"codepoints":[10924,65024],"characters":"⪬︀"}}}}}},"o":{"f":{"t":{"c":{"y":{";":{"0":{"codepoints":[1100],"characters":"ь"}}}}}},"l":{"b":{"a":{"r":{";":{"0":{"codepoints":[9023],"characters":"⌿"}}}},";":{"0":{"codepoints":[10692],"characters":"⧄"}}},";":{"0":{"codepoints":[47],"characters":"/"}}},"p":{"f":{";":{"0":{"codepoints":[120164],"characters":"𝕤"}}}}},"p":{"a":{"d":{"e":{"s":{";":{"0":{"codepoints":[9824],"characters":"♠"}},"u":{"i":{"t":{";":{"0":{"codepoints":[9824],"characters":"♠"}}}}}}}},"r":{";":{"0":{"codepoints":[8741],"characters":"∥"}}}}},"q":{"c":{"a":{"p":{";":{"0":{"codepoints":[8851],"characters":"⊓"}},"s":{";":{"0":{"codepoints":[8851,65024],"characters":"⊓︀"}}}}},"u":{"p":{";":{"0":{"codepoints":[8852],"characters":"⊔"}},"s":{";":{"0":{"codepoints":[8852,65024],"characters":"⊔︀"}}}}}},"s":{"u":{"b":{";":{"0":{"codepoints":[8847],"characters":"⊏"}},"e":{";":{"0":{"codepoints":[8849],"characters":"⊑"}}},"s":{"e":{"t":{";":{"0":{"codepoints":[8847],"characters":"⊏"}},"e":{"q":{";":{"0":{"codepoints":[8849],"characters":"⊑"}}}}}}}},"p":{";":{"0":{"codepoints":[8848],"characters":"⊐"}},"e":{";":{"0":{"codepoints":[8850],"characters":"⊒"}}},"s":{"e":{"t":{";":{"0":{"codepoints":[8848],"characters":"⊐"}},"e":{"q":{";":{"0":{"codepoints":[8850],"characters":"⊒"}}}}}}}}}},"u":{"a":{"r":{"e":{";":{"0":{"codepoints":[9633],"characters":"□"}}},"f":{";":{"0":{"codepoints":[9642],"characters":"▪"}}}}},";":{"0":{"codepoints":[9633],"characters":"□"}},"f":{";":{"0":{"codepoints":[9642],"characters":"▪"}}}}},"r":{"a":{"r":{"r":{";":{"0":{"codepoints":[8594],"characters":"→"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[120008],"characters":"𝓈"}}}},"e":{"t":{"m":{"n":{";":{"0":{"codepoints":[8726],"characters":"∖"}}}}}},"m":{"i":{"l":{"e":{";":{"0":{"codepoints":[8995],"characters":"⌣"}}}}}},"t":{"a":{"r":{"f":{";":{"0":{"codepoints":[8902],"characters":"⋆"}}}}}}},"t":{"a":{"r":{";":{"0":{"codepoints":[9734],"characters":"☆"}},"f":{";":{"0":{"codepoints":[9733],"characters":"★"}}}}},"r":{"a":{"i":{"g":{"h":{"t":{"e":{"p":{"s":{"i":{"l":{"o":{"n":{";":{"0":{"codepoints":[1013],"characters":"ϵ"}}}}}}}}},"p":{"h":{"i":{";":{"0":{"codepoints":[981],"characters":"ϕ"}}}}}}}}}},"n":{"s":{";":{"0":{"codepoints":[175],"characters":"¯"}}}}}},"u":{"b":{";":{"0":{"codepoints":[8834],"characters":"⊂"}},"d":{"o":{"t":{";":{"0":{"codepoints":[10941],"characters":"⪽"}}}}},"E":{";":{"0":{"codepoints":[10949],"characters":"⫅"}}},"e":{";":{"0":{"codepoints":[8838],"characters":"⊆"}},"d":{"o":{"t":{";":{"0":{"codepoints":[10947],"characters":"⫃"}}}}}},"m":{"u":{"l":{"t":{";":{"0":{"codepoints":[10945],"characters":"⫁"}}}}}},"n":{"E":{";":{"0":{"codepoints":[10955],"characters":"⫋"}}},"e":{";":{"0":{"codepoints":[8842],"characters":"⊊"}}}},"p":{"l":{"u":{"s":{";":{"0":{"codepoints":[10943],"characters":"⪿"}}}}}},"r":{"a":{"r":{"r":{";":{"0":{"codepoints":[10617],"characters":"⥹"}}}}}},"s":{"e":{"t":{";":{"0":{"codepoints":[8834],"characters":"⊂"}},"e":{"q":{";":{"0":{"codepoints":[8838],"characters":"⊆"}},"q":{";":{"0":{"codepoints":[10949],"characters":"⫅"}}}}},"n":{"e":{"q":{";":{"0":{"codepoints":[8842],"characters":"⊊"}},"q":{";":{"0":{"codepoints":[10955],"characters":"⫋"}}}}}}}},"i":{"m":{";":{"0":{"codepoints":[10951],"characters":"⫇"}}}},"u":{"b":{";":{"0":{"codepoints":[10965],"characters":"⫕"}}},"p":{";":{"0":{"codepoints":[10963],"characters":"⫓"}}}}}},"c":{"c":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":{"codepoints":[10936],"characters":"⪸"}}}}}}}},";":{"0":{"codepoints":[8827],"characters":"≻"}},"c":{"u":{"r":{"l":{"y":{"e":{"q":{";":{"0":{"codepoints":[8829],"characters":"≽"}}}}}}}}},"e":{"q":{";":{"0":{"codepoints":[10928],"characters":"⪰"}}}},"n":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":{"codepoints":[10938],"characters":"⪺"}}}}}}}},"e":{"q":{"q":{";":{"0":{"codepoints":[10934],"characters":"⪶"}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8937],"characters":"⋩"}}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8831],"characters":"≿"}}}}}}},"m":{";":{"0":{"codepoints":[8721],"characters":"∑"}}},"n":{"g":{";":{"0":{"codepoints":[9834],"characters":"♪"}}}},"p":{"1":{"0":{"codepoints":[185],"characters":"¹"},";":{"0":{"codepoints":[185],"characters":"¹"}}},"2":{"0":{"codepoints":[178],"characters":"²"},";":{"0":{"codepoints":[178],"characters":"²"}}},"3":{"0":{"codepoints":[179],"characters":"³"},";":{"0":{"codepoints":[179],"characters":"³"}}},";":{"0":{"codepoints":[8835],"characters":"⊃"}},"d":{"o":{"t":{";":{"0":{"codepoints":[10942],"characters":"⪾"}}}},"s":{"u":{"b":{";":{"0":{"codepoints":[10968],"characters":"⫘"}}}}}},"E":{";":{"0":{"codepoints":[10950],"characters":"⫆"}}},"e":{";":{"0":{"codepoints":[8839],"characters":"⊇"}},"d":{"o":{"t":{";":{"0":{"codepoints":[10948],"characters":"⫄"}}}}}},"h":{"s":{"o":{"l":{";":{"0":{"codepoints":[10185],"characters":"⟉"}}}},"u":{"b":{";":{"0":{"codepoints":[10967],"characters":"⫗"}}}}}},"l":{"a":{"r":{"r":{";":{"0":{"codepoints":[10619],"characters":"⥻"}}}}}},"m":{"u":{"l":{"t":{";":{"0":{"codepoints":[10946],"characters":"⫂"}}}}}},"n":{"E":{";":{"0":{"codepoints":[10956],"characters":"⫌"}}},"e":{";":{"0":{"codepoints":[8843],"characters":"⊋"}}}},"p":{"l":{"u":{"s":{";":{"0":{"codepoints":[10944],"characters":"⫀"}}}}}},"s":{"e":{"t":{";":{"0":{"codepoints":[8835],"characters":"⊃"}},"e":{"q":{";":{"0":{"codepoints":[8839],"characters":"⊇"}},"q":{";":{"0":{"codepoints":[10950],"characters":"⫆"}}}}},"n":{"e":{"q":{";":{"0":{"codepoints":[8843],"characters":"⊋"}},"q":{";":{"0":{"codepoints":[10956],"characters":"⫌"}}}}}}}},"i":{"m":{";":{"0":{"codepoints":[10952],"characters":"⫈"}}}},"u":{"b":{";":{"0":{"codepoints":[10964],"characters":"⫔"}}},"p":{";":{"0":{"codepoints":[10966],"characters":"⫖"}}}}}}},"w":{"a":{"r":{"h":{"k":{";":{"0":{"codepoints":[10534],"characters":"⤦"}}}},"r":{";":{"0":{"codepoints":[8601],"characters":"↙"}},"o":{"w":{";":{"0":{"codepoints":[8601],"characters":"↙"}}}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[8665],"characters":"⇙"}}}}},"n":{"w":{"a":{"r":{";":{"0":{"codepoints":[10538],"characters":"⤪"}}}}}}},"z":{"l":{"i":{"g":{"0":{"codepoints":[223],"characters":"ß"},";":{"0":{"codepoints":[223],"characters":"ß"}}}}}}},"T":{"a":{"b":{";":{"0":{"codepoints":[9],"characters":"\t"}}},"u":{";":{"0":{"codepoints":[932],"characters":"Τ"}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[356],"characters":"Ť"}}}}}},"e":{"d":{"i":{"l":{";":{"0":{"codepoints":[354],"characters":"Ţ"}}}}}},"y":{";":{"0":{"codepoints":[1058],"characters":"Т"}}}},"f":{"r":{";":{"0":{"codepoints":[120087],"characters":"𝔗"}}}},"h":{"e":{"r":{"e":{"f":{"o":{"r":{"e":{";":{"0":{"codepoints":[8756],"characters":"∴"}}}}}}}},"t":{"a":{";":{"0":{"codepoints":[920],"characters":"Θ"}}}}},"i":{"c":{"k":{"S":{"p":{"a":{"c":{"e":{";":{"0":{"codepoints":[8287,8202],"characters":"  "}}}}}}}}},"n":{"S":{"p":{"a":{"c":{"e":{";":{"0":{"codepoints":[8201],"characters":" "}}}}}}}}}},"H":{"O":{"R":{"N":{"0":{"codepoints":[222],"characters":"Þ"},";":{"0":{"codepoints":[222],"characters":"Þ"}}}}}},"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8764],"characters":"∼"}},"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8771],"characters":"≃"}}}}}}},"F":{"u":{"l":{"l":{"E":{"q":{"u":{"a":{"l":{";":{"0":{"codepoints":[8773],"characters":"≅"}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8776],"characters":"≈"}}}}}}}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120139],"characters":"𝕋"}}}}},"R":{"A":{"D":{"E":{";":{"0":{"codepoints":[8482],"characters":"™"}}}}}},"r":{"i":{"p":{"l":{"e":{"D":{"o":{"t":{";":{"0":{"codepoints":[8411],"characters":"⃛"}}}}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119983],"characters":"𝒯"}}}},"t":{"r":{"o":{"k":{";":{"0":{"codepoints":[358],"characters":"Ŧ"}}}}}}},"S":{"c":{"y":{";":{"0":{"codepoints":[1062],"characters":"Ц"}}}},"H":{"c":{"y":{";":{"0":{"codepoints":[1035],"characters":"Ћ"}}}}}}},"t":{"a":{"r":{"g":{"e":{"t":{";":{"0":{"codepoints":[8982],"characters":"⌖"}}}}}},"u":{";":{"0":{"codepoints":[964],"characters":"τ"}}}},"b":{"r":{"k":{";":{"0":{"codepoints":[9140],"characters":"⎴"}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[357],"characters":"ť"}}}}}},"e":{"d":{"i":{"l":{";":{"0":{"codepoints":[355],"characters":"ţ"}}}}}},"y":{";":{"0":{"codepoints":[1090],"characters":"т"}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[8411],"characters":"⃛"}}}}},"e":{"l":{"r":{"e":{"c":{";":{"0":{"codepoints":[8981],"characters":"⌕"}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120113],"characters":"𝔱"}}}},"h":{"e":{"r":{"e":{"4":{";":{"0":{"codepoints":[8756],"characters":"∴"}}},"f":{"o":{"r":{"e":{";":{"0":{"codepoints":[8756],"characters":"∴"}}}}}}}},"t":{"a":{";":{"0":{"codepoints":[952],"characters":"θ"}},"s":{"y":{"m":{";":{"0":{"codepoints":[977],"characters":"ϑ"}}}}},"v":{";":{"0":{"codepoints":[977],"characters":"ϑ"}}}}}},"i":{"c":{"k":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":{"codepoints":[8776],"characters":"≈"}}}}}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8764],"characters":"∼"}}}}}}},"n":{"s":{"p":{";":{"0":{"codepoints":[8201],"characters":" "}}}}}},"k":{"a":{"p":{";":{"0":{"codepoints":[8776],"characters":"≈"}}}},"s":{"i":{"m":{";":{"0":{"codepoints":[8764],"characters":"∼"}}}}}},"o":{"r":{"n":{"0":{"codepoints":[254],"characters":"þ"},";":{"0":{"codepoints":[254],"characters":"þ"}}}}}},"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[732],"characters":"˜"}}}}},"m":{"e":{"s":{"0":{"codepoints":[215],"characters":"×"},"b":{"a":{"r":{";":{"0":{"codepoints":[10801],"characters":"⨱"}}}},";":{"0":{"codepoints":[8864],"characters":"⊠"}}},";":{"0":{"codepoints":[215],"characters":"×"}},"d":{";":{"0":{"codepoints":[10800],"characters":"⨰"}}}}}},"n":{"t":{";":{"0":{"codepoints":[8749],"characters":"∭"}}}}},"o":{"e":{"a":{";":{"0":{"codepoints":[10536],"characters":"⤨"}}}},"p":{"b":{"o":{"t":{";":{"0":{"codepoints":[9014],"characters":"⌶"}}}}},"c":{"i":{"r":{";":{"0":{"codepoints":[10993],"characters":"⫱"}}}}},";":{"0":{"codepoints":[8868],"characters":"⊤"}},"f":{";":{"0":{"codepoints":[120165],"characters":"𝕥"}},"o":{"r":{"k":{";":{"0":{"codepoints":[10970],"characters":"⫚"}}}}}}},"s":{"a":{";":{"0":{"codepoints":[10537],"characters":"⤩"}}}}},"p":{"r":{"i":{"m":{"e":{";":{"0":{"codepoints":[8244],"characters":"‴"}}}}}}},"r":{"a":{"d":{"e":{";":{"0":{"codepoints":[8482],"characters":"™"}}}}},"i":{"a":{"n":{"g":{"l":{"e":{";":{"0":{"codepoints":[9653],"characters":"▵"}},"d":{"o":{"w":{"n":{";":{"0":{"codepoints":[9663],"characters":"▿"}}}}}},"l":{"e":{"f":{"t":{";":{"0":{"codepoints":[9667],"characters":"◃"}},"e":{"q":{";":{"0":{"codepoints":[8884],"characters":"⊴"}}}}}}}},"q":{";":{"0":{"codepoints":[8796],"characters":"≜"}}},"r":{"i":{"g":{"h":{"t":{";":{"0":{"codepoints":[9657],"characters":"▹"}},"e":{"q":{";":{"0":{"codepoints":[8885],"characters":"⊵"}}}}}}}}}}}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[9708],"characters":"◬"}}}}},"e":{";":{"0":{"codepoints":[8796],"characters":"≜"}}},"m":{"i":{"n":{"u":{"s":{";":{"0":{"codepoints":[10810],"characters":"⨺"}}}}}}},"p":{"l":{"u":{"s":{";":{"0":{"codepoints":[10809],"characters":"⨹"}}}}}},"s":{"b":{";":{"0":{"codepoints":[10701],"characters":"⧍"}}}},"t":{"i":{"m":{"e":{";":{"0":{"codepoints":[10811],"characters":"⨻"}}}}}}},"p":{"e":{"z":{"i":{"u":{"m":{";":{"0":{"codepoints":[9186],"characters":"⏢"}}}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[120009],"characters":"𝓉"}}},"y":{";":{"0":{"codepoints":[1094],"characters":"ц"}}}},"h":{"c":{"y":{";":{"0":{"codepoints":[1115],"characters":"ћ"}}}}},"t":{"r":{"o":{"k":{";":{"0":{"codepoints":[359],"characters":"ŧ"}}}}}}},"w":{"i":{"x":{"t":{";":{"0":{"codepoints":[8812],"characters":"≬"}}}}},"o":{"h":{"e":{"a":{"d":{"l":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8606],"characters":"↞"}}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8608],"characters":"↠"}}}}}}}}}}}}}}}}}}},"U":{"a":{"c":{"u":{"t":{"e":{"0":{"codepoints":[218],"characters":"Ú"},";":{"0":{"codepoints":[218],"characters":"Ú"}}}}}},"r":{"r":{";":{"0":{"codepoints":[8607],"characters":"↟"}},"o":{"c":{"i":{"r":{";":{"0":{"codepoints":[10569],"characters":"⥉"}}}}}}}}},"b":{"r":{"c":{"y":{";":{"0":{"codepoints":[1038],"characters":"Ў"}}}},"e":{"v":{"e":{";":{"0":{"codepoints":[364],"characters":"Ŭ"}}}}}}},"c":{"i":{"r":{"c":{"0":{"codepoints":[219],"characters":"Û"},";":{"0":{"codepoints":[219],"characters":"Û"}}}}},"y":{";":{"0":{"codepoints":[1059],"characters":"У"}}}},"d":{"b":{"l":{"a":{"c":{";":{"0":{"codepoints":[368],"characters":"Ű"}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120088],"characters":"𝔘"}}}},"g":{"r":{"a":{"v":{"e":{"0":{"codepoints":[217],"characters":"Ù"},";":{"0":{"codepoints":[217],"characters":"Ù"}}}}}}},"m":{"a":{"c":{"r":{";":{"0":{"codepoints":[362],"characters":"Ū"}}}}}},"n":{"d":{"e":{"r":{"B":{"a":{"r":{";":{"0":{"codepoints":[95],"characters":"_"}}}},"r":{"a":{"c":{"e":{";":{"0":{"codepoints":[9183],"characters":"⏟"}}},"k":{"e":{"t":{";":{"0":{"codepoints":[9141],"characters":"⎵"}}}}}}}}},"P":{"a":{"r":{"e":{"n":{"t":{"h":{"e":{"s":{"i":{"s":{";":{"0":{"codepoints":[9181],"characters":"⏝"}}}}}}}}}}}}}}}},"i":{"o":{"n":{";":{"0":{"codepoints":[8899],"characters":"⋃"}},"P":{"l":{"u":{"s":{";":{"0":{"codepoints":[8846],"characters":"⊎"}}}}}}}}}},"o":{"g":{"o":{"n":{";":{"0":{"codepoints":[370],"characters":"Ų"}}}}},"p":{"f":{";":{"0":{"codepoints":[120140],"characters":"𝕌"}}}}},"p":{"A":{"r":{"r":{"o":{"w":{"B":{"a":{"r":{";":{"0":{"codepoints":[10514],"characters":"⤒"}}}}},";":{"0":{"codepoints":[8593],"characters":"↑"}},"D":{"o":{"w":{"n":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8645],"characters":"⇅"}}}}}}}}}}}}}}}},"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8657],"characters":"⇑"}}}}}}},"D":{"o":{"w":{"n":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8597],"characters":"↕"}}}}}}}}}}},"d":{"o":{"w":{"n":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8661],"characters":"⇕"}}}}}}}}}}},"E":{"q":{"u":{"i":{"l":{"i":{"b":{"r":{"i":{"u":{"m":{";":{"0":{"codepoints":[10606],"characters":"⥮"}}}}}}}}}}}}},"p":{"e":{"r":{"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8598],"characters":"↖"}}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8599],"characters":"↗"}}}}}}}}}}}}}}},"s":{"i":{";":{"0":{"codepoints":[978],"characters":"ϒ"}},"l":{"o":{"n":{";":{"0":{"codepoints":[933],"characters":"Υ"}}}}}}},"T":{"e":{"e":{"A":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8613],"characters":"↥"}}}}}}},";":{"0":{"codepoints":[8869],"characters":"⊥"}}}}}},"r":{"i":{"n":{"g":{";":{"0":{"codepoints":[366],"characters":"Ů"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119984],"characters":"𝒰"}}}}},"t":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[360],"characters":"Ũ"}}}}}}},"u":{"m":{"l":{"0":{"codepoints":[220],"characters":"Ü"},";":{"0":{"codepoints":[220],"characters":"Ü"}}}}}},"u":{"a":{"c":{"u":{"t":{"e":{"0":{"codepoints":[250],"characters":"ú"},";":{"0":{"codepoints":[250],"characters":"ú"}}}}}},"r":{"r":{";":{"0":{"codepoints":[8593],"characters":"↑"}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[8657],"characters":"⇑"}}}}},"b":{"r":{"c":{"y":{";":{"0":{"codepoints":[1118],"characters":"ў"}}}},"e":{"v":{"e":{";":{"0":{"codepoints":[365],"characters":"ŭ"}}}}}}},"c":{"i":{"r":{"c":{"0":{"codepoints":[251],"characters":"û"},";":{"0":{"codepoints":[251],"characters":"û"}}}}},"y":{";":{"0":{"codepoints":[1091],"characters":"у"}}}},"d":{"a":{"r":{"r":{";":{"0":{"codepoints":[8645],"characters":"⇅"}}}}},"b":{"l":{"a":{"c":{";":{"0":{"codepoints":[369],"characters":"ű"}}}}}},"h":{"a":{"r":{";":{"0":{"codepoints":[10606],"characters":"⥮"}}}}}},"f":{"i":{"s":{"h":{"t":{";":{"0":{"codepoints":[10622],"characters":"⥾"}}}}}},"r":{";":{"0":{"codepoints":[120114],"characters":"𝔲"}}}},"g":{"r":{"a":{"v":{"e":{"0":{"codepoints":[249],"characters":"ù"},";":{"0":{"codepoints":[249],"characters":"ù"}}}}}}},"H":{"a":{"r":{";":{"0":{"codepoints":[10595],"characters":"⥣"}}}}},"h":{"a":{"r":{"l":{";":{"0":{"codepoints":[8639],"characters":"↿"}}},"r":{";":{"0":{"codepoints":[8638],"characters":"↾"}}}}},"b":{"l":{"k":{";":{"0":{"codepoints":[9600],"characters":"▀"}}}}}},"l":{"c":{"o":{"r":{"n":{";":{"0":{"codepoints":[8988],"characters":"⌜"}},"e":{"r":{";":{"0":{"codepoints":[8988],"characters":"⌜"}}}}}}},"r":{"o":{"p":{";":{"0":{"codepoints":[8975],"characters":"⌏"}}}}}},"t":{"r":{"i":{";":{"0":{"codepoints":[9720],"characters":"◸"}}}}}},"m":{"a":{"c":{"r":{";":{"0":{"codepoints":[363],"characters":"ū"}}}}},"l":{"0":{"codepoints":[168],"characters":"¨"},";":{"0":{"codepoints":[168],"characters":"¨"}}}},"o":{"g":{"o":{"n":{";":{"0":{"codepoints":[371],"characters":"ų"}}}}},"p":{"f":{";":{"0":{"codepoints":[120166],"characters":"𝕦"}}}}},"p":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8593],"characters":"↑"}}}}}}},"d":{"o":{"w":{"n":{"a":{"r":{"r":{"o":{"w":{";":{"0":{"codepoints":[8597],"characters":"↕"}}}}}}}}}}},"h":{"a":{"r":{"p":{"o":{"o":{"n":{"l":{"e":{"f":{"t":{";":{"0":{"codepoints":[8639],"characters":"↿"}}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":{"codepoints":[8638],"characters":"↾"}}}}}}}}}}}}}},"l":{"u":{"s":{";":{"0":{"codepoints":[8846],"characters":"⊎"}}}}},"s":{"i":{";":{"0":{"codepoints":[965],"characters":"υ"}},"h":{";":{"0":{"codepoints":[978],"characters":"ϒ"}}},"l":{"o":{"n":{";":{"0":{"codepoints":[965],"characters":"υ"}}}}}}},"u":{"p":{"a":{"r":{"r":{"o":{"w":{"s":{";":{"0":{"codepoints":[8648],"characters":"⇈"}}}}}}}}}}},"r":{"c":{"o":{"r":{"n":{";":{"0":{"codepoints":[8989],"characters":"⌝"}},"e":{"r":{";":{"0":{"codepoints":[8989],"characters":"⌝"}}}}}}},"r":{"o":{"p":{";":{"0":{"codepoints":[8974],"characters":"⌎"}}}}}},"i":{"n":{"g":{";":{"0":{"codepoints":[367],"characters":"ů"}}}}},"t":{"r":{"i":{";":{"0":{"codepoints":[9721],"characters":"◹"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[120010],"characters":"𝓊"}}}}},"t":{"d":{"o":{"t":{";":{"0":{"codepoints":[8944],"characters":"⋰"}}}}},"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[361],"characters":"ũ"}}}}}},"r":{"i":{";":{"0":{"codepoints":[9653],"characters":"▵"}},"f":{";":{"0":{"codepoints":[9652],"characters":"▴"}}}}}},"u":{"a":{"r":{"r":{";":{"0":{"codepoints":[8648],"characters":"⇈"}}}}},"m":{"l":{"0":{"codepoints":[252],"characters":"ü"},";":{"0":{"codepoints":[252],"characters":"ü"}}}}},"w":{"a":{"n":{"g":{"l":{"e":{";":{"0":{"codepoints":[10663],"characters":"⦧"}}}}}}}}},"v":{"a":{"n":{"g":{"r":{"t":{";":{"0":{"codepoints":[10652],"characters":"⦜"}}}}}},"r":{"e":{"p":{"s":{"i":{"l":{"o":{"n":{";":{"0":{"codepoints":[1013],"characters":"ϵ"}}}}}}}}},"k":{"a":{"p":{"p":{"a":{";":{"0":{"codepoints":[1008],"characters":"ϰ"}}}}}}},"n":{"o":{"t":{"h":{"i":{"n":{"g":{";":{"0":{"codepoints":[8709],"characters":"∅"}}}}}}}}},"p":{"h":{"i":{";":{"0":{"codepoints":[981],"characters":"ϕ"}}}},"i":{";":{"0":{"codepoints":[982],"characters":"ϖ"}}},"r":{"o":{"p":{"t":{"o":{";":{"0":{"codepoints":[8733],"characters":"∝"}}}}}}}},"r":{";":{"0":{"codepoints":[8597],"characters":"↕"}},"h":{"o":{";":{"0":{"codepoints":[1009],"characters":"ϱ"}}}}},"s":{"i":{"g":{"m":{"a":{";":{"0":{"codepoints":[962],"characters":"ς"}}}}}},"u":{"b":{"s":{"e":{"t":{"n":{"e":{"q":{";":{"0":{"codepoints":[8842,65024],"characters":"⊊︀"}},"q":{";":{"0":{"codepoints":[10955,65024],"characters":"⫋︀"}}}}}}}}}},"p":{"s":{"e":{"t":{"n":{"e":{"q":{";":{"0":{"codepoints":[8843,65024],"characters":"⊋︀"}},"q":{";":{"0":{"codepoints":[10956,65024],"characters":"⫌︀"}}}}}}}}}}}},"t":{"h":{"e":{"t":{"a":{";":{"0":{"codepoints":[977],"characters":"ϑ"}}}}}},"r":{"i":{"a":{"n":{"g":{"l":{"e":{"l":{"e":{"f":{"t":{";":{"0":{"codepoints":[8882],"characters":"⊲"}}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":{"codepoints":[8883],"characters":"⊳"}}}}}}}}}}}}}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[8661],"characters":"⇕"}}}}},"B":{"a":{"r":{";":{"0":{"codepoints":[10984],"characters":"⫨"}},"v":{";":{"0":{"codepoints":[10985],"characters":"⫩"}}}}}},"c":{"y":{";":{"0":{"codepoints":[1074],"characters":"в"}}}},"d":{"a":{"s":{"h":{";":{"0":{"codepoints":[8866],"characters":"⊢"}}}}}},"D":{"a":{"s":{"h":{";":{"0":{"codepoints":[8872],"characters":"⊨"}}}}}},"e":{"e":{"b":{"a":{"r":{";":{"0":{"codepoints":[8891],"characters":"⊻"}}}}},";":{"0":{"codepoints":[8744],"characters":"∨"}},"e":{"q":{";":{"0":{"codepoints":[8794],"characters":"≚"}}}}},"l":{"l":{"i":{"p":{";":{"0":{"codepoints":[8942],"characters":"⋮"}}}}}},"r":{"b":{"a":{"r":{";":{"0":{"codepoints":[124],"characters":"|"}}}}},"t":{";":{"0":{"codepoints":[124],"characters":"|"}}}}},"f":{"r":{";":{"0":{"codepoints":[120115],"characters":"𝔳"}}}},"l":{"t":{"r":{"i":{";":{"0":{"codepoints":[8882],"characters":"⊲"}}}}}},"n":{"s":{"u":{"b":{";":{"0":{"codepoints":[8834,8402],"characters":"⊂⃒"}}},"p":{";":{"0":{"codepoints":[8835,8402],"characters":"⊃⃒"}}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120167],"characters":"𝕧"}}}}},"p":{"r":{"o":{"p":{";":{"0":{"codepoints":[8733],"characters":"∝"}}}}}},"r":{"t":{"r":{"i":{";":{"0":{"codepoints":[8883],"characters":"⊳"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[120011],"characters":"𝓋"}}}},"u":{"b":{"n":{"E":{";":{"0":{"codepoints":[10955,65024],"characters":"⫋︀"}}},"e":{";":{"0":{"codepoints":[8842,65024],"characters":"⊊︀"}}}}},"p":{"n":{"E":{";":{"0":{"codepoints":[10956,65024],"characters":"⫌︀"}}},"e":{";":{"0":{"codepoints":[8843,65024],"characters":"⊋︀"}}}}}}},"z":{"i":{"g":{"z":{"a":{"g":{";":{"0":{"codepoints":[10650],"characters":"⦚"}}}}}}}}},"V":{"b":{"a":{"r":{";":{"0":{"codepoints":[10987],"characters":"⫫"}}}}},"c":{"y":{";":{"0":{"codepoints":[1042],"characters":"В"}}}},"d":{"a":{"s":{"h":{";":{"0":{"codepoints":[8873],"characters":"⊩"}},"l":{";":{"0":{"codepoints":[10982],"characters":"⫦"}}}}}}},"D":{"a":{"s":{"h":{";":{"0":{"codepoints":[8875],"characters":"⊫"}}}}}},"e":{"e":{";":{"0":{"codepoints":[8897],"characters":"⋁"}}},"r":{"b":{"a":{"r":{";":{"0":{"codepoints":[8214],"characters":"‖"}}}}},"t":{";":{"0":{"codepoints":[8214],"characters":"‖"}},"i":{"c":{"a":{"l":{"B":{"a":{"r":{";":{"0":{"codepoints":[8739],"characters":"∣"}}}}},"L":{"i":{"n":{"e":{";":{"0":{"codepoints":[124],"characters":"|"}}}}}},"S":{"e":{"p":{"a":{"r":{"a":{"t":{"o":{"r":{";":{"0":{"codepoints":[10072],"characters":"❘"}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":{"codepoints":[8768],"characters":"≀"}}}}}}}}}}}},"y":{"T":{"h":{"i":{"n":{"S":{"p":{"a":{"c":{"e":{";":{"0":{"codepoints":[8202],"characters":" "}}}}}}}}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120089],"characters":"𝔙"}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120141],"characters":"𝕍"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119985],"characters":"𝒱"}}}}},"v":{"d":{"a":{"s":{"h":{";":{"0":{"codepoints":[8874],"characters":"⊪"}}}}}}}},"W":{"c":{"i":{"r":{"c":{";":{"0":{"codepoints":[372],"characters":"Ŵ"}}}}}},"e":{"d":{"g":{"e":{";":{"0":{"codepoints":[8896],"characters":"⋀"}}}}}},"f":{"r":{";":{"0":{"codepoints":[120090],"characters":"𝔚"}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120142],"characters":"𝕎"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119986],"characters":"𝒲"}}}}}},"w":{"c":{"i":{"r":{"c":{";":{"0":{"codepoints":[373],"characters":"ŵ"}}}}}},"e":{"d":{"b":{"a":{"r":{";":{"0":{"codepoints":[10847],"characters":"⩟"}}}}},"g":{"e":{";":{"0":{"codepoints":[8743],"characters":"∧"}},"q":{";":{"0":{"codepoints":[8793],"characters":"≙"}}}}}},"i":{"e":{"r":{"p":{";":{"0":{"codepoints":[8472],"characters":"℘"}}}}}}},"f":{"r":{";":{"0":{"codepoints":[120116],"characters":"𝔴"}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120168],"characters":"𝕨"}}}}},"p":{";":{"0":{"codepoints":[8472],"characters":"℘"}}},"r":{";":{"0":{"codepoints":[8768],"characters":"≀"}},"e":{"a":{"t":{"h":{";":{"0":{"codepoints":[8768],"characters":"≀"}}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[120012],"characters":"𝓌"}}}}}},"x":{"c":{"a":{"p":{";":{"0":{"codepoints":[8898],"characters":"⋂"}}}},"i":{"r":{"c":{";":{"0":{"codepoints":[9711],"characters":"◯"}}}}},"u":{"p":{";":{"0":{"codepoints":[8899],"characters":"⋃"}}}}},"d":{"t":{"r":{"i":{";":{"0":{"codepoints":[9661],"characters":"▽"}}}}}},"f":{"r":{";":{"0":{"codepoints":[120117],"characters":"𝔵"}}}},"h":{"a":{"r":{"r":{";":{"0":{"codepoints":[10231],"characters":"⟷"}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[10234],"characters":"⟺"}}}}}},"i":{";":{"0":{"codepoints":[958],"characters":"ξ"}}},"l":{"a":{"r":{"r":{";":{"0":{"codepoints":[10229],"characters":"⟵"}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[10232],"characters":"⟸"}}}}}},"m":{"a":{"p":{";":{"0":{"codepoints":[10236],"characters":"⟼"}}}}},"n":{"i":{"s":{";":{"0":{"codepoints":[8955],"characters":"⋻"}}}}},"o":{"d":{"o":{"t":{";":{"0":{"codepoints":[10752],"characters":"⨀"}}}}},"p":{"f":{";":{"0":{"codepoints":[120169],"characters":"𝕩"}}},"l":{"u":{"s":{";":{"0":{"codepoints":[10753],"characters":"⨁"}}}}}},"t":{"i":{"m":{"e":{";":{"0":{"codepoints":[10754],"characters":"⨂"}}}}}}},"r":{"a":{"r":{"r":{";":{"0":{"codepoints":[10230],"characters":"⟶"}}}}},"A":{"r":{"r":{";":{"0":{"codepoints":[10233],"characters":"⟹"}}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[120013],"characters":"𝓍"}}}},"q":{"c":{"u":{"p":{";":{"0":{"codepoints":[10758],"characters":"⨆"}}}}}}},"u":{"p":{"l":{"u":{"s":{";":{"0":{"codepoints":[10756],"characters":"⨄"}}}}}},"t":{"r":{"i":{";":{"0":{"codepoints":[9651],"characters":"△"}}}}}},"v":{"e":{"e":{";":{"0":{"codepoints":[8897],"characters":"⋁"}}}}},"w":{"e":{"d":{"g":{"e":{";":{"0":{"codepoints":[8896],"characters":"⋀"}}}}}}}},"X":{"f":{"r":{";":{"0":{"codepoints":[120091],"characters":"𝔛"}}}},"i":{";":{"0":{"codepoints":[926],"characters":"Ξ"}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120143],"characters":"𝕏"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119987],"characters":"𝒳"}}}}}},"Y":{"a":{"c":{"u":{"t":{"e":{"0":{"codepoints":[221],"characters":"Ý"},";":{"0":{"codepoints":[221],"characters":"Ý"}}}}}}},"A":{"c":{"y":{";":{"0":{"codepoints":[1071],"characters":"Я"}}}}},"c":{"i":{"r":{"c":{";":{"0":{"codepoints":[374],"characters":"Ŷ"}}}}},"y":{";":{"0":{"codepoints":[1067],"characters":"Ы"}}}},"f":{"r":{";":{"0":{"codepoints":[120092],"characters":"𝔜"}}}},"I":{"c":{"y":{";":{"0":{"codepoints":[1031],"characters":"Ї"}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120144],"characters":"𝕐"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119988],"characters":"𝒴"}}}}},"U":{"c":{"y":{";":{"0":{"codepoints":[1070],"characters":"Ю"}}}}},"u":{"m":{"l":{";":{"0":{"codepoints":[376],"characters":"Ÿ"}}}}}},"y":{"a":{"c":{"u":{"t":{"e":{"0":{"codepoints":[253],"characters":"ý"},";":{"0":{"codepoints":[253],"characters":"ý"}}}}},"y":{";":{"0":{"codepoints":[1103],"characters":"я"}}}}},"c":{"i":{"r":{"c":{";":{"0":{"codepoints":[375],"characters":"ŷ"}}}}},"y":{";":{"0":{"codepoints":[1099],"characters":"ы"}}}},"e":{"n":{"0":{"codepoints":[165],"characters":"¥"},";":{"0":{"codepoints":[165],"characters":"¥"}}}},"f":{"r":{";":{"0":{"codepoints":[120118],"characters":"𝔶"}}}},"i":{"c":{"y":{";":{"0":{"codepoints":[1111],"characters":"ї"}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120170],"characters":"𝕪"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[120014],"characters":"𝓎"}}}}},"u":{"c":{"y":{";":{"0":{"codepoints":[1102],"characters":"ю"}}}},"m":{"l":{"0":{"codepoints":[255],"characters":"ÿ"},";":{"0":{"codepoints":[255],"characters":"ÿ"}}}}}},"Z":{"a":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[377],"characters":"Ź"}}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[381],"characters":"Ž"}}}}}},"y":{";":{"0":{"codepoints":[1047],"characters":"З"}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[379],"characters":"Ż"}}}}},"e":{"r":{"o":{"W":{"i":{"d":{"t":{"h":{"S":{"p":{"a":{"c":{"e":{";":{"0":{"codepoints":[8203],"characters":"​"}}}}}}}}}}}}}},"t":{"a":{";":{"0":{"codepoints":[918],"characters":"Ζ"}}}}},"f":{"r":{";":{"0":{"codepoints":[8488],"characters":"ℨ"}}}},"H":{"c":{"y":{";":{"0":{"codepoints":[1046],"characters":"Ж"}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[8484],"characters":"ℤ"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[119989],"characters":"𝒵"}}}}}},"z":{"a":{"c":{"u":{"t":{"e":{";":{"0":{"codepoints":[378],"characters":"ź"}}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":{"codepoints":[382],"characters":"ž"}}}}}},"y":{";":{"0":{"codepoints":[1079],"characters":"з"}}}},"d":{"o":{"t":{";":{"0":{"codepoints":[380],"characters":"ż"}}}}},"e":{"e":{"t":{"r":{"f":{";":{"0":{"codepoints":[8488],"characters":"ℨ"}}}}}},"t":{"a":{";":{"0":{"codepoints":[950],"characters":"ζ"}}}}},"f":{"r":{";":{"0":{"codepoints":[120119],"characters":"𝔷"}}}},"h":{"c":{"y":{";":{"0":{"codepoints":[1078],"characters":"ж"}}}}},"i":{"g":{"r":{"a":{"r":{"r":{";":{"0":{"codepoints":[8669],"characters":"⇝"}}}}}}}},"o":{"p":{"f":{";":{"0":{"codepoints":[120171],"characters":"𝕫"}}}}},"s":{"c":{"r":{";":{"0":{"codepoints":[120015],"characters":"𝓏"}}}}},"w":{"j":{";":{"0":{"codepoints":[8205],"characters":"‍"}}},"n":{"j":{";":{"0":{"codepoints":[8204],"characters":"‌"}}}}}}};
+module.exports = HTMLNamedCharReferenceTrie;
+})();
+
+},{}],42:[function(require,module,exports){
+/* 
+Copyright (c) 2015, Yahoo Inc. All rights reserved.
+Copyrights licensed under the New BSD License.
+See the accompanying LICENSE file for terms.
+
+Authors: Nera Liu <neraliu@yahoo-inc.com, neraliu@gmail.com>
+*/
+/*jshint -W030 */
+(function () {
+"use strict";
+
+var fs = require('fs');
+require('./polyfills/polyfill.js');
+
+/////////////////////////////////////////////////////
+//
+// @module HTMLDecoder
+// 
+/////////////////////////////////////////////////////
+function HTMLDecoder(config) {
+    config || (config = {});
+    var load = config.load === undefined? true: config.load;
+
+    load? this.namedCharReferenceTrie = require('./gen/trie.js') : this.namedCharReferenceTrie = {};
+}
+
+/////////////////////////////////////////////////////
+//
+// PUBLIC API
+// 
+/////////////////////////////////////////////////////
+
+/**
+* @function HTMLDecoder#encode
+*
+* @description
+* HTML encode the character
+*
+* TODO: it is blindly encoding, need to enhance it later.
+*/
+HTMLDecoder.prototype.encode = function(str) {
+    var l = str.length,
+        c1, c2, r = '';
+
+    for(var i=0;i<l;++i) {
+        c1 = str.charCodeAt(i);
+        // 55296-57343
+        if (c1>=0xD800 && c1<=0xDFFF) {
+            c2 = str.codePointAt(i);
+            if (c1 !== c2) {
+                i++; // consume one more char if c1 !== c2 and i+1<l
+                c1 = c2;
+            }
+        }
+        r += "&#"+c1+";";
+    }
+    return r;
+};
+
+/**
+* @function HTMLDecoder#decode
+*
+* @description
+* HTML decode the character
+*
+* Reference:
+* https://html.spec.whatwg.org/multipage/syntax.html#tokenizing-character-references
+*/
+HTMLDecoder.prototype.reCharReferenceDecode = /&([a-z]{2,31}\d{0,2};?)|&#0*(x[a-f0-9]+|[0-9]+);?/ig;
+HTMLDecoder.prototype.decode = function(str) {
+    var self = this, num, r;
+    return str.replace(this.reCharReferenceDecode, function(m, named, number) {
+        if (named) {
+            r = self._findString(named);
+            return r? r.characters + (r.unconsumed ? r.unconsumed:'') : m;
+        } else {
+            num = parseInt(number[0] <= '9' ? number : '0' + number); // parseInt('0xA0') is equiv to parseInt('A0', 16)
+            return num === 0x00 ? '\uFFFD' // REPLACEMENT CHARACTER    
+                       : num === 0x80 ? '\u20AC'  // EURO SIGN (€)
+                       : num === 0x82 ? '\u201A'  // SINGLE LOW-9 QUOTATION MARK (‚)
+                       : num === 0x83 ? '\u0192'  // LATIN SMALL LETTER F WITH HOOK (ƒ)
+                       : num === 0x84 ? '\u201E'  // DOUBLE LOW-9 QUOTATION MARK („)
+                       : num === 0x85 ? '\u2026'  // HORIZONTAL ELLIPSIS (…)
+                       : num === 0x86 ? '\u2020'  // DAGGER (†)
+                       : num === 0x87 ? '\u2021'  // DOUBLE DAGGER (‡)
+                       : num === 0x88 ? '\u02C6'  // MODIFIER LETTER CIRCUMFLEX ACCENT (ˆ)
+                       : num === 0x89 ? '\u2030'  // PER MILLE SIGN (‰)
+                       : num === 0x8A ? '\u0160'  // LATIN CAPITAL LETTER S WITH CARON (Š)
+                       : num === 0x8B ? '\u2039'  // SINGLE LEFT-POINTING ANGLE QUOTATION MARK (‹)
+                       : num === 0x8C ? '\u0152'  // LATIN CAPITAL LIGATURE OE (Œ)
+                       : num === 0x8E ? '\u017D'  // LATIN CAPITAL LETTER Z WITH CARON (Ž)
+                       : num === 0x91 ? '\u2018'  // LEFT SINGLE QUOTATION MARK (‘)
+                       : num === 0x92 ? '\u2019'  // RIGHT SINGLE QUOTATION MARK (’)
+                       : num === 0x93 ? '\u201C'  // LEFT DOUBLE QUOTATION MARK (“)
+                       : num === 0x94 ? '\u201D'  // RIGHT DOUBLE QUOTATION MARK (”)
+                       : num === 0x95 ? '\u2022'  // BULLET (•)
+                       : num === 0x96 ? '\u2013'  // EN DASH (–)
+                       : num === 0x97 ? '\u2014'  // EM DASH (—)
+                       : num === 0x98 ? '\u02DC'  // SMALL TILDE (˜)
+                       : num === 0x99 ? '\u2122'  // TRADE MARK SIGN (™)
+                       : num === 0x9A ? '\u0161'  // LATIN SMALL LETTER S WITH CARON (š)
+                       : num === 0x9B ? '\u203A'  // SINGLE RIGHT-POINTING ANGLE QUOTATION MARK (›)
+                       : num === 0x9C ? '\u0153'  // LATIN SMALL LIGATURE OE (œ)
+                       : num === 0x9E ? '\u017E'  // LATIN SMALL LETTER Z WITH CARON (ž)
+                       : num === 0x9F ? '\u0178'  // LATIN CAPITAL LETTER Y WITH DIAERESIS (Ÿ)
+                       : self.frCoPt(num);
+        }
+    });
+};
+
+/**
+* @function HTMLEntites#frCoPt
+*
+* @description
+* Convert the code point to character except those numeric range will trigger the parse error in HTML decoding.
+* https://html.spec.whatwg.org/multipage/syntax.html#tokenizing-character-references  
+*/
+HTMLDecoder.prototype.frCoPt = function(num) {
+    return !isFinite(num) ||                  // `NaN`, `+Infinity`, or `-Infinity`
+        num <= 0x00 ||                        // NULL or not a valid Unicode code point
+        num > 0x10FFFF ||                     // not a valid Unicode code point
+        (num >= 0xD800 && num <= 0xDFFF) || 
+        (num >= 0x01 && num <= 0x08) ||
+        (num >= 0x0D && num <= 0x1F) ||
+        (num >= 0x7F && num <= 0x9F) ||       // NOTE: the spec may be wrong as 0x9F returns U+0178
+        (num >= 0xFDD0 && num <= 0xFDEF) ||
+
+        num === 0x0B ||
+        (num & 0xFFFF) === 0xFFFF ||
+        (num & 0xFFFF) === 0xFFFE ? '\uFFFD' : String.fromCodePoint(num);
+};
+
+/////////////////////////////////////////////////////
+//
+// TRIE GENERATION API
+// 
+/////////////////////////////////////////////////////
+
+/**
+* @function HTMLEntites#buildNamedCharReferenceTrie
+*
+* @description
+*/
+HTMLDecoder.prototype.buildNamedCharReferenceTrie = function(obj) {
+    for (var key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            var info = obj[key];
+            this._addStringToTrie(this.namedCharReferenceTrie, key, info);
+        }
+    }
+    return obj;
+};
+
+/**
+* @function HTMLDecoder#saveNamedCharReferenceTrie
+*
+* @description
+* Save the trie in json format.
+*/
+HTMLDecoder.prototype.saveNamedCharReferenceTrie = function(file) {
+    /* NOTE: JSON.stringify convert undefined to null */
+    var json = JSON.stringify(this.namedCharReferenceTrie);
+    var str = '(function() {\n"use strict";\n';
+    str += 'var HTMLNamedCharReferenceTrie = '+json+';\n';
+    str += 'module.exports = HTMLNamedCharReferenceTrie;\n})();\n';
+    fs.writeFileSync(file, str);
+};
+
+/////////////////////////////////////////////////////
+//
+// INTERAL API
+// 
+/////////////////////////////////////////////////////
+
+/**
+* @function HTMLDecoder#_findString
+*
+* @description
+* Find whether the string is defined in the trie.
+*/
+HTMLDecoder.prototype._findString = function(str) {
+    return this._findStringFromRoot(this.namedCharReferenceTrie, str, 0);
+};
+
+/**
+* @function HTMLDecoder#_findStringFromRoot
+*
+* @description
+*/
+HTMLDecoder.prototype._findStringFromRoot = function(trie, str, pos) {
+    /* init the trace */
+    pos === 0? this.matchTrace = [] : '';
+
+    /* skip the '&' for performance */
+    if (str[pos] === '&') pos++;
+
+    var index = str[pos], l, r;
+
+    if (trie[index] === null || trie[index] === undefined) { // end of trie
+        if (this.matchTrace.length > 0) { // return the last longest matched pattern, else return undefined
+            r = {
+                characters: this.matchTrace[this.matchTrace.length-1].info.characters,
+                unconsumed: this.matchTrace[this.matchTrace.length-1].unconsumed
+            };
+        }
+        return r;
+    } else if (pos+1 === str.length) { // end of string
+        if (trie[index][0] !== null && trie[index][0] !== undefined) {
+            r = trie[index][0];
+        } else if (this.matchTrace.length > 0) { // return the last longest matched pattern, else return undefined
+            r = {
+                characters: this.matchTrace[this.matchTrace.length-1].info.characters,
+                unconsumed: this.matchTrace[this.matchTrace.length-1].unconsumed
+            };
+        }
+        return r;
+    } else {
+        if (trie[index][0] !== null && trie[index][0] !== undefined) {
+            this.matchTrace.push({ unconsumed: str.substr(pos+1), info: trie[index][0] } );
+        }
+        return this._findStringFromRoot(trie[index], str, pos+1);
+    }
+};
+
+/**
+* @function HTMLDecoder#_addStringToTrie
+*
+* @description
+*/
+HTMLDecoder.prototype._addStringToTrie = function(trie, str, info) {
+    var l = str.length;
+    var rootTrie = trie;
+
+    for(var i=0;i<l;++i) {
+        /* skip the '&' */
+        if (str[i] === '&') continue;
+     
+        var isLastElement = i===l-1? true: false;
+        var childTrie = this._addCharToTrie(rootTrie, str[i], info, isLastElement);
+        rootTrie = childTrie;
+    }
+};
+
+/**
+* @function HTMLDecoder#_addCharToTrie
+*
+* @description
+*/
+HTMLDecoder.prototype._addCharToTrie = function(trie, c, info, isLastElement) {
+    var index = c;
+    if (trie[index] === null || trie[index] === undefined) {
+        trie[index] = {};
+    }
+    if (isLastElement)
+        trie[index][0] = info;
+    return trie[index];
+};
+
+/* exposing it */
+module.exports = HTMLDecoder;
+
+})();
+
+},{"./gen/trie.js":41,"./polyfills/polyfill.js":43,"fs":3}],43:[function(require,module,exports){
+/*! http://mths.be/codepointat v0.1.0 by @mathias */
+if (!String.prototype.codePointAt) {
+  (function() {
+    'use strict'; // needed to support `apply`/`call` with `undefined`/`null`
+    var codePointAt = function(position) {
+      /*jshint eqnull:true */
+      if (this == null) {
+        throw new TypeError();
+      }
+      var string = String(this);
+      var size = string.length;
+      // `ToInteger`
+      var index = position ? Number(position) : 0;
+      if (index != index) { // better `isNaN`
+        index = 0;
+      }
+      // Account for out-of-bounds indices:
+      if (index < 0 || index >= size) {
+        return undefined;
+      }
+      // Get the first code unit
+      var first = string.charCodeAt(index);
+      var second;
+      if ( // check if it’s the start of a surrogate pair
+        first >= 0xD800 && first <= 0xDBFF && // high surrogate
+        size > index + 1 // there is a next code unit
+      ) {
+        second = string.charCodeAt(index + 1);
+        if (second >= 0xDC00 && second <= 0xDFFF) { // low surrogate
+          // http://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
+          return (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
+        }
+      }
+      return first;
+    };
+    if (Object.defineProperty) {
+      Object.defineProperty(String.prototype, 'codePointAt', {
+        'value': codePointAt,
+        'configurable': true,
+        'writable': true
+      });
+    } else {
+      String.prototype.codePointAt = codePointAt;
+    }
+  }());
+}
+
+/*! http://mths.be/fromcodepoint v0.1.0 by @mathias */
+if (!String.fromCodePoint) {
+  (function() {
+    var defineProperty = (function() {
+      // IE 8 only supports `Object.defineProperty` on DOM elements
+      try {
+        var object = {};
+        var $defineProperty = Object.defineProperty;
+        var result = $defineProperty(object, object, object) && $defineProperty;
+        return result;
+      } catch(error) { return false; }
+    }());
+    var stringFromCharCode = String.fromCharCode;
+    var floor = Math.floor;
+    var fromCodePoint = function() {
+      var MAX_SIZE = 0x4000;
+      var codeUnits = [];
+      var highSurrogate;
+      var lowSurrogate;
+      var index = -1;
+      var length = arguments.length;
+      if (!length) {
+        return '';
+      }
+      var result = '';
+      while (++index < length) {
+        var codePoint = Number(arguments[index]);
+        if (
+          !isFinite(codePoint) ||       // `NaN`, `+Infinity`, or `-Infinity`
+          codePoint < 0 ||              // not a valid Unicode code point
+          codePoint > 0x10FFFF ||       // not a valid Unicode code point
+          floor(codePoint) != codePoint // not an integer
+        ) {
+          throw RangeError('Invalid code point: ' + codePoint);
+        }
+        if (codePoint <= 0xFFFF) { // BMP code point
+          codeUnits.push(codePoint);
+        } else { // Astral code point; split in surrogate halves
+          // http://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
+          codePoint -= 0x10000;
+          highSurrogate = (codePoint >> 10) + 0xD800;
+          lowSurrogate = (codePoint % 0x400) + 0xDC00;
+          codeUnits.push(highSurrogate, lowSurrogate);
+        }
+        if (index + 1 == length || codeUnits.length > MAX_SIZE) {
+          result += stringFromCharCode.apply(null, codeUnits);
+          codeUnits.length = 0;
+        }
+      }
+      return result;
+    };
+    if (defineProperty) {
+      defineProperty(String, 'fromCodePoint', {
+        'value': fromCodePoint,
+        'configurable': true,
+        'writable': true
+      });
+    } else {
+      String.fromCodePoint = fromCodePoint;
+    }
+  }());
+}
+
+},{}],44:[function(require,module,exports){
+/*! http://mths.be/codepointat v0.1.0 by @mathias */
+if (!String.prototype.codePointAt) {
+  (function() {
+    'use strict'; // needed to support `apply`/`call` with `undefined`/`null`
+    var codePointAt = function(position) {
+      if (this === null || this === undefined) {
+        throw new TypeError();
+      }
+      var string = String(this);
+      var size = string.length;
+      // `ToInteger`
+      var index = position ? Number(position) : 0;
+      if (index != index) { // better `isNaN`
+        index = 0;
+      }
+      // Account for out-of-bounds indices:
+      if (index < 0 || index >= size) {
+        return undefined;
+      }
+      // Get the first code unit
+      var first = string.charCodeAt(index);
+      var second;
+      if ( // check if it’s the start of a surrogate pair
+        first >= 0xD800 && first <= 0xDBFF && // high surrogate
+        size > index + 1 // there is a next code unit
+      ) {
+        second = string.charCodeAt(index + 1);
+        if (second >= 0xDC00 && second <= 0xDFFF) { // low surrogate
+          // http://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
+          return (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
+        }
+      }
+      return first;
+    };
+    if (Object.defineProperty) {
+      Object.defineProperty(String.prototype, 'codePointAt', {
+        'value': codePointAt,
+        'configurable': true,
+        'writable': true
+      });
+    } else {
+      String.prototype.codePointAt = codePointAt;
+    }
+  }());
+}
+
+/*! http://mths.be/fromcodepoint v0.1.0 by @mathias */
+if (!String.fromCodePoint) {
+  (function() {
+    var defineProperty = (function() {
+      // IE 8 only supports `Object.defineProperty` on DOM elements
+      try {
+        var object = {};
+        var $defineProperty = Object.defineProperty;
+        var result = $defineProperty(object, object, object) && $defineProperty;
+        return result;
+      } catch(error) { return false; }
+    }());
+    var stringFromCharCode = String.fromCharCode;
+    var floor = Math.floor;
+    var fromCodePoint = function() {
+      var MAX_SIZE = 0x4000;
+      var codeUnits = [];
+      var highSurrogate;
+      var lowSurrogate;
+      var index = -1;
+      var length = arguments.length;
+      if (!length) {
+        return '';
+      }
+      var result = '';
+      while (++index < length) {
+        var codePoint = Number(arguments[index]);
+        if (
+          !isFinite(codePoint) ||       // `NaN`, `+Infinity`, or `-Infinity`
+          codePoint < 0 ||              // not a valid Unicode code point
+          codePoint > 0x10FFFF ||       // not a valid Unicode code point
+          floor(codePoint) != codePoint // not an integer
+        ) {
+          throw RangeError('Invalid code point: ' + codePoint);
+        }
+        if (codePoint <= 0xFFFF) { // BMP code point
+          codeUnits.push(codePoint);
+        } else { // Astral code point; split in surrogate halves
+          // http://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
+          codePoint -= 0x10000;
+          highSurrogate = (codePoint >> 10) + 0xD800;
+          lowSurrogate = (codePoint % 0x400) + 0xDC00;
+          codeUnits.push(highSurrogate, lowSurrogate);
+        }
+        if (index + 1 == length || codeUnits.length > MAX_SIZE) {
+          result += stringFromCharCode.apply(null, codeUnits);
+          codeUnits.length = 0;
+        }
+      }
+      return result;
+    };
+    if (defineProperty) {
+      defineProperty(String, 'fromCodePoint', {
+        'value': fromCodePoint,
+        'configurable': true,
+        'writable': true
+      });
+    } else {
+      String.fromCodePoint = fromCodePoint;
+    }
+  }());
+}
+},{}],45:[function(require,module,exports){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -10093,7 +11830,7 @@ module.exports.create = overrideHbsCreate;
 // the following is in addition to the original Handlbars prototype
 module.exports.ContextParserHandlebars = ContextParserHandlebars;
 
-},{"./context-parser-handlebars":40,"./handlebars-utils.js":41,"handlebars":27,"xss-filters":39}],43:[function(require,module,exports){
+},{"./context-parser-handlebars":37,"./handlebars-utils.js":40,"handlebars":24,"xss-filters":36}],46:[function(require,module,exports){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -10107,679 +11844,66 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 (function () {
 "use strict";
 
-/* import the html context parser */
-var contextParser = require('context-parser'),
-    stateMachine = contextParser.StateMachine,
-    htmlState = stateMachine.State,
-    htmlParser = contextParser.FastParser;
-
-// Perform input stream preprocessing
-// Reference: https://html.spec.whatwg.org/multipage/syntax.html#preprocessing-the-input-stream
-function InputPreProcessing (state, i) {
-    var input = this.input, 
-        chr = input[i],
-        nextChr = input[i+1];
-
-    // equivalent to inputStr.replace(/\r\n?/g, '\n')
-    if (chr === '\r') {
-        if (nextChr === '\n') {
-            input.splice(i, 1);
-            this.inputLen--;
-        } else {
-            input[i] = '\n';
-        }
-    } 
-    // the following are control characters or permanently undefined Unicode characters (noncharacters), resulting in parse errors
-    // \uFFFD replacement is not required by the specification, we consider \uFFFD character as an inert character
-    else if ((chr >= '\x01'   && chr <= '\x08') || 
-             (chr >= '\x0E'   && chr <= '\x1F') ||
-             (chr >= '\x7F'   && chr <= '\x9F') ||
-             (chr >= '\uFDD0' && chr <= '\uFDEF') ||
-             chr === '\x0B' || chr === '\uFFFE' || chr === '\uFFFF') {
-        input[i] = '\uFFFD';
-    } 
-    // U+1FFFE, U+1FFFF, U+2FFFE, U+2FFFF, U+3FFFE, U+3FFFF, 
-    // U+4FFFE, U+4FFFF, U+5FFFE, U+5FFFF, U+6FFFE, U+6FFFF, 
-    // U+7FFFE, U+7FFFF, U+8FFFE, U+8FFFF, U+9FFFE, U+9FFFF, 
-    // U+AFFFE, U+AFFFF, U+BFFFE, U+BFFFF, U+CFFFE, U+CFFFF, 
-    // U+DFFFE, U+DFFFF, U+EFFFE, U+EFFFF, U+FFFFE, U+FFFFF, 
-    // U+10FFFE, and U+10FFFF 
-    else if ((nextChr === '\uDFFE' || nextChr === '\uDFFF') && 
-             (  chr === '\uD83F' || chr === '\uD87F' || chr === '\uD8BF' || chr === '\uD8FF' || 
-                chr === '\uD93F' || chr === '\uD97F' || chr === '\uD9BF' || chr === '\uD9FF' || 
-                chr === '\uDA3F' || chr === '\uDA7F' || chr === '\uDABF' || chr === '\uDAFF' || 
-                chr === '\uDB3F' || chr === '\uDB7F' || chr === '\uDBBF' || chr === '\uDBFF')) {
-        input[i] = input[i+1] = '\uFFFD';
-    }
-}
-
-function ConvertBogusCommentToComment(i) {
-    // convert !--. i.e., from <* to <!--*
-    this.input.splice(i, 0, '!', '-', '-'); 
-    this.inputLen += 3;
-
-    // convert the next > to -->
-    this.on('preCanonicalize', PreCanonicalizeConvertBogusCommentEndTag);
-}
-
-function PreCanonicalizeConvertBogusCommentEndTag(state, i, endsWithEOF) {
-    if (this.input[i] === '>') {
-        // remove itself from the listener list
-        this.off('preCanonicalize', PreCanonicalizeConvertBogusCommentEndTag);
-
-        // convert [>] to [-]->
-        this.input.splice(i, 0, '-', '-');
-        this.inputLen += 2;
-
-        this.emit('bogusCommentCoverted', state, i, endsWithEOF);
-    }
-}
-
-// those doctype states (52-67) are initially treated as bogus comment state, but they are further converted to comment state 
-// Canonicalize() will create no more bogus comment state except the fake (context-parser treats <!doctype as bogus) one hardcoded as <!doctype html> that has no NULL inside
-var statesRequiringNullReplacement = [
-//    0, 1, 2, 3, 4, 5, 6, 7, 8, 9
-/*0*/ 0, 0, 0, 1, 0, 1, 1, 1, 0, 0,
-/*1*/ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-/*2*/ 0, 0, 1, 1, 1, 0, 0, 0, 0, 1,
-/*3*/ 1, 1, 0, 0, 1, 1, 1, 1, 1, 1,
-/*4*/ 1, 0, 0, 0, 1, 0, 1, 1, 1, 1,
-/*5*/ 1, 1
-];
-// \uFFFD replacement is not required by the spec for DATA state
-statesRequiringNullReplacement[htmlState.STATE_DATA] = 1;
-
-function Canonicalize(state, i, endsWithEOF) {
-    
-    this.emit('preCanonicalize', state, i, endsWithEOF);
-
-    var reCanonicalizeNeeded = true,
-        input = this.input,
-        chr = input[i], nextChr = input[i+1],
-        potentialState = this._getNextState(state, i, endsWithEOF),
-        nextPotentialState = this._getNextState(potentialState, i + 1, endsWithEOF);
-
-    // console.log(i, state, potentialState, nextPotentialState, input.slice(i).join(''));
-
-    // batch replacement of NULL with \uFFFD would violate the spec
-    //  - for example, NULL is untouched in CDATA section state
-    if (chr === '\x00' && statesRequiringNullReplacement[state]) {
-        input[i] = '\uFFFD';
-    }
-    // encode < into &lt; for [<]* (* is non-alpha) in STATE_DATA, [<]% and [<]! in STATE_RCDATA and STATE_RAWTEXT
-    else if ((potentialState === htmlState.STATE_TAG_OPEN && nextPotentialState === htmlState.STATE_DATA) ||  // [<]*, where * is non-alpha
-             ((state === htmlState.STATE_RCDATA || state === htmlState.STATE_RAWTEXT) &&                            // in STATE_RCDATA and STATE_RAWTEXT
-            chr === '<' && (nextChr === '%' || nextChr === '!'))) {   // [<]% or [<]!
-        
-        // [<]*, [<]%, [<]!
-        input.splice(i, 1, '&', 'l', 't', ';');
-        this.inputLen += 3;
-    }
-    // enforce <!doctype html>
-    // + convert bogus comment or unknown doctype to the standard html comment
-    else if (potentialState === htmlState.STATE_MARKUP_DECLARATION_OPEN) {            // <[!]***  
-        reCanonicalizeNeeded = false;
-
-        // context-parser treats the doctype and [CDATA[ as resulting into STATE_BOGUS_COMMENT
-        // so, we need our algorithm here to extract and check the next 7 characters
-        var commentKey = input.slice(i + 1, i + 8).join('');
-
-        // enforce <!doctype html>
-        if (commentKey.toLowerCase() === 'doctype') {               // <![d]octype
-            // extract 6 chars immediately after <![d]octype and check if it's equal to ' html>'
-            if (input.slice(i + 8, i + 14).join('').toLowerCase() !== ' html>') {
-
-                // replace <[!]doctype xxxx> with <[!]--!doctype xxxx--><doctype html>
-                ConvertBogusCommentToComment.call(this, i);
-
-                this.once('bogusCommentCoverted', function (state, i) {
-                    [].splice.apply(this.input, [i + 3, 0].concat('<!doctype html>'.split('')));
-                    this.inputLen += 15;
-                });
-
-                reCanonicalizeNeeded = true;
-            }
-        }
-        // do not touch <![CDATA[ and <[!]--
-        else if (commentKey === '[CDATA[' ||
-                    (nextChr === '-' && input[i+2] === '-')) {
-            // noop
-        }
-        // ends up in bogus comment
-        else {
-            // replace <[!]*** with <[!]--***
-            // will replace the next > to -->
-            ConvertBogusCommentToComment.call(this, i);
-            reCanonicalizeNeeded = true;
-        }
-    }
-    // convert bogus comment to the standard html comment 
-    else if ((state === htmlState.STATE_TAG_OPEN && 
-             potentialState === htmlState.STATE_BOGUS_COMMENT) ||           // <[?] only from STATE_TAG_OPEN
-            (potentialState === htmlState.STATE_END_TAG_OPEN &&             // <[/]* or <[/]> from STATE_END_TAG_OPEN
-             nextPotentialState !== htmlState.STATE_TAG_NAME &&
-             nextPotentialState !== -1)) {                                  // TODO: double check if there're any other cases requiring -1 check
-        // replace <? and </* respectively with <!--? and <!--/*
-        // will replace the next > to -->
-        ConvertBogusCommentToComment.call(this, i);
-    }
-    // remove the unnecessary SOLIDUS
-    else if (potentialState === htmlState.STATE_SELF_CLOSING_START_TAG &&             // <***[/]*
-            nextPotentialState === htmlState.STATE_BEFORE_ATTRIBUTE_NAME) {           // input[i+1] is ANYTHING_ELSE (i.e., not EOF nor >)
-        // if ([htmlState.STATE_TAG_NAME,                                             // <a[/]* replaced with <a[ ]*
-        //     /* following is unknown to CP
-        //     htmlState.STATE_RCDATA_END_TAG_NAME,
-        //     htmlState.STATE_RAWTEXT_END_TAG_NAME,
-        //     htmlState.STATE_SCRIPT_DATA_END_TAG_NAME,
-        //     htmlState.STATE_SCRIPT_DATA_ESCAPED_END_TAG_NAME,
-        //     */
-        //     htmlState.STATE_BEFORE_ATTRIBUTE_NAME,                                 // <a [/]* replaced with <a [ ]*
-        //     htmlState.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED].indexOf(state) !== -1)   // <a abc=""[/]* replaced with <a abc=""[ ]*
-        input[i] = ' ';
-
-        // given input[i] was    '/', nextPotentialState was htmlState.STATE_BEFORE_ATTRIBUTE_NAME
-        // given input[i] is now ' ', nextPotentialState becomes STATE_BEFORE_ATTRIBUTE_NAME if current state is STATE_ATTRIBUTE_NAME or STATE_AFTER_ATTRIBUTE_NAME
-        // to preserve state, remove future EQUAL SIGNs (=)s to force STATE_AFTER_ATTRIBUTE_NAME behave as if it is STATE_BEFORE_ATTRIBUTE_NAME
-        // this is okay since EQUAL SIGNs (=)s will be stripped anyway in the STATE_BEFORE_ATTRIBUTE_NAME cleanup handling 
-        if (state === htmlState.STATE_ATTRIBUTE_NAME ||                               // <a abc[/]=abc  replaced with <a abc[ ]*
-                state === htmlState.STATE_AFTER_ATTRIBUTE_NAME) {                     // <a abc [/]=abc replaced with <a abc [ ]*
-            for (var j = i + 1; j < this.inputLen && input[j] === '='; j++) {
-                input.splice(j, 1);
-                this.inputLen--;
-            }
-        }
-    }
-    // remove unnecessary equal signs, hence <input checked[=]> become <input checked[>], or <input checked [=]> become <input checked [>]
-    else if (potentialState === htmlState.STATE_BEFORE_ATTRIBUTE_VALUE &&   // only from STATE_ATTRIBUTE_NAME or STATE_AFTER_ATTRIBUTE_NAME
-            nextPotentialState === htmlState.STATE_DATA) {                  // <a abc[=]> or <a abc [=]>
-        input.splice(i, 1);
-        this.inputLen--;
-    }
-    // insert a space for <a abc="***["]* or <a abc='***[']* after quoted attribute value (i.e., <a abc="***["] * or <a abc='***['] *)
-    else if (potentialState === htmlState.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED &&        // <a abc=""[*] where * is not SPACE (\t,\n,\f,' ')
-            nextPotentialState === htmlState.STATE_BEFORE_ATTRIBUTE_NAME &&
-            this._getSymbol(i + 1) !== stateMachine.Symbol.SPACE) {
-        input.splice(i + 1, 0, ' ');
-        this.inputLen++;
-    }
-    // else here means no special pattern was found requiring rewriting
-    else {
-        reCanonicalizeNeeded = false;
-    }
-
-    // remove " ' < = from being treated as part of attribute name (not as the spec recommends though)
-    switch (potentialState) {
-        case htmlState.STATE_BEFORE_ATTRIBUTE_NAME:     // remove ambigious symbols in <a [*]href where * is ", ', <, or = 
-            if (nextChr === "=") {
-                input.splice(i + 1, 1);
-                this.inputLen--;
-                reCanonicalizeNeeded = true;
-                break;
-            }
-            /* falls through */
-        case htmlState.STATE_ATTRIBUTE_NAME:            // remove ambigious symbols in <a href[*] where * is ", ', or <
-        case htmlState.STATE_AFTER_ATTRIBUTE_NAME:      // remove ambigious symbols in <a href [*] where * is ", ', or <
-            if (nextChr === '"' || nextChr === "'" || nextChr === '<') {
-                input.splice(i + 1, 1);
-                this.inputLen--;
-                reCanonicalizeNeeded = true;
-            }
-            break;
-    }
-
-    if (reCanonicalizeNeeded) {
-        return Canonicalize.call(this, state, i, endsWithEOF);
-    }
-
-    switch (state) {
-    // escape " ' < = ` to avoid raising parse errors for unquoted value
-        case htmlState.STATE_ATTRIBUTE_VALUE_UNQUOTED:
-            if (chr === '"') {
-                input.splice(i, 1, '&', 'q', 'u', 'o', 't', ';');
-                this.inputLen += 5;
-                break;
-            } else if (chr === "'") {
-                input.splice(i, 1, '&', '#', '3', '9', ';');
-                this.inputLen += 4;
-                break;
-            }
-            /* falls through */
-        case htmlState.STATE_BEFORE_ATTRIBUTE_VALUE:     // treat < = ` as if they are in STATE_ATTRIBUTE_VALUE_UNQUOTED
-            if (chr === '<') {
-                input.splice(i, 1, '&', 'l', 't', ';');
-                this.inputLen += 3;
-            } else if (chr === '=') {
-                input.splice(i, 1, '&', '#', '6', '1', ';');
-                this.inputLen += 4;
-            } else if (chr === '`') {
-                input.splice(i, 1, '&', '#', '9', '6', ';');
-                this.inputLen += 4;
-            }
-            break;
-
-    // add hyphens to complete <!----> to avoid raising parsing errors
-        // replace <!--[>] with <!--[-]->
-        case htmlState.STATE_COMMENT_START:
-            if (chr === '>') {                          // <!--[>]
-                input.splice(i, 0, '-', '-');
-                this.inputLen += 2;
-                // reCanonicalizeNeeded = true;  // not need due to no where to treat its potential states
-            }
-            break;
-        // replace <!---[>] with <!---[-]>
-        case htmlState.STATE_COMMENT_START_DASH:
-            if (chr === '>') {                          // <!---[>]
-                input.splice(i, 0, '-'); 
-                this.inputLen++;
-                // reCanonicalizeNeeded = true;  // not need due to no where to treat its potential states
-            }
-            break;
-
-    // replace --[!]> with --[>]
-        case htmlState.STATE_COMMENT_END:
-            if (chr === '!' && nextChr === '>') {
-                input.splice(i, 1);
-                this.inputLen--;
-                // reCanonicalizeNeeded = true;  // not need due to no where to treat its potential states
-            }
-            // if (chr === '-'), ignored this parse error. TODO: consider stripping n-2 hyphens for ------> 
-            break;
-    }
-
-    if (reCanonicalizeNeeded) {
-        return Canonicalize.call(this, state, i, endsWithEOF);
-    }
-}
-
-// remove IE conditional comments
-function DisableIEConditionalComments(state, i){
-    var input = this.input;
-
-    if (state === htmlState.STATE_COMMENT && input[i] === ']' && input[i+1] === '>') {
-        input.splice(i, 0, ' ');
-        this.inputLen++;
-    }
-}
-
-/** 
-* @module StrictContextParser
-*/
-function StrictContextParser(config, listeners) {
-    var self = this, k;
-
-    // super
-    htmlParser.apply(self, arguments);
-
-    // config
-    config || (config = {});
-
-    self.listeners = {};
-    // deep copy the provided listeners, if any
-    if (typeof listeners === 'object') {
-        for (k in listeners) {
-            self.listeners[k] = listeners[k].slice();
-        }
-    }
-    // initialize default listeners, of which the order of registration matters
-    else {
-
-        // run through the input stream with input pre-processing
-        !config.disableInputPreProcessing && this.on('preWalk', InputPreProcessing);
-        // fix parse errors before they're encountered in walk()
-        !config.disableCanonicalization && this.on('preWalk', Canonicalize).on('reWalk', Canonicalize);
-        // disable IE conditional comments
-        !config.disableIEConditionalComments && this.on('preWalk', DisableIEConditionalComments);
-        // TODO: rewrite IE <comment> tags
-
-        // TODO: When a start tag token is emitted with its self-closing flag set, if the flag is not acknowledged when it is processed by the tree construction stage, that is a parse error.
-        // TODO: When an end tag token is emitted with attributes, that is a parse error.
-        // TODO: When an end tag token is emitted with its self-closing flag set, that is a parse error.
-
-        // for bookkeeping the processed inputs and states
-        if (config.enableStateTracking) {
-            this.states = [this.state];
-            this.buffer = []; 
-            this.on('postWalk', function (lastState, state, i, endsWithEOF) {
-                this.buffer.push(this.input[i]);
-                this.states.push(state);
-            }).on('reWalk', this.setCurrentState);
-        }
-    }
-
-    // deep copy the config to this.config
-    this.config = {};
-    for (k in config) {
-        this.config[k] = config[k];
-    }
-}
-
-/* inherit contextParser.FastParser */
-StrictContextParser.prototype = Object.create(htmlParser.prototype);
-StrictContextParser.prototype.constructor = StrictContextParser;
-
-/**
-* @function StrictContextParser._getSymbol
-* @param {integer} i - the index of input stream
-*
-* @description
-* Get the html symbol mapping for the character located in the given index of input stream
-*/
-StrictContextParser.prototype._getSymbol = function (i) {
-    return i < this.inputLen ? this.lookupChar(this.input[i]) : -1;
-};
-
-/**
-* @function StrictContextParser._getNextState
-* @param {integer} state - the current state
-* @param {integer} i - the index of input stream
-* @returns {integer} the potential state about to transition into, given the current state and an index of input stream
-*
-* @description
-* Get the potential html state about to transition into
-*/
-StrictContextParser.prototype._getNextState = function (state, i, endsWithEOF) {
-    return i < this.inputLen ? stateMachine.lookupStateFromSymbol[this._getSymbol(i)][state] : -1;
-};
-
-/**
-* @function StrictContextParser.fork
-* @returns {object} a new parser with all internal states inherited
-*
-* @description
-* create a new parser with all internal states inherited
-*/
-StrictContextParser.prototype.fork = function() {
-    var parser = new this.constructor(this.config, this.listeners);
-
-    parser.state = this.state;
-    parser.tagNames = this.tagNames.slice();
-    parser.tagNameIdx = this.tagNameIdx;
-    parser.attributeName = this.attributeName;
-    parser.attributeValue = this.attributeValue;
-
-    if (this.config.enableStateTracking) {
-        parser.buffer = this.buffer.slice();
-        parser.states = this.states.slice();
-    }
-
-    return parser;
-};
-
-
-/**
- * @function StrictContextParser#on
- *
- * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
- * @param {function} listener - the event listener
- * @returns this
- *
- * @description
- * <p>register the given event listener to the given eventType</p>
- *
- */
-StrictContextParser.prototype.on = function(eventType, listener) {
-    var self = this, listeners = self.listeners[eventType];
-    if (listener) {
-        if (listeners) {
-            listeners.push(listener);
-        } else {
-            self.listeners[eventType] = [listener];
-        }
-    }
-    return self;
-};
-
-/**
- * @function StrictContextParser#once
- *
- * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
- * @param {function} listener - the event listener
- * @returns this
- *
- * @description
- * <p>register the given event listener to the given eventType, for which it will be fired only once</p>
- *
- */
-StrictContextParser.prototype.once = function(eventType, listener) {
-    var self = this, onceListener;
-    if (listener) {
-        onceListener = function () {
-            self.off(eventType, onceListener);
-            listener.apply(self, arguments);
-        };
-        return this.on(eventType, onceListener);
-    }
-    return self;
-};
-
-/**
- * @function StrictContextParser#off
- *
- * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
- * @param {function} listener - the event listener
- * @returns this
- *
- * @description
- * <p>remove the listener from being fired when the eventType happen</p>
- *
- */
-StrictContextParser.prototype.off = function (eventType, listener) {
-    if (listener) {
-        var i, len, listeners = this.listeners[eventType];
-        if (listeners) {
-            for (i = 0; listeners[i]; i++) {
-                if (listeners[i] === listener) {
-                    listeners.splice(i, 1);
-                    break;
-                }
-            }
-        }
-    }
-    return this;
-};
-
-/**
- * @function StrictContextParser#emit
- *
- * @param {string} eventType - the event type (e.g., preWalk, reWalk, postWalk, ...)
- * @returns this
- *
- * @description
- * <p>fire those listeners correspoding to the given eventType</p>
- *
- */
-StrictContextParser.prototype.emit = function (eventType) {
-    var self = this,
-        listeners = self.listeners[eventType],
-        i, args, listener;
-
-    if (listeners) {
-        args = [].slice.call(arguments, 1);
-        for (i = 0; (listener = listeners[i]); i++) {
-            listener.apply(self, args);
-        }
-    }
-    return self;
-};
-
-/**
- * @function StrictContextParser#parsePartial
- *
- * @param {string} input - The HTML fragment
- * @returns {string} the inputs with parse errors and browser-inconsistent characters automatically corrected
- *
- * @description
- * <p>Perform HTML fixer before the contextual analysis</p>
- *
- */
-StrictContextParser.prototype.parsePartial = function(input, endsWithEOF) {
-    var self = this;
-    self.input = input.split('');
-    self.inputLen = self.input.length;
-
-    for (var i = 0, lastState; i < self.inputLen; i++) {
-        lastState = self.state;
-
-        // TODO: endsWithEOF handling
-        self.emit('preWalk', lastState, i, endsWithEOF);
-        self.walk(i, self.input, endsWithEOF);
-        self.emit('postWalk', lastState, self.state, i, endsWithEOF);
-    }
-
-    return (self.output = self.input.join(''));
-};
-
-
-// the only difference from the original walk is to use the this.emit('reWalk') interface
-StrictContextParser.prototype.walk = function(i, input, endsWithEOF) {
-
-    var ch = input[i],
-        symbol = this.lookupChar(ch),
-        extraLogic = stateMachine.lookupAltLogicFromSymbol[symbol][this.state],
-        reconsume = stateMachine.lookupReconsumeFromSymbol[symbol][this.state];
-
-    /* Set state based on the current head pointer symbol */
-    this.state = stateMachine.lookupStateFromSymbol[symbol][this.state];
-
-    /* See if there is any extra logic required for this state transition */
-    switch (extraLogic) {
-        case 1:  this.createStartTag(ch); break;
-        case 2:  this.createEndTag(ch);   break;
-        case 3:  this.appendTagName(ch);  break;
-        case 4:  this.resetEndTag(ch);    break;
-        case 6:                       /* match end tag token with start tag token's tag name */
-            if(this.tagNames[0] === this.tagNames[1]) {
-                reconsume = 0;  /* see 12.2.4.13 - switch state for the following case, otherwise, reconsume. */
-                this.matchEndTagWithStartTag(symbol);
-            }
-            break;
-        case 8:  this.matchEscapedScriptTag(ch); break;
-        case 11: this.processTagName(ch); break;
-        case 12: this.createAttributeNameAndValueTag(ch); break;
-        case 13: this.appendAttributeNameTag(ch); break;
-        case 14: this.appendAttributeValueTag(ch); break;
-    }
-
-    if (reconsume) {                  /* reconsume the character */
-        this.emit('reWalk', this.state, i, endsWithEOF);
-
-        // if( this.states) {
-        //     // This is error prone. May need to change the way we walk the stream to avoid this.
-        //     this.states[i] = this.state; 
-        // }
-        return this.walk(i, input);
-    }
-
-    return this;
-};
-
-
-
-/**
- * @function StrictContextParser#setCurrentState
- *
- * @param {integer} state - The state of HTML5 page.
- *
- * @description
- * Set the current state of the HTML5 Context Parser.
- *
- */
-StrictContextParser.prototype.setCurrentState = function(state) {
-    this.state = state;
-    if (this.states) {
-        this.states.pop();
-        this.states.push(state);
-    }
-    return this;
-};
-
-/**
- * @function StrictContextParser#getCurrentState
- *
- * @returns {integer} The last state of the HTML5 Context Parser.
- *
- * @description
- * Get the last state of HTML5 Context Parser.
- *
- */
-StrictContextParser.prototype.getCurrentState = function() {
-    return this.state;
-};
-
-
-// <iframe srcdoc=""> is a scriptable attribute too
-// Reference: https://html.spec.whatwg.org/multipage/embedded-content.html#attr-iframe-srcdoc
-var scriptableTags = {
-    script:1,style:1,
-    svg:1,xml:1,math:1,
-    applet:1,object:1,embed:1,link:1,
-    scriptlet:1                  // IE-specific
-};
-
-/**
- * @function StrictContextParser#isScriptableTag
- *
- * @returns {boolean} true if the current tag can possibly incur script either through configuring its attribute name or inner HTML
- *
- * @description
- * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
- *
- */
-StrictContextParser.prototype.isScriptableTag = function() {
-    return scriptableTags[this.tagNames[0]] === 1;
-};
+/* import the required package */
+var ContextParser = require('context-parser').Parser;
+
+/////////////////////////////////////////////////////
+//
+// @module ContextParser 
+// 
+/////////////////////////////////////////////////////
 
 // Reference: http://www.w3.org/TR/html-markup/elements.html
-StrictContextParser.ATTRTYPE_URI = 1,
-StrictContextParser.ATTRTYPE_CSS = 2,
-StrictContextParser.ATTRTYPE_SCRIPTABLE = 3,
-StrictContextParser.ATTRTYPE_MIME = 4,
-StrictContextParser.ATTRTYPE_GENERAL = undefined;
+ContextParser.ATTRTYPE_URI = 1,
+ContextParser.ATTRTYPE_CSS = 2,
+ContextParser.ATTRTYPE_SCRIPTABLE = 3,
+ContextParser.ATTRTYPE_MIME = 4,
+ContextParser.ATTRTYPE_GENERAL = undefined;
 
-var attributeNamesType = {
+ContextParser.attributeNamesType = {
     // we generally do not differentiate whether these attribtues are tag specific during matching for simplicity
-    'href'       :StrictContextParser.ATTRTYPE_URI,     // for a, link, img, area, iframe, frame, video, object, embed ...
-    'src'        :StrictContextParser.ATTRTYPE_URI,
-    'background' :StrictContextParser.ATTRTYPE_URI,     // for body, table, tbody, tr, td, th, etc? (obsolete)
-    'action'     :StrictContextParser.ATTRTYPE_URI,     // for form, input, button
-    'formaction' :StrictContextParser.ATTRTYPE_URI,     
-    'cite'       :StrictContextParser.ATTRTYPE_URI,     // for blockquote, del, ins, q
-    'poster'     :StrictContextParser.ATTRTYPE_URI,     // for img, object, video, source
-    'usemap'     :StrictContextParser.ATTRTYPE_URI,     // for image
-    'longdesc'   :StrictContextParser.ATTRTYPE_URI,                         
-    'folder'     :StrictContextParser.ATTRTYPE_URI,     // for a
-    'manifest'   :StrictContextParser.ATTRTYPE_URI,     // for html
-    'classid'    :StrictContextParser.ATTRTYPE_URI,     // for object
-    'codebase'   :StrictContextParser.ATTRTYPE_URI,     // for object, applet
-    'icon'       :StrictContextParser.ATTRTYPE_URI,     // for command
-    'profile'    :StrictContextParser.ATTRTYPE_URI,     // for head
+    'href'       :ContextParser.ATTRTYPE_URI,     // for a, link, img, area, iframe, frame, video, object, embed ...
+    'src'        :ContextParser.ATTRTYPE_URI,
+    'background' :ContextParser.ATTRTYPE_URI,     // for body, table, tbody, tr, td, th, etc? (obsolete)
+    'action'     :ContextParser.ATTRTYPE_URI,     // for form, input, button
+    'formaction' :ContextParser.ATTRTYPE_URI,     
+    'cite'       :ContextParser.ATTRTYPE_URI,     // for blockquote, del, ins, q
+    'poster'     :ContextParser.ATTRTYPE_URI,     // for img, object, video, source
+    'usemap'     :ContextParser.ATTRTYPE_URI,     // for image
+    'longdesc'   :ContextParser.ATTRTYPE_URI,                         
+    'folder'     :ContextParser.ATTRTYPE_URI,     // for a
+    'manifest'   :ContextParser.ATTRTYPE_URI,     // for html
+    'classid'    :ContextParser.ATTRTYPE_URI,     // for object
+    'codebase'   :ContextParser.ATTRTYPE_URI,     // for object, applet
+    'icon'       :ContextParser.ATTRTYPE_URI,     // for command
+    'profile'    :ContextParser.ATTRTYPE_URI,     // for head
     /* TODO: we allow content before we implement the stack in CP for tracking attributeName
-    'content'    :StrictContextParser.ATTRTYPE_URI,     // for meta http-equiv=refresh
+    'content'    :ContextParser.ATTRTYPE_URI,     // for meta http-equiv=refresh
     */
 
     // http://www.w3.org/TR/xmlbase/#syntax
-    'xmlns'      :StrictContextParser.ATTRTYPE_URI,     // for svg, etc?
-    'xml:base'   :StrictContextParser.ATTRTYPE_URI, 
-    'xmlns:xlink':StrictContextParser.ATTRTYPE_URI,
-    'xlink:href' :StrictContextParser.ATTRTYPE_URI,     // for xml-related
+    'xmlns'      :ContextParser.ATTRTYPE_URI,     // for svg, etc?
+    'xml:base'   :ContextParser.ATTRTYPE_URI, 
+    'xmlns:xlink':ContextParser.ATTRTYPE_URI,
+    'xlink:href' :ContextParser.ATTRTYPE_URI,     // for xml-related
 
     // srcdoc is the STRING type, not URI
-    'srcdoc'     :StrictContextParser.ATTRTYPE_URI,     // for iframe
+    'srcdoc'     :ContextParser.ATTRTYPE_URI,     // for iframe
 
-    'style'      :StrictContextParser.ATTRTYPE_CSS,     // for global attributes list
+    'style'      :ContextParser.ATTRTYPE_CSS,     // for global attributes list
 
     // pattern matching, handling it within the function getAttributeNameType
-    // 'on*'     :StrictContextParser.ATTRTYPE_SCRIPTABLE,
+    // 'on*'     :ContextParser.ATTRTYPE_SCRIPTABLE,
 
-    'type'       :StrictContextParser.ATTRTYPE_MIME,    // TODO: any potential attack of the MIME type?
+    'type'       :ContextParser.ATTRTYPE_MIME,    // TODO: any potential attack of the MIME type?
 
-    'data'       :{'object'  :StrictContextParser.ATTRTYPE_URI},
-    'rel'        :{'link'    :StrictContextParser.ATTRTYPE_URI},
-    'value'      :{'param'   :StrictContextParser.ATTRTYPE_URI},
+    'data'       :{'object'  :ContextParser.ATTRTYPE_URI},
+    'rel'        :{'link'    :ContextParser.ATTRTYPE_URI},
+    'value'      :{'param'   :ContextParser.ATTRTYPE_URI},
 };
 
 /**
- * @function StrictContextParser#getAttributeNameType
+ * @function ContextParser#getAttributeNameType
  *
  * @returns {integer} the attribute type defined for different handling
  *
@@ -10787,139 +11911,43 @@ var attributeNamesType = {
  * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
  *
  */
-StrictContextParser.prototype.getAttributeNameType = function() {
-    if (this.attributeName[0] === 'o' && this.attributeName[1] === 'n') { /* assuming it is from Strict Context Parser.
+ContextParser.prototype.getAttributeNameType = function() {
+    if (this.attrName[0] === 'o' && this.attrName[1] === 'n') { /* assuming it is from Strict Context Parser.
                                                                              and o{{placeholder}}n* can bypass the check.
                                                                              anyway, we are good to throw error in atttribute name state. 
                                                                              note: CP has lowerCase the attributeName */
-        return StrictContextParser.ATTRTYPE_SCRIPTABLE;
+        return ContextParser.ATTRTYPE_SCRIPTABLE;
     } else {
         // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
 
-        // return StrictContextParser.ATTRTYPE_GENERAL for case without special handling
+        // return ContextParser.ATTRTYPE_GENERAL for case without special handling
         // here,  attrTags === [integer] is a tag agnostic matching
-        // while, attrTags[tagName] === [integer] matches only those attribute of the given tagName
+        // while, attrTags[tags] === [integer] matches only those attribute of the given tagName
 
-        var attrTags = attributeNamesType[this.attributeName];
-        return typeof attrTags === 'object'? attrTags[this.tagNames[0]] : attrTags;
+        var attrTags = ContextParser.attributeNamesType[this.attrName];
+        return typeof attrTags === 'object'? attrTags[this.tags[0]] : attrTags;
     }
 };
 
 /**
- * ==================
- * the following legacy function is maintained for backward compatibility with the contextParser.Parser
- * ==================
- */
-
-/**
- * @function StrictContextParser#setCurrentState
+ * @function ContextParser#cloneStates
  *
- * @param {integer} state - The state of HTML5 page.
+ * @params {parser} the Context Parser for copying states.
  *
  * @description
- * Set the current state of the HTML5 Context Parser.
+ * Copy the required states for state comparison in the conditional branching templates.
  *
  */
-// StrictContextParser.prototype.setCurrentState = function(state) {
-//     this.state = state;
-// };
-
-
-/**
- * @function StrictContextParser#getStates
- *
- * @returns {Array} An array of states.
- *
- * @description
- * Get the states of the HTML5 page
- *
- */
-StrictContextParser.prototype.getStates = function() {
-    return this.states;
+ContextParser.prototype.cloneStates = function(parser) {
+    this.state = parser.getLastState();
+    this.attrName = parser.getAttributeName();
+    this.attributeValue = parser.getAttributeValue();
 };
-
-/**
- * @function StrictContextParser#setInitState
- *
- * @param {integer} state - The initial state of the HTML5 Context Parser.
- *
- * @description
- * Set the init state of HTML5 Context Parser.
- *
- */
-StrictContextParser.prototype.setInitState = function(state) {
-    this.states && (this.states[0] = state);
-};
-
-/**
- * @function StrictContextParser#getInitState
- *
- * @returns {integer} The initial state of the HTML5 Context Parser.
- *
- * @description
- * Get the init state of HTML5 Context Parser.
- *
- */
-StrictContextParser.prototype.getInitState = function() {
-    return this.states && this.states[0];
-};
-
-/**
- * @function StrictContextParser#getLastState
- *
- * @returns {integer} The last state of the HTML5 Context Parser.
- *
- * @description
- * Get the last state of HTML5 Context Parser.
- *
- */
-StrictContextParser.prototype.getLastState = function() {
-    // * undefined if length = 0 
-    return this.states ? this.states[ this.states.length - 1 ] : this.state;
-};
-
-/**
- * @function StrictContextParser#getAttributeName
- *
- * @returns {string} The current handling attribute name.
- *
- * @description
- * Get the current handling attribute name of HTML tag.
- *
- */
-StrictContextParser.prototype.getAttributeName = function() {
-    return this.attributeName;
-};
-
-/**
- * @function StrictContextParser#getAttributeValue
- *
- * @returns {string} The current handling attribute name's value.
- *
- * @description
- * Get the current handling attribute name's value of HTML tag.
- *
- */
-StrictContextParser.prototype.getAttributeValue = function() {
-    return this.attributeValue;
-};
-
-/**
- * @function StrictContextParser#getStartTagName
- *
- * @returns {string} The current handling start tag name
- *
- */
-StrictContextParser.prototype.getStartTagName = function() {
-    return this.tagNames[0];
-};
-
-
 
 /* exposing it */
-module.exports = StrictContextParser;
+module.exports = ContextParser;
 
 })();
 
-},{"context-parser":1}]},{},[42])(42)
+},{"context-parser":1}]},{},[45])(45)
 });

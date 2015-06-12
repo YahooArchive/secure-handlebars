@@ -1,0 +1,14 @@
+{{! This file tests for the attribute value / CSS context }}
+
+<div style="{{#if xxx}} {{color0}} {{else}} {{color0}} {{/if}};">
+<div style="color: {{#if xxx}} {{color1}} {{else}} {{color2}} {{/if}};">
+<div style='color: {{#if xxx}} {{color3}} {{else}} {{color4}} {{/if}};'>
+<div style="color: {{#if xxx}} '{{color5}}' {{else}} '{{color6}}' {{/if}};">
+<div style='color: {{#if xxx}} "{{color7}}" {{else}} "{{color8}}" {{/if}};'>
+<div style=color:{{#if xxx}}{{color9}}{{else}}{{color10}}{{/if}};>
+
+<div style='color: {{#if xxx}} '{{invalid1}}' {{else}} '{{invalid2}}' {{/if}};'>
+<div style="color: {{#if xxx}} "{{invalid3}}" {{else}} "{{invalid4}}" {{/if}};">
+
+<div style=color:{{#if xxx}}"{{color11}}"{{else}}"{{color12}}"{{/if}};">
+<div style=color:{{#if xxx}}'{{color13}}'{{else}}'{{color14}}'{{/if}};">

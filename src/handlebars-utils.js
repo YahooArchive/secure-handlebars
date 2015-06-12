@@ -217,6 +217,28 @@ HandlebarsUtils.blacklistProtocol = function(s) {
     return (ns[0] !== es[0] || ns[1] !== es[1]);
 };
 
+// <iframe srcdoc=""> is a scriptable attribute too
+// Reference: https://html.spec.whatwg.org/multipage/embedded-content.html#attr-iframe-srcdoc
+HandlebarsUtils.scriptableTags = {
+    script:1,style:1,
+    svg:1,xml:1,math:1,
+    applet:1,object:1,embed:1,link:1,
+    scriptlet:1                  // IE-specific
+};
+
+/**
+ * @function HandlebarsUtils#isScriptableTag
+ *
+ * @returns {boolean} true if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ * @description
+ * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ */
+HandlebarsUtils.isScriptableTag = function(tag) {
+    return HandlebarsUtils.scriptableTags[tag] === 1;
+};
+
 module.exports = HandlebarsUtils;
 
 })();

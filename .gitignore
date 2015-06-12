@@ -6,8 +6,6 @@ node_modules
 xunit.xml
 artifacts
 coverage
-tests/samples/files/handlebarsjs*.precompiled
-tests/samples/files/handlebarsjs*.js
 
 # build
 docs
