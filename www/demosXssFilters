@@ -9,19 +9,19 @@
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssbase/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssreset/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssfonts/cssfonts-min.css">
-    <link rel="stylesheet" href="www/stylesheets/security.css" type="text/css" />
+    <link rel="stylesheet" href="stylesheets/security.css" type="text/css" />
 
     <!-- Bootstrap -->
-    <link href="www/stylesheets/bootstrap.min.css" rel="stylesheet">
+    <link href="stylesheets/bootstrap.min.css" rel="stylesheet">
 
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
 
-    <link href="www/stylesheets/blog.css" rel="stylesheet">
-    <link href="www/stylesheets/carousel.css" rel="stylesheet">
+    <link href="stylesheets/blog.css" rel="stylesheet">
+    <link href="stylesheets/carousel.css" rel="stylesheet">
 
     <!-- jquery -->
-    <script src="www/javascripts/jquery.min.js"></script>
+    <script src="javascripts/jquery.min.js"></script>
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
@@ -29,8 +29,8 @@
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
   </head>
-    <script src="www/javascripts/xss-filters.min.js"></script>
-    <script src="www/javascripts/demos_xss_filters.js"></script>
+    <script src="javascripts/xss-filters.min.js"></script>
+    <script src="javascripts/demos_xss_filters.js"></script>
 
     <body>
     <div class="header">
@@ -40,10 +40,10 @@
         <div class="blog-masthead">
           <div class="container">
             <nav class="blog-nav">
-              <a class="blog-nav-item " href="/">Safe JS Templating</a>
-              <a class="blog-nav-item " href="/safejstemplating">Getting Started</a>
-              <a class="blog-nav-item active" href="/demosContextParserHandlebars">Demos</a>
-              <a class="blog-nav-item " href="/bugBounty">Bug Bounty</a>
+              <a class="blog-nav-item " href="./">Safe JS Templating</a>
+              <a class="blog-nav-item " href="./safejstemplating">Getting Started</a>
+              <a class="blog-nav-item active" href="./demosContextParserHandlebars">Demos</a>
+              <a class="blog-nav-item " href="./bugBounty">Bug Bounty</a>
             </nav>
           </div>
         </div>
@@ -77,7 +77,7 @@
         </div><!-- blog-post -->
 
         <div class="security-cta col-md-12 blog-post">
-          <form action="/demosContextParserHandlebars" method="get">
+          <form action="./demosContextParserHandlebars" method="get">
           <button type="submit">Demo of Secure Handlebars</button>
           </form>
         </div><!-- blog-post-->
@@ -93,13 +93,13 @@
         ================================================== -->
         <!-- Placed at the end of the document so the pages load faster -->
         <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-        <script src="www/javascripts/jquery.min.js"></script>
+        <script src="javascripts/jquery.min.js"></script>
         <!-- Include all compiled plugins (below), or include individual files as needed -->
-        <script src="www/javascripts/bootstrap.min.js"></script>
+        <script src="javascripts/bootstrap.min.js"></script>
     
-        <script src="www/javascripts/docs.min.js"></script>
+        <script src="javascripts/docs.min.js"></script>
         <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
-        <script src="www/javascripts/ie10-viewport-bug-workaround.js"></script>
+        <script src="javascripts/ie10-viewport-bug-workaround.js"></script>
     
       </body>
     </html>
