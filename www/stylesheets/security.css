@@ -1,0 +1,190 @@
+html, body {
+    background: #f6f6f6;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+.header {
+    height: 80px;
+    background: #ffffff;
+    box-sizing: border-box;
+    padding: 15px;
+}
+.header-logo {
+    width: 150px;
+    height: 0px;
+    padding-top: 50px;
+    background: url('../images/security_sprite.png') no-repeat 0 0;
+    overflow: hidden;
+    margin: 0 auto;
+}
+.footer {
+    text-align: center;
+    margin: 80px 0 48px 0;
+}
+
+.nav {
+    display: block;
+    height: 50px;
+    background: #ffffff;
+    text-align: center;
+}
+.nav li {
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+}
+.nav li a {
+    display: inline-block;
+    height: 28px;
+    padding: 10px 20px;
+    border-bottom: solid 2px transparent;
+    text-decoration: none;
+    color: #000000;
+}
+.nav li a:hover {
+    border-bottom: solid 2px #cccccc;
+}
+.nav li a.selected {
+    border-bottom: solid 2px #400090;
+    font-weight: bold;
+}
+
+.main {
+    width: 475px;
+    margin: 0 auto;
+}
+.main h3 {
+    margin: 42px 12px 0 12px;
+    font: bold 18px/26px "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+.main p {
+    margin: 22px 12px 0 12px;
+    font: 300 18px/26px "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+.main p strong {
+    font-weight: 700;
+}
+
+.header-badge {
+    text-align: center;
+    font: 200 36px "Gotham Light", Gotham, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #666666;
+    text-shadow: 0 1px 0 #ffffff;
+    margin: 24px 0;
+}
+.header-badge:before {
+    display: block;
+    width: 75px;
+    height: 75px;
+    content: "";
+    margin: 20px auto 10px auto;
+    background: url('../images/security_sprite.png') no-repeat 0 -50px;
+}
+.header-wall {
+    text-align: center;
+    border-top: solid 1px #cccccc;
+    padding: 24px;
+    font: 200 21px "Gotham Light", Gotham, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.security-form {
+    margin: 24px 0 80px 0;
+}
+.security-contact {
+    margin-bottom: 24px;
+}
+.security-form .inputfield[type=text], .security-form textarea {
+    font: 300 18px "Helvetica Neue", Helvetica, Arial, sans-serif;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    border: solid 1px #eeeeee;
+    border-radius: 4px;
+    color: black;
+    margin-bottom: 10px;
+}
+.security-form .inputfield[type=file] {
+    position: absolute;
+    top: 10px;
+    right: 0;
+}
+.security-fieldset, .security-cta {
+    padding: 8px 12px;
+    position: relative;
+    height: 34px;
+    font: 300 18px "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+.security-select {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: white;
+    border-radius: 4px;
+    border: solid 1px #eeeeee;
+}
+.security-select select {
+    color: #000000;
+    font: 300 18px "Helvetica Neue", Helvetica, Arial, sans-serif;
+    padding: 8px 60px 8px 12px;
+    border: none;
+    background-color: transparent;
+    -webkit-appearance: none;
+}
+.security-select:after {
+    display: block;
+    content: "";
+    position: absolute;
+    right: 8px;
+    top: 18px;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #CCC;
+    border-left: 6px solid transparent;
+    border-bottom-color: rgba(0, 0, 0, 0.2);
+}
+.security-cta {
+    text-align: center;
+    margin: 24px 0;
+}
+.security-cta button {
+    color: #ffffff;
+    background: #754cbf;
+    background-image: -webkit-gradient(linear,50% 0,50% 100%,color-stop(0%,#754cbf),color-stop(100%,#754cbf));
+    background-image: -webkit-linear-gradient(#754cbf,#754cbf);
+    background-image: -moz-linear-gradient(#754cbf,#754cbf);
+    background-image: -o-linear-gradient(#754cbf,#754cbf);
+    background-image: linear-gradient(#754cbf,#754cbf);
+    border: 1px solid #392656;
+    border-radius: 4px;
+    padding: .625em 1.25em;
+    box-shadow: 0 2px 3px -2px black,inset 0 1px 3px 0 #c37fea;
+    cursor: pointer;
+}
+
+.wall-list {
+    text-align: center;
+    font: 300 18px/26px "Helvetica Neue", Helvetica, Arial, sans-serif;
+    margin-bottom: 36px;
+}
+.wall-list li {
+    margin-bottom: 12px;
+}
+.policy-list {
+    list-style: disc outside;
+    margin: 22px 0 0 40px;
+    font: 300 18px/26px "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+.policy-list li {
+    margin-bottom: 12px;
+}
+
+
+/* retina graphics */
+@media screen and (-webkit-min-device-pixel-ratio: 2) and (min-device-width: 600px), screen and (max--moz-device-pixel-ratio: 2) and (min-device-width: 600px) {
+    .header-logo {
+        background: url('../images/security_sprite_2x.png') no-repeat 0 0;
+        background-size: 150px 150px;
+    }
+    .header-badge:before {
+        background: url('../images/security_sprite_2x.png') no-repeat 0 -50px;
+        background-size: 150px 150px;
+    }
+}
