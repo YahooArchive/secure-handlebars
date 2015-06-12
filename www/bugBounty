@@ -1,0 +1,87 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+    <title>Yahoo Bug Bounty Special Program 2.0</title>
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssbase/cssbase-min.css">
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssreset/cssreset-min.css">
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssfonts/cssfonts-min.css">
+    <link rel="stylesheet" href="stylesheets/security.css" type="text/css" />
+
+    <!-- Bootstrap -->
+    <link href="stylesheets/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+
+    <link href="stylesheets/blog.css" rel="stylesheet">
+    <link href="stylesheets/carousel.css" rel="stylesheet">
+
+    <!-- jquery -->
+    <script src="javascripts/jquery.min.js"></script>
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+    <body>
+    <div class="header">
+      <h1 class="header-logo">
+      </h1>
+    </div>
+
+        <div class="blog-masthead">
+          <div class="container">
+            <nav class="blog-nav">
+              <a class="blog-nav-item " href="/">Safe JS Templating</a>
+              <a class="blog-nav-item " href="/safejstemplating">Getting Started</a>
+              <a class="blog-nav-item " href="/demosContextParserHandlebars">Demos</a>
+              <a class="blog-nav-item active" href="/bugBounty">Bug Bounty</a>
+            </nav>
+          </div>
+        </div>
+
+    <div class="container">
+      <!-- grid system: http://getbootstrap.com/css/#grid -->
+      <div class="row">
+        <div class="col-md-3 blog-main"></div>
+
+        <div class="col-md-6 blog-main text-justify">
+          <h2 class="header-badge">Yahoo Bug Bounty Special Program 2.0</h2>
+          <p>Hello Security Researchers!<br /><br /> Recently, we are working on two security projects - <a href="https://www.npmjs.com/package/xss-filters">Secure XSS Filters</a> on HTML5 and Safe JavaScript Templating on <a href="https://www.npmjs.com/package/secure-handlebars">Secure Handlebars</a>. And we are pleased to invite external reviewers to test the security design principle of these two products under our Bug Bounty Program to make our product safe! <br /><br />Please click the link to join our program. We look forward to working with you!</p>
+          <div class="security-cta">
+            <form action="/bugBountyRules" method="get"> 
+              <button type="submit">Continue</button>
+            </form>
+          </div>
+        </div><!-- blog-main -->
+
+        <div class="col-md-3 blog-main"></div>
+      </div><!-- row -->
+    </div><!-- container -->
+
+    <div class="footer">
+    <a href="http://info.yahoo.com/privacy/us/yahoo/" target="_blank">Privacy</a> |
+    <a href="http://info.yahoo.com/legal/us/yahoo/utos/en-us/" target="_blank">Legal</a>
+    </div>
+        <!-- Bootstrap core JavaScript
+        ================================================== -->
+        <!-- Placed at the end of the document so the pages load faster -->
+        <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+        <script src="javascripts/jquery.min.js"></script>
+        <!-- Include all compiled plugins (below), or include individual files as needed -->
+        <script src="javascripts/bootstrap.min.js"></script>
+    
+        <script src="javascripts/docs.min.js"></script>
+        <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+        <script src="javascripts/ie10-viewport-bug-workaround.js"></script>
+    
+      </body>
+    </html>
+

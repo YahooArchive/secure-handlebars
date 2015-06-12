@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>Auto Escaping</title>
+    <title>What is Auto Escaping?</title>
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssbase/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssreset/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.13.0/build/cssfonts/cssfonts-min.css">
@@ -22,6 +22,12 @@
 
     <!-- jquery -->
     <script src="javascripts/jquery.min.js"></script>
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
   </head>
 
     <body>
@@ -33,9 +39,9 @@
         <div class="blog-masthead">
           <div class="container">
             <nav class="blog-nav">
-              <a class="blog-nav-item " href="/">Home</a>
+              <a class="blog-nav-item " href="/">Safe JS Templating</a>
               <a class="blog-nav-item active" href="/safejstemplating">Getting Started</a>
-              <a class="blog-nav-item " href="/demosXssFilters">Demos</a>
+              <a class="blog-nav-item " href="/demosContextParserHandlebars">Demos</a>
               <a class="blog-nav-item " href="/bugBounty">Bug Bounty</a>
             </nav>
           </div>
@@ -45,52 +51,95 @@
       <!-- grid system: http://getbootstrap.com/css/#grid -->
       <div class="row">
         <div class="col-md-12 blog-main">
-          <h2 class="header-badge">Auto Escaping</h2>
+          <h2 class="header-badge">What is Auto Escaping?</h2>
           <p class="text-center">It is the default strategy in JavaScript Templating by auto HTML escaping the output to defend aganist cross site scripting (XSS)</p>
         </div> <!-- blog main -->
 
-        <div class="col-md-12 blog-post">
-          <h2>What is Auto Escaping?</h2>
-          <p>Auto Escaping is applied by JS Templating engines to mitigate Cross-Site Scripting (XSS). It works by encoding all harmful characters originated from untrusted inputs, and thus preventing browsers from interpreting them as HTML entities, which otherwise could lead to malicious script injections and executions.</p>
-  	  <p>Here we summarize those characters that are considered dangerous by the Auto Escaping approach:
-	  <table class="table table-bordered">
-	    <tbody>
-            <tr><td><b>Characters</b></td><td>&gt;</td><td>&lt;</td><td>&quot;</td><td>&apos;</td><td>&amp;</td></tr>
-            <tr><td><b>Characters (encoded)</b></td><td>&amp;gt;</td><td>&amp;lt;</td><td>&amp;quot;</td><td>&amp;apos;</td><td>&amp;amp;</td></tr>
-  	    </tbody>
-          </table>
-	  </p>
-          <p>While the approach can defend against some XSS vulnerabilities, it may give a false sense of security that the XSS problem is solved.</p>
-        </div><!-- blog-post -->
+        <div class="col-md-12 blog-post">&nbsp;&nbsp;</div>
 
-        <div class="col-md-12 blog-post">
-          <h2>What's wrong?</h2>
-          <p>Some JS templating engines miss characters that could lead to XSS. Taking DustJS and Handlerbars as examples, the table below summerizes which dangerous characters are encoded by their auto escaping implementations.</p>
-	  <table class="table table-bordered">
-	    <tbody>
-	    <tr><td>Characters</td><td>&gt;</td><td>&lt;</td><td>&quot;</td><td>&apos;</td><td>&amp;</td><td>SPACE</td></tr>
-	    <tr><td><b>DustJS</b></td><td>&amp;gt;</td><td>&amp;lt;</td><td>&amp;quot;</td><td>&amp;apos;</td><td>&amp;amp;</td><td><font color="red">SPACE</font></td></tr>
-	    <tr><td><b>Handlebars</b></td><td>&amp;gt;</td><td>&amp;lt;</td><td>&amp;quot;</td><td>&amp;apos;</td><td>&amp;amp;</td><td><font color="red">SPACE</font></td></tr>
-  	    </tbody>
-          </table>
+        <div class="col-md-8 blog-post">
+          <div class="col-md-12 blog-post">
+            <h2>What is Auto Escaping?</h2>
+            <p class="text-justify">Auto Escaping is applied by JS Templating engines to mitigate Cross-Site Scripting (XSS). It works by encoding all harmful characters originated from untrusted inputs, and thus preventing browsers from interpreting them as HTML entities, which otherwise could lead to malicious script injections and executions.</p>
+            <p class="text-justify">Here we summarize those characters that are considered dangerous by the Auto Escaping approach:
+	    <table class="table table-bordered">
+	      <tbody>
+              <tr><td><b>Characters</b></td><td>&gt;</td><td>&lt;</td><td>&quot;</td><td>&apos;</td><td>&amp;</td></tr>
+              <tr><td><b>Characters (encoded)</b></td><td>&amp;gt;</td><td>&amp;lt;</td><td>&amp;quot;</td><td>&amp;apos;</td><td>&amp;amp;</td></tr>
+  	      </tbody>
+            </table>
+	    </p>
+            <p class="text-justify">While the approach can defend against some XSS vulnerabilities, it may give a false sense of security that the XSS problem is solved.</p>
+          </div><!-- blog-post -->
 
-          <p>The dangerous characters are blindly encoded without considering the output execution contexts. According to the encoding character sets, both DustJS and HandlebarsJS do not encode space (&nbsp;) characters, which are arguably legitimate user inputs. However, it could be used as a XSS attack vector depending on the output context.</p>
-          <blockquote>
-            <h3>Example of Vulnerability</h3>
-            <ul>
-              <li>Visit <a href="http://linkedin.github.io/dustjs/test/test.html">the official DustJS demo page</a></li>
-              <li>Use &lt;input value={untrusted}/&gt; as template</li>
-              <li>Use {&quot;untrusted&quot;: &quot;<span style="color:#F00">break_the_context</span> <span style="color:#F00"> onblur=alert(1)</span>&quot;} as data input</li>
-              <li>After data binding, the output becomes &lt;input value=<span style="color:#F00">break_the_context onblur=alert(1)</span>/&gt;</li>
-              <li>Again, when rendered by browsers, you will see the alert prompt when the input box is out of focus.</li>
-            </ul>
-          </blockquote>
-        </div><!-- blog-post -->
+          <div class="col-md-12 blog-post">
+            <h2>What's wrong?</h2>
+            <p class="text-justify">Some JS templating engines miss characters that could lead to XSS. Taking DustJS and Handlerbars as examples, the table below summerizes which dangerous characters are encoded by their auto escaping implementations.</p>
+	    <table class="table table-bordered">
+	      <tbody>
+	      <tr><td>Characters</td><td>&gt;</td><td>&lt;</td><td>&quot;</td><td>&apos;</td><td>&amp;</td><td>SPACE</td></tr>
+	      <tr><td><b>DustJS</b></td><td>&amp;gt;</td><td>&amp;lt;</td><td>&amp;quot;</td><td>&amp;apos;</td><td>&amp;amp;</td><td><font color="red">SPACE</font></td></tr>
+	      <tr><td><b>Handlebars</b></td><td>&amp;gt;</td><td>&amp;lt;</td><td>&amp;quot;</td><td>&amp;apos;</td><td>&amp;amp;</td><td><font color="red">SPACE</font></td></tr>
+  	      </tbody>
+            </table>
 
-        <div class="col-md-12 blog-post">
-          <h2>Our Context-aware Solution</h2>
-          <p>The solution is to (1) parse the HTML template files to analyze the output execution context, and (2) apply context-sensitive encoding accordingly.</p>
-        </div><!-- blog-post -->
+            <p class="text-justify">The dangerous characters are blindly encoded without considering the output execution contexts. According to the encoding character sets, both DustJS and HandlebarsJS do not encode space (&nbsp;) characters, which are arguably legitimate user inputs. However, it could be used as a XSS attack vector depending on the output context.</p>
+            <blockquote>
+              <h3>Example of Vulnerability</h3>
+              <ul>
+                <li>Visit <a href="http://linkedin.github.io/dustjs/test/test.html">the official DustJS demo page</a></li>
+                <li>Use &lt;input value={untrusted}/&gt; as template</li>
+                <li>Use {&quot;untrusted&quot;: &quot;<span style="color:#F00">break_the_context</span> <span style="color:#F00"> onblur=alert(1)</span>&quot;} as data input</li>
+                <li>After data binding, the output becomes &lt;input value=<span style="color:#F00">break_the_context onblur=alert(1)</span>/&gt;</li>
+                <li>Again, when rendered by browsers, you will see the alert prompt when the input box is out of focus.</li>
+              </ul>
+            </blockquote>
+          </div><!-- blog-post -->
+
+          <div class="col-md-12 blog-post">
+            <h2>Our Context-aware Solution</h2>
+            <p class="text-justify">The solution is to (1) parse the HTML template files to analyze the output execution context, and (2) apply context-sensitive encoding accordingly.</p>
+          </div><!-- blog-post -->
+        </div><!-- col-md-8 blog-post -->
+
+        <div class="col-md-3 col-md-offset-1 blog-sidebar">
+          <div class="sidebar-module sidebar-module-inset">
+          <h4>What's JavaScript Templating?</h4>
+          <p>JavaScript templating refers to the client side data binding method implemented with the JavaScript language.</p>
+          </div>
+
+          <div class="sidebar-module">
+            <h4>Quick Links</h4>
+            <ol class="list-unstyled">
+              <li><a href="/getstart">Getting Started</a></li>
+            </ol>
+
+            <h4>Source Code</h4>
+            <ol class="list-unstyled">
+              <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
+              <li><a href="https://github.com/yahoo/context-parser">Context Parser</a></li>
+              <li><a href="https://github.com/yahoo/secure-handlebars">Secure Handlebars</a></li>
+              <li><a href="https://github.com/yahoo/secure-handlebars-helpers">Secure Handlebars Helpers</a></li>
+              <li><a href="https://github.com/yahoo/express-secure-handlebars">Express Secure Handlebars</a></li>
+            </ol>
+
+            <h4>References</h4>
+            <ol class="list-unstyled">
+            <li><a href="http://en.wikipedia.org/wiki/JavaScript_templating">JavaScript Templating</a></li>
+            </ol>
+
+            <h4>Related Articles</h4>
+            <ol class="list-unstyled">
+              <li><a href="/filteringishard">Filtering is Hard!</a></li>
+              <li><a href="/autoescaping">What is Auto Escaping?</a></li>
+              <li><a href="/contextparser">Our Context Parser</a></li>
+            </ol>
+          </div>
+
+          <a class="back-to-top" href="#top">
+          Back to top
+          </a>
+        </div><!-- col-md-3 col-md-offset-1 blog-sidebar-->
 
         <div class="col-md-12 blog-post">
           <div class="security-cta">
@@ -98,6 +147,7 @@
               <button type="submit">Continue</button>
             </form>
           </div>
+          <p class="text-center"><a href="/filteringishard">Back</a></p>
         </div> <!-- blog post -->     
 
       </div><!-- row -->
@@ -121,3 +171,4 @@
     
       </body>
     </html>
+

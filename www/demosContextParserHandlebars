@@ -1,4 +1,5 @@
-CTYPE html>
+
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -21,6 +22,12 @@ CTYPE html>
 
     <!-- jquery -->
     <script src="javascripts/jquery.min.js"></script>
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
   </head>
     <script src="javascripts/xss-filters.min.js"></script>
     <script src="javascripts/secure-handlebars.min.js"></script>
@@ -40,9 +47,9 @@ CTYPE html>
         <div class="blog-masthead">
           <div class="container">
             <nav class="blog-nav">
-              <a class="blog-nav-item " href="/">Home</a>
+              <a class="blog-nav-item " href="/">Safe JS Templating</a>
               <a class="blog-nav-item " href="/safejstemplating">Getting Started</a>
-              <a class="blog-nav-item active" href="/demosXssFilters">Demos</a>
+              <a class="blog-nav-item active" href="/demosContextParserHandlebars">Demos</a>
               <a class="blog-nav-item " href="/bugBounty">Bug Bounty</a>
             </nav>
           </div>
@@ -56,34 +63,40 @@ CTYPE html>
         </div>
 
         <div class="col-md-12 blog-post">
-          <p class="text-justify">Secure Handlebars is a pre-processor to automatically conduct HTML 5 context analysis on Handlebars templates, and insert markup of XSS filtering helpers to output expressions based on their surrounding contexts.</p>
-<p class="text-justify">The resulted templates can then be further processed with the vanilla Handlebars template engine. With the context-sensitive helpers properly registered at runtime, the context-sensitive escaping will effectively defend against XSS attacks. For more detail, please check <a href="https://github.com/yahoo/secure-handlebars">here</a>.</p>
-          <p><input type="checkbox" id="strictMode" aria-label="Strict Mode"> Enable strict mode (the pre-processor will throw exception if context is not supported by our Context Parser.</p>
+          <p class="text-justify">Secure Handlebars is a pre-processor to automatically conduct HTML 5 context analysis on Handlebars templates, and insert markup of XSS filtering helpers to output expressions based on their surrounding contexts. The resulted templates can then be further processed with the vanilla Handlebars template engine. With the context-sensitive helpers properly registered at runtime, the context-sensitive escaping will effectively defend against XSS attacks. For more detail, please check <a href="https://github.com/yahoo/secure-handlebars">here</a>.</p>
         </div>
 
         <div class="col-md-6 blog-post">
           <h3>Original Handlebars Template</h3>
           <textarea id="templateInput" class="templateBox form-control" rows="10"></textarea>
         </div>
-
         <div class="col-md-6 blog-post">
           <h3>Preprocessed Handlebars Template</h3>
           <textarea id="templateOutput" class="templateBox form-control" aria-describedby="basic-addon1" rows="10" readonly></textarea>
         </div>
-
         <div class="col-md-6 blog-post">
           <h3>JSON string</h3>
           <textarea id="jsonInput" class="templateBox form-control" aria-describedby="basic-addon1" rows="10"></textarea>
         </div>
-
         <div class="col-md-6 blog-post">
           <h3>Rendered HTML</h3>
           <textarea id="output" class="templateBox form-control" aria-describedby="basic-addon1" rows="10" readonly></textarea>
         </div><!-- blog-post -->
+        <div class="col-md-12 blog-post">
+          <p><input type="checkbox" id="strictMode" aria-label="Strict Mode"> Enable strict mode (the pre-processor will throw exception if context is not supported by our Context Parser, otherwise, the original auto escaping filter is applied!</p>
+        </div>
+
+        <div class="col-md-12 blog-post">
+          <ol class="list-unstyled">
+           <li><img src="https://img.shields.io/npm/v/secure-handlebars.svg?style=flat-square"/> <a href="https://www.npmjs.com/package/secure-handlebars">Secure Handlebars</a></li>
+           <li><img src="https://img.shields.io/npm/v/secure-handlebars-helpers.svg?style=flat-square"/> <a href="https://www.npmjs.com/package/secure-handlebars-helpers">Secure Handlebars Helpers</a></li>
+           <li><img src="https://img.shields.io/npm/v/express-secure-handlebars.svg?style=flat-square"/> <a href="https://www.npmjs.com/package/express-secure-handlebars">Express Secure Handlebars</a></li>
+          <ol>
+        </div><!-- blog-post -->
 
         <div class="security-cta col-md-12 blog-post">
-          <form action="/" method="get">
-            <button type="submit">Back</button>
+          <form action="/demosXssFilters" method="get">
+            <button type="submit">Demo of XSS Filters</button>
           </form>
         </div>
 
@@ -108,5 +121,4 @@ CTYPE html>
     
       </body>
     </html>
-
 
