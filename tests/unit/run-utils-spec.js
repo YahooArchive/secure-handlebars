@@ -160,5 +160,14 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         it("handlebars-utils#handleError test", function() {
             // no need to test it directly.
         });
+
+        /* isScriptableTag test */
+        it("handlebars-utils#isScriptableTag test", function() {
+            testPatterns.scriptableTagTestPatterns.forEach(function(testObj) {
+                var r = handlebarsUtils.isScriptableTag(testObj.tag);
+                expect(r).to.equal(testObj.result);
+            });
+        });
+  
     });
 }());

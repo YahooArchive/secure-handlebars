@@ -11,7 +11,13 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     require("mocha");
     var expect = require("chai").expect,
-        ContextParser = require("../../src/strict-context-parser");
+        configContextParser = {
+            enableInputPreProcessing: true,
+            enableCanonicalization: true,
+            enableIEConditionalComments: true,
+            enableStateTracking: true
+        },
+        ContextParser = require("context-parser").Parser;
 
     describe('HTML5 Customized Context Parser html5 state test suite', function(){
 
@@ -28,8 +34,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 { html: '<option value="123"/ {',    states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,38,38,42,34,34,35'},
                 { html: '<option value="123"/',      states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,38,38,42,43'},
             ].forEach(function(testObj) {
-                var p1 = new ContextParser({enableStateTracking:true});
-                p1.parsePartial(testObj.html);
+                var p1 = new ContextParser(configContextParser);
+                p1.contextualize(testObj.html);
                 expect(p1.getStates().toString()).to.equal(testObj.states);
             });
         });
@@ -44,8 +50,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 { html: '<div id="1" {',                states: '1,8,10,10,10,34,35,35,37,38,38,42,34,35'},
                 { html: '<option value="1" selected {', states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,42,34,35,35,35,35,35,35,35,35,36,35'},
             ].forEach(function(testObj) {
-                var p1 = new ContextParser({enableStateTracking:true});
-                p1.parsePartial(testObj.html);
+                var p1 = new ContextParser(configContextParser);
+                p1.contextualize(testObj.html);
                 expect(p1.getStates().toString()).to.equal(testObj.states);
             });
         });
@@ -59,8 +65,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             [
                 { html: '<option value="1" selected ', states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,42,34,35,35,35,35,35,35,35,35,36'},
             ].forEach(function(testObj) {
-                var p1 = new ContextParser({enableStateTracking:true});
-                p1.parsePartial(testObj.html);
+                var p1 = new ContextParser(configContextParser);
+                p1.contextualize(testObj.html);
                 expect(p1.getStates().toString()).to.equal(testObj.states);
             });
         });
@@ -75,8 +81,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 { html: '<option value=',  states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37'},
                 { html: '<option value =', states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,36,37'},
             ].forEach(function(testObj) {
-                var p1 = new ContextParser({enableStateTracking:true});
-                p1.parsePartial(testObj.html);
+                var p1 = new ContextParser(configContextParser);
+                p1.contextualize(testObj.html);
                 expect(p1.getStates().toString()).to.equal(testObj.states);
             });
         });
@@ -92,8 +98,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 { html: "<option value='{", states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,39,39'},
                 { html: '<option value={',  states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,40'}
             ].forEach(function(testObj) {
-                var p1 = new ContextParser({enableStateTracking:true});
-                p1.parsePartial(testObj.html);
+                var p1 = new ContextParser(configContextParser);
+                p1.contextualize(testObj.html);
                 expect(p1.getStates().toString()).to.equal(testObj.states);
             });
         });
@@ -108,8 +114,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 { html: '<option value="{}"', states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,38,38,38,42'},
                 { html: "<option value='{}'", states: '1,8,10,10,10,10,10,10,34,35,35,35,35,35,37,39,39,39,42'},
             ].forEach(function(testObj) {
-                var p1 = new ContextParser({enableStateTracking:true});
-                p1.parsePartial(testObj.html);
+                var p1 = new ContextParser(configContextParser);
+                p1.contextualize(testObj.html);
                 expect(p1.getStates().toString()).to.equal(testObj.states);
             });
         });
