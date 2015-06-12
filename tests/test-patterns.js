@@ -815,7 +815,7 @@ var filterTemplatePatterns = [
                   /{{{yavu \(yceu color7\)}}}/,
 
                   // url
-                  /{{{y url4}}}/,
+                  /{{{yubl \(yavd \(yceuu url4\)\)}}}/,
                   /{{{yubl \(yavd \(yceus url5\)\)}}}/,
                   /{{{yubl \(yavs \(yceud url6\)\)}}}/,
                   /{{{yubl \(yavd \(yceuu url7\)\)}}}/,
@@ -1294,7 +1294,7 @@ var cssStyleAttributeValuePatterns2 = [
     // <div style='background: url({{xxx}})'>
     // BAD_URI
     { css: 'background: url(',        result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED, key: 'background', value: 'url(' } ] },
-    { css: 'background: UrL(',        result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_ERROR, key: '', value: '' } ] },
+    { css: 'background: UrL(',        result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED, key: 'background', value: 'UrL(' } ] },
     { css: 'background: url(    ',    result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED, key: 'background', value: 'url(    ' } ] },
     // BAD_URI + BAD_STRING
     { css: "background: url('",       result: [ { type: cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED, key: 'background', value: "url('" } ] },
