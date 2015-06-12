@@ -31,7 +31,9 @@ describe("SecureHandlebars: helpers existence tests", function() {
             'yd', 'yc',
             'yavd', 'yavs', 'yavu',
             'yu', 'yuc',
-            'yubl', 'yufull'
+            'yubl', 'yufull',
+            'yceu', 'yced', 'yces', 'yceuu', 'yceud', 'yceus'
+
         ].forEach(function (filterName) {
             expect(typeof Handlebars.helpers[filterName]).to.be.equal('function');
         });
@@ -47,14 +49,14 @@ var HandlebarsGetOutput = function(html, json) {
 
 describe("SecureHandlebars: compilation tests", function() {
     it('smoke template', function(){
-        var html = '<!--{{hello}}--><a href={{url}} id="{{id}}" id=\'{{id}}\'>{{hello}}</a>';
+        var html = '<!--{{hello}}--><a href={{url}} style="background:url({{url}})" id="{{id}}" id=\'{{id}}\'>{{hello}}</a>';
         var output = HandlebarsGetOutput(html, {
             'id': '12`"\'3',
             'hello': 'hello',
             'url': 'javascript:alert(1)'
         });
 
-        expect(output).to.be.equal('<!--hello--><a href=x-javascript:alert(1) id="12`&quot;\'3" id=\'12`"&#39;3\'>hello</a>');
+        expect(output).to.be.equal('<!--hello--><a href=x-javascript:alert(1) style="background:url(##javascript:alert\\28 1\\29 )" id="12`&quot;\'3" id=\'12`"&#39;3\'>hello</a>');
     });
 });
 
