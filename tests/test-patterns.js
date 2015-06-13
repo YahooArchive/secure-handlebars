@@ -11,6 +11,11 @@ var handlebarsUtils = require('../src/handlebars-utils'),
 
 // for handlebars-3.0-spec test only
 var expressionTestPatterns = [
+
+    // NOTE: result[0]: it is being used in run-handlebars-3.0-spec.js for the AST object type from Handlebars 3.0
+    //       result[1]: it is being used in run-utils-spec.js for isValidExpression test.
+    //       result[2]: it is being used in run-cph-spec.js for consumeExpression test.
+
     // valid syntax
     { syntax: '{{escapeexpression}}  ', type: '', rstr: '', result: [ 'MustacheStatement', '', '' ]},
     { syntax: '{{&escapeexpression}} ', type: '', rstr: '', result: [ 'MustacheStatement', '', '' ]},
@@ -280,6 +285,11 @@ var escapeExpressionTestPatterns = [
     { syntax: '{{exp1 &exp2}}               ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1',isSingleID: false, result: [ false, true, 11 ]},
     // we skip this pattern
     { syntax: '{{}}                         ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: false, isSingleID: false, result: [ false, false, 11 ]},
+
+    { syntax: '{{article.[a b].[c d]}} ',      
+        type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article.[a b].[c d]', isSingleID: true, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{article.[a b].[c d] something}} ', 
+        type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article.[a b].[c d]', isSingleID: false, result: [ 'MustacheStatement', true, 11 ]},
 ];
 exports.escapeExpressionTestPatterns = escapeExpressionTestPatterns;
 
