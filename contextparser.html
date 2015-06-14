@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+    <title>Context-aware HTML5 Parser</title>
+    <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
+    <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
+    <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
+    <link rel="stylesheet" href="stylesheets/security.css" type="text/css" />
+
+    <!-- Bootstrap -->
+    <link href="stylesheets/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+
+    <link href="stylesheets/blog.css" rel="stylesheet">
+    <link href="stylesheets/carousel.css" rel="stylesheet">
+
+    <!-- jquery -->
+    <script src="javascripts/jquery.min.js"></script>
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="javascripts/html5shiv.min.js"></script>
+      <script src="javascripts/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+    <body>
+    <div class="header">
+      <h1 class="header-logo">
+      </h1>
+    </div>
+
+        <div class="blog-masthead">
+          <div class="container">
+            <nav class="blog-nav">
+              <a class="blog-nav-item " href="./">Safe JS Templating</a>
+              <a class="blog-nav-item active" href="./safejstemplating.html">Getting Started</a>
+              <a class="blog-nav-item " href="./demosContextParserHandlebars.html">Demos</a>
+              <a class="blog-nav-item " href="./bugBounty.html">Bug Bounty</a>
+            </nav>
+          </div>
+        </div>
+
+    <div class="container">
+      <!-- grid system: http://getbootstrap.com/css/#grid -->
+      <div class="row">
+        <div class="col-md-12 blog-main">
+          <h2 class="header-badge">Context-aware HTML5 Parser</h2>
+          <p class="text-center">Our novel approach to implement a HTML5 compliant parser for cross browsers.</p>
+        </div> <!-- blog main -->
+
+        <div class="col-md-12 blog-post">&nbsp;&nbsp;</div>
+
+        <div class="col-md-8 blog-post">
+          <div class="col-md-12 blog-post">
+            <h2>How to solve XSS?</h2>
+            <p class="text-justify">In order to solve the cross site scripting, we analyze the HTML5 template files output execution context according to the HTML5 WHATWG specification and apply context-sensitive encoding filters, unlike the widely-used <a href="./autoescaping.html">Auto Escaping</a> approach that blindly applies the same encoder on every output.</p>
+          </div><!-- blog-post -->
+
+          <div class="col-md-12 blog-post">
+            <h2>Features of our Context Parser</h2>
+            <p>&nbsp;</p>
+
+	    <h3>HTML5 Compliance</h3>
+            <p class="text-justify">We implement our HTML5 parser according to the <a href="https://html.spec.whatwg.org/multipage/">HTML5 WHATWG specification</a>. It is HTML5 Compliant!!!</p>
+
+	    <h3>Speedy</h3>
+            <p class="text-justify">As our goal is to analyze the output execution context, there is no need to implement the <a href="https://html.spec.whatwg.org/multipage/syntax.html#overview-of-the-parsing-model">end to end parsing model</a> as the specification stated, so we can parse the HTML5 real fast.</p>
+	    <blockquote><p class="text-justify"><i>Currently, we can parse 12.903225806451612 MB per second in our JavaScript implementation.</i></p></blockquote>
+ 	    <p class="text-justify"></p>
+
+	    <h3>Tiny code base</h3>
+            <p class="text-justify">Our code is around 500 lines, it is easy to be ported to different programming languages. Right now, we support native <a href="https://github.com/yahoo/context-parser">JavaScript</a> implementation.</p>
+
+	    <h3>Canonicalization</h3>
+            <p class="text-justify">..... </p>
+          </div><!-- blog-post -->
+
+          <div class="col-md-12 blog-post">
+            <h2>Safe JavaScript Templating</h2>
+            <p class="text-justify">Empowered by our Context Parser, we identify the HTML5 execution context before applying the corresponding filter on the output. This capability allows us to integrate with different JavaScript templating engines and make them XSS free.</p>
+          </div><!-- blog-post -->
+        </div><!-- col-md-8 blog-post -->
+
+        <div class="col-md-3 col-md-offset-1 blog-sidebar">
+          <div class="sidebar-module sidebar-module-inset">
+            <h4>What's WHATWG.org?</h4>
+            <p class="text-justify">The Web Hypertext Application Technology Working Group (WHATWG) is a community of people interested in evolving HTML and related technologies.</p>
+          </div>
+
+          <div class="sidebar-module">
+            <h4>Quick Links</h4>
+            <ol class="list-unstyled">
+              <li><a href="./safejstemplating.html">Getting Started</a></li>
+            </ol>
+
+            <h4>Source Code</h4>
+            <ol class="list-unstyled">
+              <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
+              <li><a href="https://github.com/yahoo/context-parser">Context Parser</a></li>
+              <li><a href="https://github.com/yahoo/secure-handlebars">Secure Handlebars</a></li>
+              <li><a href="https://github.com/yahoo/secure-handlebars-helpers">Secure Handlebars Helpers</a></li>
+              <li><a href="https://github.com/yahoo/express-secure-handlebars">Express Secure Handlebars</a></li>
+            </ol>
+
+            <h4>References</h4>
+            <ol class="list-unstyled">
+              <li><a href="https://html.spec.whatwg.org/multipage/">HTML Living Standard</a></li>
+            </ol>
+
+            <h4>Related Articles</h4>
+            <ol class="list-unstyled">
+              <li><a href="./filteringishard.html">Filtering is Hard!</a></li>
+              <li><a href="./autoescaping.html">What is Auto Escaping?</a></li>
+              <li><a href="./contextparser.html">Our Context Parser</a></li>
+            </ol>
+          </div>
+
+          <a class="back-to-top" href="#top">
+          Back to top
+          </a>
+        </div><!-- col-md-3 col-md-offset-1 blog-sidebar-->
+
+        <div class="col-md-12 blog-post">
+          <div class="security-cta">
+            <form action="./safejstemplating.html" method="get">
+              <button type="submit">Continue</button>
+            </form>
+          </div>
+          <p class="text-center"><a href="./autoescaping.html">Back</a></p>
+        </div> <!-- blog post -->
+
+      </div><!-- row -->
+    </div><!-- container -->
+
+    <div class="footer">
+    <a href="https://policies.yahoo.com/us/en/yahoo/privacy/index.htm" target="_blank">Privacy</a> |
+    <a href="https://policies.yahoo.com/us/en/yahoo/terms/utos/index.htm" target="_blank">Legal</a>
+    </div>
+        <!-- Bootstrap core JavaScript
+        ================================================== -->
+        <!-- Placed at the end of the document so the pages load faster -->
+        <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+        <script src="javascripts/jquery.min.js"></script>
+        <!-- Include all compiled plugins (below), or include individual files as needed -->
+        <script src="javascripts/bootstrap.min.js"></script>
+    
+        <script src="javascripts/docs.min.js"></script>
+        <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+        <script src="javascripts/ie10-viewport-bug-workaround.js"></script>
+    
+      </body>
+    </html>
