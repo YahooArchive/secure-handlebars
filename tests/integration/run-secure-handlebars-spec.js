@@ -16,7 +16,13 @@ describe("SecureHandlebars: inclusion tests", function() {
 
 });
 
-describe("SecureHandlebars: helpers existence tests", function() {
+function HandlebarsGetOutput(html, json) {
+    var template = Handlebars.compile(html);
+    var output = template(json);
+    return output;
+}
+
+describe("SecureHandlebars: helpers tests", function() {
 
     it('xss-filters registered as helpers', function(){
         [
@@ -39,13 +45,25 @@ describe("SecureHandlebars: helpers existence tests", function() {
         });
     });
 
+    it("SafeString test", function() {
+        var data = {
+            url: 'javascript:alert(1)', 
+            safeUrl: new Handlebars.SafeString('javascript:alert(1)')
+        };
+
+        var template = '<a href="{{safeUrl}}">SafeURL</a><a href="{{url}}">FilteredUrl</a>';
+
+        expect(HandlebarsGetOutput(template, data)).to.be.equal('<a href="javascript:alert(1)">SafeURL</a><a href="x-javascript:alert(1)">FilteredUrl</a>');
+    });
+
+    // given no definition of script in data, expects to output empty string by Handlebars.escapeExpression()
+    it("Use of Handlebars.escapeExpression() as y", function() {
+        var template = '<script>{{script1}}</script><script>{{script2}}</script>';
+        expect(HandlebarsGetOutput(template, {script2: null})).to.be.equal('<script></script><script></script>');
+    });
+
 });
 
-var HandlebarsGetOutput = function(html, json) {
-    var template = Handlebars.compile(html);
-    var output = template(json);
-    return output;
-};
 
 describe("SecureHandlebars: compilation tests", function() {
     it('smoke template', function(){
