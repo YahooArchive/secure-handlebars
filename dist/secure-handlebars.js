@@ -333,12 +333,35 @@ FastParser.prototype.afterWalk = function (i, input) {};
 
 /**
  * @function FastParser#getStartTagName
+ * @depreciated Replace it by getCurrentTagIndex and getCurrentTag
  *
  * @returns {string} The current handling start tag name
  *
  */
 FastParser.prototype.getStartTagName = function() {
-    return this.tags[0].toLowerCase();
+    return this.tags[0] !== undefined? this.tags[0].toLowerCase() : undefined;
+};
+
+/**
+ * @function FastParser#getCurrentTagIndex
+ *
+ * @returns {integer} The current handling tag Idx
+ *
+ */
+FastParser.prototype.getCurrentTagIndex = function() {
+    return this.tagIdx;
+};
+
+/**
+ * @function FastParser#getCurrentTag
+ *
+ * @params {integer} The tag Idx
+ *
+ * @returns {string} The current tag name indexed by tag Idx
+ *
+ */
+FastParser.prototype.getCurrentTag = function(tagIdx) {
+    return tagIdx === 0 || tagIdx === 1? (this.tags[tagIdx] !== undefined? this.tags[tagIdx].toLowerCase():undefined) : undefined;
 };
 
 /**
@@ -377,8 +400,6 @@ function Parser (config, listeners) {
     // super constructor
     FastParser.call(self);
 
-    // config
-    config || (config = {});
 
     // deep copy config to this.config
     self.config = {};
@@ -386,9 +407,17 @@ function Parser (config, listeners) {
         for (k in config) {
             self.config[k] = config[k];
         }
-    } else {
-        config = self.config;
     }
+    config = self.config;    
+
+    // config defaulted to false
+    config.enableInputPreProcessing = (config.enableInputPreProcessing === true);
+    config.enableCanonicalization = (config.enableCanonicalization === true);
+    config.enableVoidingIEConditionalComments = (config.enableVoidingIEConditionalComments === true);
+
+    // config defaulted to true
+    config.enableStateTracking = (config.enableStateTracking !== false);
+
 
     // deep copy the provided listeners, if any
     if (typeof listeners === 'object') {
@@ -398,26 +427,23 @@ function Parser (config, listeners) {
         return;
     }
 
+    // ### DO NOT CHANGE THE ORDER OF THE FOLLOWING COMPONENTS ###
     // run through the input stream with input pre-processing
-    this.config.enableInputPreProcessing = (config.enableInputPreProcessing === undefined || config.enableInputPreProcessing === false)? false:true;
-    this.config.enableInputPreProcessing && this.on('preWalk', InputPreProcessing);
+    config.enableInputPreProcessing && this.on('preWalk', InputPreProcessing);
     // fix parse errors before they're encountered in walk()
-    this.config.enableCanonicalization = (config.enableCanonicalization === undefined || config.enableCanonicalization === false)? false:true;
-    this.config.enableCanonicalization && this.on('preWalk', Canonicalize).on('reWalk', Canonicalize);
+    config.enableCanonicalization && this.on('preWalk', Canonicalize).on('reWalk', Canonicalize);
     // enable IE conditional comments
-    this.config.enableIEConditionalComments = (config.enableIEConditionalComments === undefined || config.enableIEConditionalComments === false)? false:true;
-    this.config.enableIEConditionalComments && this.on('preWalk', DisableIEConditionalComments);
+    config.enableVoidingIEConditionalComments && this.on('preWalk', DisableIEConditionalComments);
     // TODO: rewrite IE <comment> tags
     // TODO: When a start tag token is emitted with its self-closing flag set, if the flag is not acknowledged when it is processed by the tree construction stage, that is a parse error.
     // TODO: When an end tag token is emitted with attributes, that is a parse error.
     // TODO: When an end tag token is emitted with its self-closing flag set, that is a parse error.
 
     // for bookkeeping the processed inputs and states
-    if (config.enableStateTracking === undefined || config.enableStateTracking) {
-        this.config.enableStateTracking = true;
+    if (config.enableStateTracking) {
         this.states = [this.state];
-        this.buffer = []; 
-        this.symbol = []; 
+        this.buffer = [];
+        this.symbol = [];
         this.on('postWalk', function (lastState, state, i, endsWithEOF) {
             this.buffer.push(this.input[i]);
             this.states.push(state);
@@ -946,7 +972,7 @@ function DisableIEConditionalComments(state, i){
         // for lazy conversion
         this._convertString2Array();
 
-        this.input.splice(i, 0, ' ');
+        this.input.splice(i + 1, 0, ' ');
         this.inputLen++;
     }
 }
@@ -9266,17 +9292,12 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 "use strict";
 
 /* import the required package */
-var ContextParser = require('./strict-context-parser.js'),
-    configContextParser = {
-        enableInputPreProcessing: true,
-        enableCanonicalization: true,
-        enableIEConditionalComments: false,
-        enableStateTracking: true
-    },
-    handlebarsUtils = require('./handlebars-utils.js'),
-    stateMachine = require('context-parser').StateMachine;
+var handlebarsUtils = require('./handlebars-utils.js'),
+    parserUtils = require('./parser-utils.js'),
+    cssParserUtils = require('./css-utils.js');
 
-var cssParserUtils = require('./css-utils.js');
+var stateMachine = parserUtils.StateMachine,
+    ContextParser = parserUtils.Parser;
 
 var HtmlEntitiesDecoder = require("./html-decoder/html-decoder.js"),
     htmlDecoder = new HtmlEntitiesDecoder();
@@ -9354,18 +9375,18 @@ function ContextParserHandlebars(config) {
     /* the configuration of ContextParserHandlebars */
     this._config = {};
 
-    /* the flag is used to print out the char to console */
-    this._config._printCharEnable = config.printCharEnable === undefined ? true : config.printCharEnable;
+    /* the flag is used to print out the char to console, defaulted to true */
+    this._config._printCharEnable = (config.printCharEnable !== false);
 
-    /* the flag is used to strict mode of handling un-handled state */
-    this._config._strictMode = config.strictMode === undefined ? false: config.strictMode;
+    /* the flag is used to strict mode of handling un-handled state, defaulted to false */
+    this._config._strictMode = (config.strictMode === true);
 
     /* save the char/line no being processed */
     this._charNo = 0;
     this._lineNo = 1;
 
     /* context parser for HTML5 parsing */
-    this.contextParser = new ContextParser(configContextParser);
+    this.contextParser = parserUtils.getParser();
 }
 
 /**
@@ -10138,7 +10159,7 @@ module.exports = ContextParserHandlebars;
 })();
 
 }).call(this,require('_process'))
-},{"./css-utils.js":39,"./handlebars-utils.js":40,"./html-decoder/html-decoder.js":42,"./strict-context-parser.js":46,"_process":5,"context-parser":1}],38:[function(require,module,exports){
+},{"./css-utils.js":39,"./handlebars-utils.js":40,"./html-decoder/html-decoder.js":42,"./parser-utils.js":44,"_process":5}],38:[function(require,module,exports){
 (function (process){
 /* parser generated by jison 0.4.15 */
 /*
@@ -10246,11 +10267,20 @@ case 2:
       var l = $$[$0-1].length;
       l>0? this.$.value = $$[$0-1][l-1].value : '';
 
+      /* TODO: we can refine the following logic by revising the grammar with 
+         START_STRING and START_URI pattern (either unquoted,single or double quoted),
+         however, I prefer of not having too much change in the grammar with the 
+         original one to save the effort of maintenance
+      */
+
       /* if the last expr is BAD_URI, then we test for the following pattern */
       if ($$[$0-1][l-1].type !== undefined && $$[$0-1][l-1].type === 'BAD_URI') {
         $$[$0-1][l-1].value.match(/^(url\([\s]*)$/i)? this.$.type = 1 : '';
 
       /* if the last expr is BAD_STRING pattern, then we test
+         (1) the string is ended with single/double quote, then it is 5/6.
+         (2) the second last expr is BAD_URI, then if it is ended with single/double quote, then it is 2/3.
+         if the last expr is SPACE_EMPTY pattern, then it is 4
       */
       } else if ($$[$0-1][l-1].type !== undefined && ($$[$0-1][l-1].type === 'BAD_STRING' || $$[$0-1][l-1].type === 'SPACE_EMPTY')) {
         $$[$0-1][l-1].value === ''? this.$.type = 4 : '';
@@ -10856,78 +10886,94 @@ case 5:return 'INCLUDES';
 break;
 case 6:return 'DASHMATCH';
 break;
-case 7:return 28;
+case 7:return 'PREFIXMATCH';
 break;
-case 8:return 32;
+case 8:return 'SUFFIXMATCH';
 break;
-case 9:return 29;
+case 9:return 'SUBSTRINGMATCH';
 break;
-case 10:return 29;
+case 10:return 'COLUMN';
 break;
-case 11:return 33;
+case 11:return 28;
 break;
-case 12:return 34;
+case 12:return 32;
 break;
-case 13:return 'IMPORT_SYM';
+case 13:return 29;
 break;
-case 14:return 'PAGE_SYM';
+case 14:return 29;
 break;
-case 15:return 'MEDIA_SYM';
+case 15:return 33;
 break;
-case 16:return 'CHARSET_SYM';
+case 16:return 34;
 break;
-case 17:return 'UNICODERANGE';
+case 17:return 'IMPORT_SYM';
 break;
-case 18:return 35;
+case 18:return 'PAGE_SYM';
 break;
-case 19:return 12;
+case 19:return 'MEDIA_SYM';
 break;
-case 20:return 'ATKEYWORD';
+case 20:return 'CHARSET_SYM';
 break;
-case 21:return 37;
+case 21:return 'UNICODERANGE';
 break;
-case 22:return 23;
+case 22:return 'MEDIA_TYPE_PREFIX';
 break;
-case 23:return 24;
+case 23:return 'MEDIA_TYPE_PREFIX';
 break;
-case 24:return 22;
+case 24:return 'MEDIA_TYPE_AND';
 break;
-case 25:return 22;
+case 25:return 35;
 break;
-case 26:return 22;
+case 26:return 12;
 break;
-case 27:return 22;
+case 27:return 'VENDOR';
 break;
-case 28:return 22;
+case 28:return 'ATKEYWORD';
 break;
-case 29:return 22;
+case 29:return 37;
 break;
-case 30:return 25;
+case 30:return 23;
 break;
-case 31:return 25;
+case 31:return 24;
 break;
-case 32:return 25;
+case 32:return 22;
 break;
-case 33:return 26;
+case 33:return 22;
 break;
-case 34:return 26;
+case 34:return 22;
 break;
-case 35:return 27;
+case 35:return 22;
 break;
-case 36:return 27;
+case 36:return 22;
 break;
-case 37:return 'DIMENSION';
+case 37:return 22;
 break;
-case 38:return 21;
+case 38:return 25;
 break;
-case 39:return 20;
+case 39:return 25;
 break;
-case 40:return yy_.yytext; /* 'DELIM'; */
+case 40:return 25;
+break;
+case 41:return 26;
+break;
+case 42:return 26;
+break;
+case 43:return 27;
+break;
+case 44:return 27;
+break;
+case 45:return 21;
+break;
+case 46:return 20;
+break;
+case 47:return 'DIMENSION';
+break;
+case 48:return yy_.yytext; /* 'DELIM'; */
 break;
 }
 },
-rules: [/^(?:([ \t\r\n\f]+))/,/^(?:\/\*[^*]*\*+([^/*][^*]*\*+)*\/)/,/^(?:((\/\*[^*]*\*+([^/*][^*]*\*+)*)|(\/\*[^*]*(\*+[^/*][^*]*)*)))/,/^(?:<!--)/,/^(?:-->)/,/^(?:~=)/,/^(?:\|=)/,/^(?:(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*")|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*')))/,/^(?:(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)))/,/^(?:[uU][rR][lL]\((([ \t\r\n\f]+)?)(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*")|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*'))(([ \t\r\n\f]+)?)\))/,/^(?:[uU][rR][lL]\((([ \t\r\n\f]+)?)(([!#$%&*-~]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*)(([ \t\r\n\f]+)?)\))/,/^(?:(([uU][rR][lL]\((([ \t\r\n\f]+)?)([!#$%&*-\[\]-~]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*(([ \t\r\n\f]+)?))|([uU][rR][lL]\((([ \t\r\n\f]+)?)(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*")|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*'))(([ \t\r\n\f]+)?))|([uU][rR][lL]\((([ \t\r\n\f]+)?)(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)))))/,/^(?:!((([ \t\r\n\f]+)?)|(\/\*[^*]*\*+([^/*][^*]*\*+)*\/))*(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(O|o|\\0{0,4}(4f|6f)(\r\n|[ \t\r\n\f])?|\\[o])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(N|n|\\0{0,4}(4e|6e)(\r\n|[ \t\r\n\f])?|\\[n])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:@(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(O|o|\\0{0,4}(4f|6f)(\r\n|[ \t\r\n\f])?|\\[o])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:@(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g])(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?))/,/^(?:@(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?)(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?))/,/^(?:@charset )/,/^(?:(U|u|\\0{0,4}(55|75)(\r\n|[ \t\r\n\f])?|\\[u])\+([0-9a-fA-F?]{1,6}(-[0-9a-fA-F]{1,6})?))/,/^(?:(-?([_a-zA-Z]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))([_a-zZ-Z0-9\-]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*)\()/,/^(?:(-?([_a-zA-Z]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))([_a-zZ-Z0-9\-]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*))/,/^(?:@(-?([_a-zA-Z]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))([_a-zZ-Z0-9\-]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*))/,/^(?:#(([_a-zZ-Z0-9\-]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))+))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(X|x|\\0{0,4}(58|78)(\r\n|[ \t\r\n\f])?|\\[x]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(X|x|\\0{0,4}(58|78)(\r\n|[ \t\r\n\f])?|\\[x]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(C|c|\\0{0,4}(43|63)(\r\n|[ \t\r\n\f])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(N|n|\\0{0,4}(4e|6e)(\r\n|[ \t\r\n\f])?|\\[n]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(C|c|\\0{0,4}(43|63)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(S|s|\\0{0,4}(53|73)(\r\n|[ \t\r\n\f])?|\\[s]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(S|s|\\0{0,4}(53|73)(\r\n|[ \t\r\n\f])?|\\[s]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(H|h|\\0{0,4}(48|68)(\r\n|[ \t\r\n\f])?|\\[h])(Z|z|\\0{0,4}(5a|7a)(\r\n|[ \t\r\n\f])?|\\[z]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(K|k|\\0{0,4}(4b|6b)(\r\n|[ \t\r\n\f])?|\\[k])(H|h|\\0{0,4}(48|68)(\r\n|[ \t\r\n\f])?|\\[h])(Z|z|\\0{0,4}(5a|7a)(\r\n|[ \t\r\n\f])?|\\[z]))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)(-?([_a-zA-Z]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))([_a-zZ-Z0-9\-]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*))/,/^(?:([0-9]+|[0-9]*\.[0-9]+)%)/,/^(?:([0-9]+|[0-9]*\.[0-9]+))/,/^(?:.)/],
-conditions: {"INITIAL":{"rules":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40],"inclusive":true}}
+rules: [/^(?:([ \t\r\n\f]+))/,/^(?:\/\*[^*]*\*+([^/*][^*]*\*+)*\/)/,/^(?:((\/\*[^*]*\*+([^/*][^*]*\*+)*)|(\/\*[^*]*(\*+[^/*][^*]*)*)))/,/^(?:<!--)/,/^(?:-->)/,/^(?:~=)/,/^(?:\|=)/,/^(?:\^=)/,/^(?:\$=)/,/^(?:\*=)/,/^(?:\|\|)/,/^(?:(("([ !#$%&'\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*")|('([ !#$%&"\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*')))/,/^(?:(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)))/,/^(?:[uU][rR][lL]\((([ \t\r\n\f]+)?)(("([ !#$%&'\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*")|('([ !#$%&"\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*'))(([ \t\r\n\f]+)?)\))/,/^(?:[uU][rR][lL]\((([ \t\r\n\f]+)?)(([a-zA-Z0-9]|[:\/\?#\[\]@]|[!$&'\*+,;=]|[%]|[\-\._~])*)(([ \t\r\n\f]+)?)\))/,/^(?:(([uU][rR][lL]\((([ \t\r\n\f]+)?)([!#$%&*-\[\]-~]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*(([ \t\r\n\f]+)?))|([uU][rR][lL]\((([ \t\r\n\f]+)?)(("([ !#$%&'\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*")|('([ !#$%&"\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*'))(([ \t\r\n\f]+)?))|([uU][rR][lL]\((([ \t\r\n\f]+)?)(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)))))/,/^(?:!((([ \t\r\n\f]+)?)|(\/\*[^*]*\*+([^/*][^*]*\*+)*\/))*(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(O|o|\\0{0,4}(4f|6f)(\r\n|[ \t\r\n\f])?|\\[o])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(N|n|\\0{0,4}(4e|6e)(\r\n|[ \t\r\n\f])?|\\[n])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:@(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(O|o|\\0{0,4}(4f|6f)(\r\n|[ \t\r\n\f])?|\\[o])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:@(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g])(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?))/,/^(?:@(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?)(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?))/,/^(?:@charset )/,/^(?:(U|u|\\0{0,4}(55|75)(\r\n|[ \t\r\n\f])?|\\[u])\+([0-9a-fA-F?]{1,6}(-[0-9a-fA-F]{1,6})?))/,/^(?:only\b)/,/^(?:not\b)/,/^(?:and\b)/,/^(?:([\-]?([_a-zA-Z])([_a-zA-Z0-9\-])*)\()/,/^(?:([\-]?([_a-zA-Z])([_a-zA-Z0-9\-])*))/,/^(?:([\-_]([0-9a-fA-F])-([0-9a-fA-F])))/,/^(?:@([\-]?([_a-zA-Z])([_a-zA-Z0-9\-])*))/,/^(?:#(([_a-zA-Z0-9\-])+))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(X|x|\\0{0,4}(58|78)(\r\n|[ \t\r\n\f])?|\\[x]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(X|x|\\0{0,4}(58|78)(\r\n|[ \t\r\n\f])?|\\[x]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(C|c|\\0{0,4}(43|63)(\r\n|[ \t\r\n\f])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(N|n|\\0{0,4}(4e|6e)(\r\n|[ \t\r\n\f])?|\\[n]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(C|c|\\0{0,4}(43|63)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(S|s|\\0{0,4}(53|73)(\r\n|[ \t\r\n\f])?|\\[s]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(S|s|\\0{0,4}(53|73)(\r\n|[ \t\r\n\f])?|\\[s]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(H|h|\\0{0,4}(48|68)(\r\n|[ \t\r\n\f])?|\\[h])(Z|z|\\0{0,4}(5a|7a)(\r\n|[ \t\r\n\f])?|\\[z]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(K|k|\\0{0,4}(4b|6b)(\r\n|[ \t\r\n\f])?|\\[k])(H|h|\\0{0,4}(48|68)(\r\n|[ \t\r\n\f])?|\\[h])(Z|z|\\0{0,4}(5a|7a)(\r\n|[ \t\r\n\f])?|\\[z]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)%)/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)([\-]?([_a-zA-Z])([_a-zA-Z0-9\-])*))/,/^(?:.)/],
+conditions: {"INITIAL":{"rules":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48],"inclusive":true}}
 });
 return lexer;
 })();
@@ -11016,7 +11062,7 @@ module.exports = CSSParserUtils;
 
 })();
 
-},{"../src/polyfills/minimal.js":44,"./css-parser/css-parser.js":38,"./html-decoder/html-decoder.js":42}],40:[function(require,module,exports){
+},{"../src/polyfills/minimal.js":45,"./css-parser/css-parser.js":38,"./html-decoder/html-decoder.js":42}],40:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -11054,32 +11100,32 @@ HandlebarsUtils.rawEndBlockRegExp = /^\{\{\{\{\/([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\
 /* '{{{' '~'? 'space'* '@'? 'space'* ('not {}~'+) 'space'* ('not {}~'+) '~'? non-greedy '}}}' and not follow by '}' */
 HandlebarsUtils.RAW_EXPRESSION = 1; // {{{expression}}}
 // HandlebarsUtils.rawExpressionRegExp = /^\{\{\{\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>\[\\\]\^`\{\|\}\~]+)\s*?\}\}\}(?!})/;
-HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?\s*@?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}\}(?!})/;
+HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?\s*@?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~?\}\}\}(?!})/;
 
-/* '{{' '~'? 'space'* '@'? 'space'* ('not {}~'+) 'space'* ('not {}~'+) '~'? non-greedy '}}' and not follow by '}' */
+/* '{{' '~'? 'space'* '@'? 'space'* ('not {}~'+) '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.ESCAPE_EXPRESSION = 2; // {{expression}}
-HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?\s*@?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~??\}\}(?!})/;
+HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?\s*@?\s*([^\}\{~]+)~?\}\}(?!})/;
 
 /* '{{' '~'? '>' '\s'* ('not \s, special-char'+) '\s'* 'not ~{}'* non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.PARTIAL_EXPRESSION = 3; // {{>.*}}
-HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^~\}\{]*~??\}\}(?!})/;
+HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^~\}\{]*~?\}\}(?!})/;
 
 /* '{{' '~'? '&' '\s'* ('not \s, special-char'+) '\s'* 'not ~{}'* non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.REFERENCE_EXPRESSION = 11; // {{&.*}}
-HandlebarsUtils.referenceExpressionRegExp = /^\{\{~?&\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^~\}\{]*~??\}\}(?!})/;
+HandlebarsUtils.referenceExpressionRegExp = /^\{\{~?&\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^~\}\{]*~?\}\}(?!})/;
 
 /* '{{' '~'? '# or ^' '\s'* ('not \s, special-char'+) '\s'* 'not {}~'* '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.BRANCH_EXPRESSION = 4; // {{#.*}}, {{^.*}}
-HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\^]\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^\}\{~]*~??\}\}(?!})/;
+HandlebarsUtils.branchExpressionRegExp = /^\{\{~?[#|\^]\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^\}\{~]*~?\}\}(?!})/;
 /* '{{' '~'? '/' '\s'* ('not \s, special-char'+) '\s'* 'not {}~'* '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.BRANCH_END_EXPRESSION = 5; // {{/.*}}
-HandlebarsUtils.branchEndExpressionRegExp = /^\{\{~?\/\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^\}\{~]*~??\}\}(?!})/;
+HandlebarsUtils.branchEndExpressionRegExp = /^\{\{~?\/\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^\}\{~]*~?\}\}(?!})/;
 
 /* '{{' '~'? '\s'* 'else' '\s'* 'not {}~'* '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.ELSE_EXPRESSION = 6; // {{else}}, {{^}}
-HandlebarsUtils.elseExpressionRegExp = /^\{\{~?\s*else\s*[^\}\{~]*~??\}\}(?!})/;
+HandlebarsUtils.elseExpressionRegExp = /^\{\{~?\s*else\s*[^\}\{~]*~?\}\}(?!})/;
 /* '{{' '~'? '^'{1} '~'? non-greedy '}}' and not follow by '}' */
-HandlebarsUtils.elseShortFormExpressionRegExp = /^\{\{~?\^{1}~??\}\}(?!})/;
+HandlebarsUtils.elseShortFormExpressionRegExp = /^\{\{~?\^{1}~?\}\}(?!})/;
 
 /* '{{' '~'? '!--' */
 HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM = 7; // {{!--.*--}}
@@ -11140,7 +11186,12 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
             break;
         case HandlebarsUtils.ESCAPE_EXPRESSION:
             re = HandlebarsUtils.escapeExpressionRegExp.exec(s);
-            if (re !== null && re[1] !== undefined) {
+            if (re) {
+                // NOTE: the re.index field is never been used.
+                var r = HandlebarsUtils.parseEscapeExpression(re[1]);
+                re[1] = r[1];
+                re[2] = r[2];
+
                 if (HandlebarsUtils.isReservedChar(re[1], 0)) {
                     re.tag = false;
                     re.isSingleID = false;
@@ -11194,6 +11245,31 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
         re.result = false;
     }
     return re;
+};
+
+// @function HandlebarsUtils.parseEscapeExpression
+HandlebarsUtils.parseEscapeExpression = function(str) {
+  var j=0, inSquareBracket = false,
+      fstr = '', re = [];
+
+  // the new regexp will capture the tailing space.
+  str = str.replace(/\s+$/, '');
+  while(j<str.length) {
+      // space is defined as \s in the handlebars lex
+      if (str[j].match(/\s/) && !inSquareBracket) {
+          break;
+      } else if (str[j] === '[') {
+          inSquareBracket = true;
+      } else if (str[j] === ']') {
+          inSquareBracket = false;
+      }
+      fstr += str[j];
+      ++j;
+  }
+
+  re[1] = fstr;
+  re[2] = str.substring(j).replace(/^\s+/, '').replace(/\s+$/, '');
+  return re;
 };
 
 // @function HandlebarsUtils.isReservedChar
@@ -11645,6 +11721,142 @@ if (!String.fromCodePoint) {
 }
 
 },{}],44:[function(require,module,exports){
+/* 
+Copyright (c) 2015, Yahoo Inc. All rights reserved.
+Copyrights licensed under the New BSD License.
+See the accompanying LICENSE file for terms.
+
+Authors: Nera Liu <neraliu@yahoo-inc.com>
+         Albert Yu <albertyu@yahoo-inc.com>
+         Adonis Fung <adon@yahoo-inc.com>
+*/
+/*jshint -W030 */
+(function () {
+"use strict";
+
+/* import the required package */
+var ContextParser = require('context-parser'),
+    Parser = ContextParser.Parser;
+
+/////////////////////////////////////////////////////
+//
+// @module Parser 
+// 
+/////////////////////////////////////////////////////
+
+// Reference: http://www.w3.org/TR/html-markup/elements.html
+Parser.ATTRTYPE_URI = 1,
+Parser.ATTRTYPE_CSS = 2,
+Parser.ATTRTYPE_SCRIPTABLE = 3,
+Parser.ATTRTYPE_MIME = 4,
+Parser.ATTRTYPE_GENERAL = undefined;
+
+Parser.attributeNamesType = {
+    // we generally do not differentiate whether these attribtues are tag specific during matching for simplicity
+    'href'       :Parser.ATTRTYPE_URI,     // for a, link, img, area, iframe, frame, video, object, embed ...
+    'src'        :Parser.ATTRTYPE_URI,
+    'background' :Parser.ATTRTYPE_URI,     // for body, table, tbody, tr, td, th, etc? (obsolete)
+    'action'     :Parser.ATTRTYPE_URI,     // for form, input, button
+    'formaction' :Parser.ATTRTYPE_URI,     
+    'cite'       :Parser.ATTRTYPE_URI,     // for blockquote, del, ins, q
+    'poster'     :Parser.ATTRTYPE_URI,     // for img, object, video, source
+    'usemap'     :Parser.ATTRTYPE_URI,     // for image
+    'longdesc'   :Parser.ATTRTYPE_URI,                         
+    'folder'     :Parser.ATTRTYPE_URI,     // for a
+    'manifest'   :Parser.ATTRTYPE_URI,     // for html
+    'classid'    :Parser.ATTRTYPE_URI,     // for object
+    'codebase'   :Parser.ATTRTYPE_URI,     // for object, applet
+    'icon'       :Parser.ATTRTYPE_URI,     // for command
+    'profile'    :Parser.ATTRTYPE_URI,     // for head
+    /* TODO: we allow content before we implement the stack in CP for tracking attributeName
+    'content'    :Parser.ATTRTYPE_URI,     // for meta http-equiv=refresh
+    */
+
+    // http://www.w3.org/TR/xmlbase/#syntax
+    'xmlns'      :Parser.ATTRTYPE_URI,     // for svg, etc?
+    'xml:base'   :Parser.ATTRTYPE_URI, 
+    'xmlns:xlink':Parser.ATTRTYPE_URI,
+    'xlink:href' :Parser.ATTRTYPE_URI,     // for xml-related
+
+    // srcdoc is the STRING type, not URI
+    'srcdoc'     :Parser.ATTRTYPE_URI,     // for iframe
+
+    'style'      :Parser.ATTRTYPE_CSS,     // for global attributes list
+
+    // pattern matching, handling it within the function getAttributeNameType
+    // 'on*'     :Parser.ATTRTYPE_SCRIPTABLE,
+
+    'type'       :Parser.ATTRTYPE_MIME,    // TODO: any potential attack of the MIME type?
+
+    'data'       :{'object'  :Parser.ATTRTYPE_URI},
+    'rel'        :{'link'    :Parser.ATTRTYPE_URI},
+    'value'      :{'param'   :Parser.ATTRTYPE_URI},
+};
+
+/**
+ * @function Parser#getAttributeNameType
+ *
+ * @returns {integer} the attribute type defined for different handling
+ *
+ * @description
+ * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
+ *
+ */
+Parser.prototype.getAttributeNameType = function() {
+    // Assume CP has **lowercased** the attributeName
+    var attrName = this.getAttributeName();
+
+    // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
+
+    // Note: o{{placeholder}}n* can bypass the check. Anyway, we are good to throw error in atttribute name state. 
+    if (attrName[0] === 'o' && attrName[1] === 'n') { 
+        return Parser.ATTRTYPE_SCRIPTABLE;
+    }
+
+    // return Parser.ATTRTYPE_GENERAL (i.e. undefined) for case without special handling
+    // here,  attrTags === [integer] is a tag agnostic matching
+    // while, attrTags[tags] === [integer] matches only those attribute of the given tagName
+    var attrTags = Parser.attributeNamesType[attrName];
+    return typeof attrTags === 'object'? attrTags[this.getStartTagName()] : attrTags;
+};
+
+/**
+ * @function Parser#cloneStates
+ *
+ * @params {parser} the Context Parser for copying states.
+ *
+ * @description
+ * Copy the required states for state comparison in the conditional branching templates.
+ *
+ */
+Parser.prototype.cloneStates = function(parser) {
+    this.state = parser.getLastState();
+    this.attrName = parser.getAttributeName();
+    this.attributeValue = parser.getAttributeValue();
+};
+
+
+/**
+ * @function ContextParser#getParser
+ *
+ * @description
+ * expose a factory that carries default settings
+ *
+ */
+ContextParser.getParser = function () {
+    return new ContextParser.Parser({
+        enableInputPreProcessing: true,
+        enableCanonicalization: true,
+        enableVoidingIEConditionalComments: true,
+        enableStateTracking: true
+    });
+};
+
+module.exports = ContextParser;
+
+})();
+
+},{"context-parser":1}],45:[function(require,module,exports){
 /*! http://mths.be/codepointat v0.1.0 by @mathias */
 if (!String.prototype.codePointAt) {
   (function() {
@@ -11753,7 +11965,7 @@ if (!String.fromCodePoint) {
     }
   }());
 }
-},{}],45:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -11769,7 +11981,7 @@ var Handlebars = require('handlebars'),
     handlebarsUtils = require('./handlebars-utils.js');
 
 var hbsCreate = Handlebars.create,
-    privateFilters = ['y', 'yd', 'yc', 'yavd', 'yavs', 'yavu', 'yu', 'yuc', 'yubl', 'yufull'],
+    privateFilters = ['yd', 'yc', 'yavd', 'yavs', 'yavu', 'yu', 'yuc', 'yubl', 'yufull', 'yceu', 'yced', 'yces', 'yceuu', 'yceud', 'yceus'],
     baseContexts = ['HTMLData', 'HTMLComment', 'SingleQuotedAttr', 'DoubleQuotedAttr', 'UnQuotedAttr'],
     contextPrefixes = ['in', 'uriIn', 'uriPathIn', 'uriQueryIn', 'uriComponentIn', 'uriFragmentIn'];
 
@@ -11808,9 +12020,24 @@ function overrideHbsCreate() {
         return c.call(this, preprocess(template, options.strictMode), options);
     };
 
+    // make y refer to the default escape function
+    h.registerHelper('y', Handlebars.escapeExpression);
+
+    // don't escape SafeStrings, since they're already safe according to Handlebars
+    // Reference: https://github.com/wycats/handlebars.js/blob/master/lib/handlebars/utils.js#L63-L82
+    function safeStringCompatibleFilter (filterName) {
+        return function (s) {
+            // Unlike escapeExpression(), return s instead of s.toHTML() since downstream
+            //  filters of the same chain has to be disabled too.
+            //  Handlebars will invoke SafeString.toString() at last during data binding
+            return (s && s.toHTML) ? s : privFilters[filterName](s);
+        };
+    }
+
+    /*jshint -W083 */
     // register below the filters that are automatically applied by context parser 
     for (i = 0; (filterName = privateFilters[i]); i++) {
-        h.registerHelper(filterName, privFilters[filterName]);
+        h.registerHelper(filterName, safeStringCompatibleFilter(filterName));
     }
 
     // register below the filters that might be manually applied by developers
@@ -11830,124 +12057,5 @@ module.exports.create = overrideHbsCreate;
 // the following is in addition to the original Handlbars prototype
 module.exports.ContextParserHandlebars = ContextParserHandlebars;
 
-},{"./context-parser-handlebars":37,"./handlebars-utils.js":40,"handlebars":24,"xss-filters":36}],46:[function(require,module,exports){
-/* 
-Copyright (c) 2015, Yahoo Inc. All rights reserved.
-Copyrights licensed under the New BSD License.
-See the accompanying LICENSE file for terms.
-
-Authors: Nera Liu <neraliu@yahoo-inc.com>
-         Albert Yu <albertyu@yahoo-inc.com>
-         Adonis Fung <adon@yahoo-inc.com>
-*/
-/*jshint -W030 */
-(function () {
-"use strict";
-
-/* import the required package */
-var ContextParser = require('context-parser').Parser;
-
-/////////////////////////////////////////////////////
-//
-// @module ContextParser 
-// 
-/////////////////////////////////////////////////////
-
-// Reference: http://www.w3.org/TR/html-markup/elements.html
-ContextParser.ATTRTYPE_URI = 1,
-ContextParser.ATTRTYPE_CSS = 2,
-ContextParser.ATTRTYPE_SCRIPTABLE = 3,
-ContextParser.ATTRTYPE_MIME = 4,
-ContextParser.ATTRTYPE_GENERAL = undefined;
-
-ContextParser.attributeNamesType = {
-    // we generally do not differentiate whether these attribtues are tag specific during matching for simplicity
-    'href'       :ContextParser.ATTRTYPE_URI,     // for a, link, img, area, iframe, frame, video, object, embed ...
-    'src'        :ContextParser.ATTRTYPE_URI,
-    'background' :ContextParser.ATTRTYPE_URI,     // for body, table, tbody, tr, td, th, etc? (obsolete)
-    'action'     :ContextParser.ATTRTYPE_URI,     // for form, input, button
-    'formaction' :ContextParser.ATTRTYPE_URI,     
-    'cite'       :ContextParser.ATTRTYPE_URI,     // for blockquote, del, ins, q
-    'poster'     :ContextParser.ATTRTYPE_URI,     // for img, object, video, source
-    'usemap'     :ContextParser.ATTRTYPE_URI,     // for image
-    'longdesc'   :ContextParser.ATTRTYPE_URI,                         
-    'folder'     :ContextParser.ATTRTYPE_URI,     // for a
-    'manifest'   :ContextParser.ATTRTYPE_URI,     // for html
-    'classid'    :ContextParser.ATTRTYPE_URI,     // for object
-    'codebase'   :ContextParser.ATTRTYPE_URI,     // for object, applet
-    'icon'       :ContextParser.ATTRTYPE_URI,     // for command
-    'profile'    :ContextParser.ATTRTYPE_URI,     // for head
-    /* TODO: we allow content before we implement the stack in CP for tracking attributeName
-    'content'    :ContextParser.ATTRTYPE_URI,     // for meta http-equiv=refresh
-    */
-
-    // http://www.w3.org/TR/xmlbase/#syntax
-    'xmlns'      :ContextParser.ATTRTYPE_URI,     // for svg, etc?
-    'xml:base'   :ContextParser.ATTRTYPE_URI, 
-    'xmlns:xlink':ContextParser.ATTRTYPE_URI,
-    'xlink:href' :ContextParser.ATTRTYPE_URI,     // for xml-related
-
-    // srcdoc is the STRING type, not URI
-    'srcdoc'     :ContextParser.ATTRTYPE_URI,     // for iframe
-
-    'style'      :ContextParser.ATTRTYPE_CSS,     // for global attributes list
-
-    // pattern matching, handling it within the function getAttributeNameType
-    // 'on*'     :ContextParser.ATTRTYPE_SCRIPTABLE,
-
-    'type'       :ContextParser.ATTRTYPE_MIME,    // TODO: any potential attack of the MIME type?
-
-    'data'       :{'object'  :ContextParser.ATTRTYPE_URI},
-    'rel'        :{'link'    :ContextParser.ATTRTYPE_URI},
-    'value'      :{'param'   :ContextParser.ATTRTYPE_URI},
-};
-
-/**
- * @function ContextParser#getAttributeNameType
- *
- * @returns {integer} the attribute type defined for different handling
- *
- * @description
- * Check if the current tag can possibly incur script either through configuring its attribute name or inner HTML
- *
- */
-ContextParser.prototype.getAttributeNameType = function() {
-    if (this.attrName[0] === 'o' && this.attrName[1] === 'n') { /* assuming it is from Strict Context Parser.
-                                                                             and o{{placeholder}}n* can bypass the check.
-                                                                             anyway, we are good to throw error in atttribute name state. 
-                                                                             note: CP has lowerCase the attributeName */
-        return ContextParser.ATTRTYPE_SCRIPTABLE;
-    } else {
-        // TODO: support compound uri context at <meta http-equiv="refresh" content="seconds; url">, <img srcset="url 1.5x, url 2x">
-
-        // return ContextParser.ATTRTYPE_GENERAL for case without special handling
-        // here,  attrTags === [integer] is a tag agnostic matching
-        // while, attrTags[tags] === [integer] matches only those attribute of the given tagName
-
-        var attrTags = ContextParser.attributeNamesType[this.attrName];
-        return typeof attrTags === 'object'? attrTags[this.tags[0]] : attrTags;
-    }
-};
-
-/**
- * @function ContextParser#cloneStates
- *
- * @params {parser} the Context Parser for copying states.
- *
- * @description
- * Copy the required states for state comparison in the conditional branching templates.
- *
- */
-ContextParser.prototype.cloneStates = function(parser) {
-    this.state = parser.getLastState();
-    this.attrName = parser.getAttributeName();
-    this.attributeValue = parser.getAttributeValue();
-};
-
-/* exposing it */
-module.exports = ContextParser;
-
-})();
-
-},{"context-parser":1}]},{},[45])(45)
+},{"./context-parser-handlebars":37,"./handlebars-utils.js":40,"handlebars":24,"xss-filters":36}]},{},[46])(46)
 });
