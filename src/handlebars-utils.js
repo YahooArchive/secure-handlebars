@@ -39,8 +39,7 @@ HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?\s*@?\s*([^\s\}\{~]+)\s*([^\}\{~
 
 /* '{{' '~'? 'space'* '@'? 'space'* ('not {}~'+) 'space'* ('not {}~'+) '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.ESCAPE_EXPRESSION = 2; // {{expression}}
-HandlebarsUtils.escapeExpressionRegExp1 = /^\{\{~?\s*@?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~?\}\}(?!})/;
-HandlebarsUtils.escapeExpressionRegExp2 = /^\{\{~?\s*@?\s*([^\}\{~]+)~?\}\}(?!})/;
+HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?\s*@?\s*([^\}\{~]+)~?\}\}(?!})/;
 
 /* '{{' '~'? '>' '\s'* ('not \s, special-char'+) '\s'* 'not ~{}'* non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.PARTIAL_EXPRESSION = 3; // {{>.*}}
@@ -121,7 +120,7 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
             re = HandlebarsUtils.rawExpressionRegExp.exec(s);
             break;
         case HandlebarsUtils.ESCAPE_EXPRESSION:
-            re = HandlebarsUtils.escapeExpressionRegExp2.exec(s);
+            re = HandlebarsUtils.escapeExpressionRegExp.exec(s);
             if (re !== null && re[1] !== undefined) {
                 // NOTE: the re.index field is never been used.
                 var r = HandlebarsUtils.parseEscapeExpression(re[1]);
