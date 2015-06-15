@@ -84,9 +84,9 @@ npm test
 
 [![Build Status](https://travis-ci.org/yahoo/secure-handlebars.svg?branch=master)](https://travis-ci.org/yahoo/secure-handlebars)
 
-### Known Issues
+### Known Limitations & Issues
 - Templates MUST be in UTF-8 encoding and using HTML 5 doctype (i.e., <!doctype html>).
-- We handle the HTML contextual analysis right now, and provide no support to the JavaScript and CSS contexts yet.
+- We handle the HTML contextual analysis right now, and provide no support to the JavaScript yet. For CSS context, we support output expression at style attribute value ONLY.
 - Our approach involves only static analysis on the template files, and thus data dynamically binded through raw output expressions that may alter the execution context on the rendered HTML CANNOT be taken into account.
 - We now assume that {{>partial}} and {{{{rawblock}}}} is always placed in the HTML Data context, and by itself will result in the same Data context after its binding (hence, in-state and out-state are both of the data context). 
 
