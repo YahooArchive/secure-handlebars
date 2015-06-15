@@ -4,7 +4,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>Filtering is Hard!</title>
+    <title>Why filtering is hard!</title>
     <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
@@ -50,8 +50,8 @@
       <!-- grid system: http://getbootstrap.com/css/#grid -->
       <div class="row">
         <div class="col-md-12 blog-main">
-          <h2 class="header-badge">Filtering is Hard!</h2>
-          <p class="text-center">Cross Site Scripting (a.k.a. XSS) is still ranked among Top 3 in the OWASP Top 10 for more than a decade, and why?</p>
+          <h2 class="header-badge">Why filtering is hard!</h2>
+          <p class="text-center">Cross Site Scripting (a.k.a. XSS) is still ranked among Top 3 in the OWASP Top 10 for more than a decade!</p>
         </div> <!-- blog main -->
 
         <div class="col-md-12 blog-post">&nbsp;&nbsp;</div>
@@ -59,16 +59,15 @@
         <div class="col-md-8 blog-post">
           <div class="col-md-12 blog-post">
             <h2>Filtering is hard!!!</h2>
-            <p class="text-justify">Cross Site Scripting (a.k.a. XSS) has long been ranked among Top 3 in the OWASP Top 10 [1] for more than a decade. Web applications taking untrusted user inputs, keeping them intact without proper validations, and sending them back as part of the HTML are vulnerable to XSS. Attackers can execute arbitrary JavaScript in the vulnerable application, deface the website, and even steal users’ sessions and personal information. Given these severe consequences, XSS is unarguably a critical vulnerability.</p>
-
-            <p class="text-justify">Nevertheless, why is XSS still being ranked among consistently high in OWASP Top 10? As a matter of fact, context-aware output filtering, as the most effective mitigation approach is hard to apply manually. In this article, we further elaborate the difficulty, and how we tackle this problem when designing XSS filters and <a href="https://github.com/yahoo/secure-handlebars">automated solutions</a>.</p>
+            <p class="text-justify">Cross Site Scripting (a.k.a. XSS) has long been ranked among Top 3 in the OWASP Top 10 for more than a decade. Web applications taking untrusted user inputs, keeping them intact without proper validations, and sending them back as part of the HTML are vulnerable to XSS. Attackers can execute arbitrary JavaScript in the vulnerable application, deface the website, and even steal users’ sessions and personal information. Given these severe consequences, XSS is unarguably a critical vulnerability.</p>
+            <p class="text-justify">Nevertheless, why is XSS still being ranked among consistently high in OWASP Top 10? In this article, we further elaborate the difficulty, and how we tackle this problem when designing XSS filters and <a href="https://github.com/yahoo/secure-handlebars">automated secure handlebars solutions</a>.</p>
           </div><!-- blog-post -->
 
           <div class="col-md-12 blog-post">
             <h2>Input Validation v.s. Output Filtering</h2>
-            <p class="text-justify">User input validation is implemented at the server-side, often as the first interface to validate all inputs before further processing; whereas output filtering is implemented as the last component at the output, right before the data is sent back to user’s browsers. There is is no conflicting reason of just doing the filtering mechanism in one place, since it depends on the use case and functionality of your web applications. Taking search application as an example, it is impractical to implement the user input validation since the application needs to capture what exactly the user input to conduct the search functionality. Indispensably, user input validation is still the most universal mechanism for validation/filtering strategy for most web applications.</p>
-
-             <p class="text-justify">However, why does input filtering fail in most cases? It is because the first interfacing component of the system can never anticipate what system component comes next when we are developing the modern web applications at scale with different internal and external systems interacting with each other. As a consequence, input filtering can either be over-filtering or insufficient filtering, the first case definitely affects the normal functionality while the latter case can lead to XSS vulnerabilities. This scenario makes output filtering more suitable and effective in the validation/filtering strategy, as it is the last component of the web application returning data back to the user’s browser. Nowadays, the industry is shifting to the output filtering in most of templating engines as it is effective than input filtering.</p>
+            <p class="text-justify">User input validation is implemented at the server-side, often as the first interface to validate all inputs before further processing; whereas output filtering is implemented as the last component at the output, right before the data is sent back to user’s browsers. There is is no conflicting reason of just doing the filtering mechanism in one place, since it depends on the use case and functionality of your web applications.</p>
+            <p class="text-justify"><img src="images/input-validation-output-filtering.png"/></p>
+            <p class="text-justify">However, why does input filtering fail in most cases? It is because the first interfacing component of the system can never anticipate what system component comes next when we are developing the modern web applications at scale with different internal and external systems interacting with each other. As a consequence, input filtering can either be over-filtering or insufficient filtering, the first case definitely affects the normal functionality while the latter case can lead to XSS vulnerabilities. This scenario makes output filtering more suitable and effective in the validation/filtering strategy, as it is the last component of the web application returning data back to the user’s browser. Nowadays, the industry is shifting to the output filtering in most of templating engines as it is effective than input filtering.</p>
           </div><!-- blog-post -->
 
           <div class="col-md-12 blog-post">
@@ -76,6 +75,7 @@
             <p class="text-justify">With the output filtering strategy in the design, it is still not easy to stop the XSS, as the developers need to understand the output contexts of the web applications and the execution order of the contexts in the web browsers. Taking a HTML5 web application as an example, there are at least 4 superset classifications of output contexts, including HTML, CSS, JavaScript and URI, and each output context can be further broken down to finer granularity for classification. Based on our study, we have at least 25 output contexts if we just consider HTML and URI together, it means that we need at least 25 different types of filtering rules in practice.</p>
 
             <p class="text-justify">Besides the number of combinations of different output contexts, the filtering order is also critical to the filtering mechanism. The filtering order must be the same as the execution order of the contexts being invoked by the web browser and with the blacklist filter at the end of the filtering rules. When the developer puts the untrusted user input at the “href” attribute value of the anchor tag, the correct order is to apply the URI validation before the HTML attribute value filtering and with the HTTP protocol blacklist filter at the end to make it secure.</p>
+            <p class="text-justify"><img src="images/multiple-contexts.png"/></p>
           </div><!-- blog-post -->
        
           <div class="col-md-12 blog-post">
@@ -98,13 +98,11 @@
               <li><a href="./safejstemplating.html">Getting Started</a></li>
             </ol>
 
-            <h4>Source Code</h4>
+            <h4>Related Articles</h4>
             <ol class="list-unstyled">
-              <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
-              <li><a href="https://github.com/yahoo/context-parser">Context Parser</a></li>
-              <li><a href="https://github.com/yahoo/secure-handlebars">Secure Handlebars</a></li>
-              <li><a href="https://github.com/yahoo/secure-handlebars-helpers">Secure Handlebars Helpers</a></li>
-              <li><a href="https://github.com/yahoo/express-secure-handlebars">Express Secure Handlebars</a></li>
+              <li><a href="./filteringishard.html">Filtering is Hard!</a></li>
+              <li><a href="./autoescaping.html">What is Auto Escaping?</a></li>
+              <li><a href="./contextparser.html">Our Context Parser</a></li>
             </ol>
 
             <h4>References</h4>
@@ -112,11 +110,13 @@
             <li><a href="https://www.owasp.org/index.php/Main_Page">OWASP</a></li>
             </ol>
 
-            <h4>Related Articles</h4>
+            <h4>Source Code</h4>
             <ol class="list-unstyled">
-              <li><a href="./filteringishard.html">Filtering is Hard!</a></li>
-              <li><a href="./autoescaping.html">What is Auto Escaping?</a></li>
-              <li><a href="./contextparser.html">Our Context Parser</a></li>
+              <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
+              <li><a href="https://github.com/yahoo/context-parser">Context Parser</a></li>
+              <li><a href="https://github.com/yahoo/secure-handlebars">Secure Handlebars</a></li>
+              <li><a href="https://github.com/yahoo/secure-handlebars-helpers">Secure Handlebars Helpers</a></li>
+              <li><a href="https://github.com/yahoo/express-secure-handlebars">Express Secure Handlebars</a></li>
             </ol>
           </div>
 
