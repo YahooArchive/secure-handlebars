@@ -13,7 +13,7 @@ var Handlebars = require('handlebars'),
     handlebarsUtils = require('./handlebars-utils.js');
 
 var hbsCreate = Handlebars.create,
-    privateFilters = ['y', 'yd', 'yc', 'yavd', 'yavs', 'yavu', 'yu', 'yuc', 'yubl', 'yufull', 'yceu', 'yced', 'yces', 'yceuu', 'yceud', 'yceus'],
+    privateFilters = ['yd', 'yc', 'yavd', 'yavs', 'yavu', 'yu', 'yuc', 'yubl', 'yufull', 'yceu', 'yced', 'yces', 'yceuu', 'yceud', 'yceus'],
     baseContexts = ['HTMLData', 'HTMLComment', 'SingleQuotedAttr', 'DoubleQuotedAttr', 'UnQuotedAttr'],
     contextPrefixes = ['in', 'uriIn', 'uriPathIn', 'uriQueryIn', 'uriComponentIn', 'uriFragmentIn'];
 
@@ -52,9 +52,24 @@ function overrideHbsCreate() {
         return c.call(this, preprocess(template, options.strictMode), options);
     };
 
+    // make y refer to the default escape function
+    h.registerHelper('y', Handlebars.escapeExpression);
+
+    // don't escape SafeStrings, since they're already safe according to Handlebars
+    // Reference: https://github.com/wycats/handlebars.js/blob/master/lib/handlebars/utils.js#L63-L82
+    function safeStringCompatibleFilter (filterName) {
+        return function (s) {
+            // Unlike escapeExpression(), return s instead of s.toHTML() since downstream
+            //  filters of the same chain has to be disabled too.
+            //  Handlebars will invoke SafeString.toString() at last during data binding
+            return (s && s.toHTML) ? s : privFilters[filterName](s);
+        };
+    }
+
+    /*jshint -W083 */
     // register below the filters that are automatically applied by context parser 
     for (i = 0; (filterName = privateFilters[i]); i++) {
-        h.registerHelper(filterName, privFilters[filterName]);
+        h.registerHelper(filterName, safeStringCompatibleFilter(filterName));
     }
 
     // register below the filters that might be manually applied by developers
