@@ -11,6 +11,12 @@ var handlebarsUtils = require('../src/handlebars-utils'),
 
 // for handlebars-3.0-spec test only
 var expressionTestPatterns = [
+
+    // NOTE: result[0]: it is being used in run-handlebars-3.0-spec.js for the AST object type from Handlebars 3.0
+    //       result[1]: it is being used in run-utils-spec.js for isValidExpression test.
+    //       result[2]: it is being used in run-cph-spec.js for consumeExpression test.
+    //       Empty string represents not being used in the unit tests testing.
+
     // valid syntax
     { syntax: '{{escapeexpression}}  ', type: '', rstr: '', result: [ 'MustacheStatement', '', '' ]},
     { syntax: '{{&escapeexpression}} ', type: '', rstr: '', result: [ 'MustacheStatement', '', '' ]},
@@ -238,48 +244,57 @@ exports.rawEndBlockTestPatterns = rawEndBlockTestPatterns;
 
 var escapeExpressionTestPatterns = [
     // valid syntax
-    { syntax: '{{expression}}               ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'expression', isSingleID: true, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{expression}}               ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'expression', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
     // it is fine to have space in the expression
-    { syntax: '{{  expression   }}          ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'expression', isSingleID: true, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{  expression   }}          ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'expression', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
     // it is fine to have whitespace control in the expression.
-    { syntax: '{{~ expression  ~}}          ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'expression', isSingleID: true, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{~ expression  ~}}          ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'expression', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
     // private variable  
-    { syntax: '{{@expression}}              ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'expression', isSingleID: true, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{@expression}}              ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'expression', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
     // private variable with space before  
-    { syntax: '{{@  expression  }}          ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'expression', isSingleID: true, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{@  expression  }}          ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'expression', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
     // private variable with space after/before  
-    { syntax: '{{  @  expression  }}        ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'expression', isSingleID: true, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{  @  expression  }}        ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'expression', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
     // dot as the ID
-    { syntax: '{{.}}                        ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: '.',          isSingleID: true, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{.}}                        ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: '.',          isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
     // with / as separator 
-    { syntax: '{{../name}}                  ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: '../name',    isSingleID: true, result: [ 'MustacheStatement', true, 11 ]},
-    { syntax: '{{../name ../name}}          ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: '../name',    isSingleID: false, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{../name}}                  ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: '../name',    isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
+    { syntax: '{{../name ../name}}          ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: '../name',    isSingleID: false, result: [ 'MustacheStatement', true, '' ]},
     // with dot as separator 
-    { syntax: '{{article.title}}            ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article.title', isSingleID: true, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{article.title}}            ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article.title', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
     // with / as separator 
-    { syntax: '{{article/title}}            ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article/title', isSingleID: true, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{article/title}}            ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article/title', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
     // with dot as separator and index
-    { syntax: '{{article.[10].[#comments]}} ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article.[10].[#comments]', isSingleID: true, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{article.[10].[#comments]}} ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article.[10].[#comments]', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
     // 2 expressions
-    { syntax: '{{exp1 exp2}}                ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1', isSingleID: false, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{exp1 exp2}}                ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1', isSingleID: false, result: [ 'MustacheStatement', true, '' ]},
     // 3 expressions
-    { syntax: '{{exp1 exp2 exp3}}           ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1', isSingleID: false, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{exp1 exp2 exp3}}           ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1', isSingleID: false, result: [ 'MustacheStatement', true, '' ]},
     // expression with param
-    { syntax: '{{exp1 (param1)}}            ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1', isSingleID: false, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{exp1 (param1)}}            ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1', isSingleID: false, result: [ 'MustacheStatement', true, '' ]},
     // expression with data param
-    { syntax: '{{exp1 (@param1)}}           ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1', isSingleID: false, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{exp1 (@param1)}}           ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1', isSingleID: false, result: [ 'MustacheStatement', true, '' ]},
     // expression with 2 params
-    { syntax: '{{exp1 (param1 param2)}}     ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1', isSingleID: false, result: [ 'MustacheStatement', true, 11 ]},
+    { syntax: '{{exp1 (param1 param2)}}     ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1', isSingleID: false, result: [ 'MustacheStatement', true, '' ]},
 
     // reserved char
-    { syntax: '{{/exp1}}                    ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: false, isSingleID: false, result: [ false, false, 11 ]},
-    { syntax: '{{#exp1}}                    ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: false, isSingleID: false, result: [ false, false, 11 ]},
-    { syntax: '{{>exp1}}                    ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: false, isSingleID: false, result: [ 'PartialStatement', false, 11 ]},
-    { syntax: '{{!exp1}}                    ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: false, isSingleID: false, result: [ 'CommentStatement', false, 11 ]},
+    { syntax: '{{/exp1}}                    ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: false, isSingleID: false, result: [ false, false, '' ]},
+    { syntax: '{{#exp1}}                    ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: false, isSingleID: false, result: [ false, false, '' ]},
+    { syntax: '{{>exp1}}                    ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: false, isSingleID: false, result: [ 'PartialStatement', false, '' ]},
+    { syntax: '{{!exp1}}                    ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: false, isSingleID: false, result: [ 'CommentStatement', false, '' ]},
     // it is fine to pass util test, as Handlebars parser will fails the second &exp2
-    { syntax: '{{exp1 &exp2}}               ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1',isSingleID: false, result: [ false, true, 11 ]},
+    { syntax: '{{exp1 &exp2}}               ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'exp1',isSingleID: false, result: [ false, true, '' ]},
     // we skip this pattern
-    { syntax: '{{}}                         ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: false, isSingleID: false, result: [ false, false, 11 ]},
+    { syntax: '{{}}                         ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: false, isSingleID: false, result: [ false, false, '' ]},
+
+    { syntax: '{{article.[a b].[c d]            }} ',      
+        type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article.[a b].[c d]', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
+    { syntax: '{{article.[a b].[c d]     something    }} ', 
+        type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article.[a b].[c d]', isSingleID: false, result: [ 'MustacheStatement', true, '' ]},
+    { syntax: '{{article/[a b]}} ',      
+        type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article/[a b]', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
+    { syntax: '{{article.[a\rb]}} ',      
+        type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article.[a\rb]', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
 ];
 exports.escapeExpressionTestPatterns = escapeExpressionTestPatterns;
 
