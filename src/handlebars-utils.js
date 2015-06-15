@@ -37,7 +37,7 @@ HandlebarsUtils.RAW_EXPRESSION = 1; // {{{expression}}}
 // HandlebarsUtils.rawExpressionRegExp = /^\{\{\{\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>\[\\\]\^`\{\|\}\~]+)\s*?\}\}\}(?!})/;
 HandlebarsUtils.rawExpressionRegExp = /^\{\{\{~?\s*@?\s*([^\s\}\{~]+)\s*([^\}\{~]*)~?\}\}\}(?!})/;
 
-/* '{{' '~'? 'space'* '@'? 'space'* ('not {}~'+) 'space'* ('not {}~'+) '~'? non-greedy '}}' and not follow by '}' */
+/* '{{' '~'? 'space'* '@'? 'space'* ('not {}~'+) '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.ESCAPE_EXPRESSION = 2; // {{expression}}
 HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?\s*@?\s*([^\}\{~]+)~?\}\}(?!})/;
 
@@ -121,7 +121,7 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
             break;
         case HandlebarsUtils.ESCAPE_EXPRESSION:
             re = HandlebarsUtils.escapeExpressionRegExp.exec(s);
-            if (re !== null && re[1] !== undefined) {
+            if (re) {
                 // NOTE: the re.index field is never been used.
                 var r = HandlebarsUtils.parseEscapeExpression(re[1]);
                 re[1] = r[1];
@@ -187,18 +187,23 @@ HandlebarsUtils.parseEscapeExpression = function(str) {
   var j=0, inSquareBracket = false,
       fstr = '', re = [];
 
-  str = str.trim(); // the new regexp will capture the tailing space.
+  // the new regexp will capture the tailing space.
+  str = str.replace(/\s+$/, '');
   while(j<str.length) {
       // space is defined as \s in the handlebars lex
-      if (str[j].match(/\s/) && !inSquareBracket) break;
-      if (str[j] === '[') inSquareBracket = true;
-      if (str[j] === ']') inSquareBracket = false;
+      if (str[j].match(/\s/) && !inSquareBracket) {
+          break;
+      } else if (str[j] === '[') {
+          inSquareBracket = true;
+      } else if (str[j] === ']') {
+          inSquareBracket = false;
+      }
       fstr += str[j];
       ++j;
   }
 
   re[1] = fstr;
-  re[2] = str.substring(j).trim();
+  re[2] = str.substring(j).replace(/^\s+/, '').replace(/\s+$/, '');
   return re;
 };
 

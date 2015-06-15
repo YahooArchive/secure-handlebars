@@ -287,9 +287,9 @@ var escapeExpressionTestPatterns = [
     // we skip this pattern
     { syntax: '{{}}                         ', type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: false, isSingleID: false, result: [ false, false, '' ]},
 
-    { syntax: '{{article.[a b].[c d]}} ',      
+    { syntax: '{{article.[a b].[c d]            }} ',      
         type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article.[a b].[c d]', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
-    { syntax: '{{article.[a b].[c d] something}} ', 
+    { syntax: '{{article.[a b].[c d]     something    }} ', 
         type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article.[a b].[c d]', isSingleID: false, result: [ 'MustacheStatement', true, '' ]},
     { syntax: '{{article/[a b]}} ',      
         type: handlebarsUtils.ESCAPE_EXPRESSION, rstr: 'article/[a b]', isSingleID: true, result: [ 'MustacheStatement', true, '' ]},
