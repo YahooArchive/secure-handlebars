@@ -1,1 +1,97 @@
-Error: Not Found<br> &nbsp; &nbsp;at /Volumes/TrueCrypt/devel/git.corp.js-templating-portal/index.js:9:3537<br> &nbsp; &nbsp;at Layer.handle [as handle_request] (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/layer.js:82:5)<br> &nbsp; &nbsp;at trim_prefix (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/index.js:302:13)<br> &nbsp; &nbsp;at /Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/index.js:270:7<br> &nbsp; &nbsp;at Function.proto.process_params (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/index.js:321:12)<br> &nbsp; &nbsp;at next (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/index.js:261:10)<br> &nbsp; &nbsp;at /Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/index.js:603:15<br> &nbsp; &nbsp;at next (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/index.js:246:14)<br> &nbsp; &nbsp;at Function.proto.handle (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/index.js:166:3)<br> &nbsp; &nbsp;at router (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/index.js:35:12)<br> &nbsp; &nbsp;at Layer.handle [as handle_request] (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/layer.js:82:5)<br> &nbsp; &nbsp;at trim_prefix (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/index.js:302:13)<br> &nbsp; &nbsp;at /Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/index.js:270:7<br> &nbsp; &nbsp;at Function.proto.process_params (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/index.js:321:12)<br> &nbsp; &nbsp;at next (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/lib/router/index.js:261:10)<br> &nbsp; &nbsp;at SendStream.error (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/node_modules/serve-static/index.js:107:7)<br> &nbsp; &nbsp;at SendStream.emit (events.js:107:17)<br> &nbsp; &nbsp;at SendStream.error (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/node_modules/send/index.js:250:17)<br> &nbsp; &nbsp;at SendStream.onStatError (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/node_modules/send/index.js:346:48)<br> &nbsp; &nbsp;at onstat (/Volumes/TrueCrypt/devel/git.corp.js-templating-portal/node_modules/express/node_modules/send/index.js:597:26)<br> &nbsp; &nbsp;at FSReqWrap.oncomplete (fs.js:95:15)
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+    <title>Safe JavaScript Templating</title>
+    <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
+    <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
+    <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
+    <link rel="stylesheet" href="stylesheets/security.css" type="text/css" />
+
+    <!-- Bootstrap -->
+    <link href="stylesheets/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+
+    <link href="stylesheets/blog.css" rel="stylesheet">
+    <link href="stylesheets/carousel.css" rel="stylesheet">
+
+    <!-- jquery -->
+    <script src="javascripts/jquery.min.js"></script>
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9] >
+      <script src="javascripts/html5shiv.min.js"></script>
+      <script src="javascripts/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+    <body>
+    <div class="header">
+      <h1 class="header-logo">
+      </h1>
+    </div>
+
+        <div class="blog-masthead">
+          <div class="container">
+            <nav class="blog-nav">
+              <a class="blog-nav-item active" href="./">Safe JS Templating</a>
+              <a class="blog-nav-item " href="./gettingstart.html">Getting Started</a>
+              <a class="blog-nav-item " href="./demosContextParserHandlebars.html">Demos</a>
+              <a class="blog-nav-item " href="./bugBounty.html">Bug Bounty</a>
+            </nav>
+          </div>
+        </div>
+
+    <div class="container">
+      <!-- grid system: http://getbootstrap.com/css/#grid -->
+      <div class="row">
+        <div class="col-md-12 blog-main">
+          <h2 class="header-badge">Safe JavaScript Templating</h2>
+          <p class="text-center">Our novel approach to defend JavaScript Templating solutions against Cross-site Scripting (XSS).</p>
+          <div class="security-cta">
+            <form action="./safejstemplating.html" method="get">
+              <button type="submit">Secure Handlebars</button>
+            </form> 
+          </div>
+          <p class="text-center"><a href="./demosContextParserHandlebars.html">Try our demo!</a></p>
+        </div> <!-- blog main -->
+
+        <div>&nbsp;</div>
+
+        <div class="col-md-12 blog-post">
+          <div class="col-md-6 blog-post">
+          <h2>Why filtering is HARD?</h2>
+          <p class="text-justify"><a href="https://en.wikipedia.org/wiki/Cross-site_scripting">Cross Site Scripting</a> (a.k.a. XSS) has long been ranked among Top 3 in the <a href="https://owasp.org/index.php/Top_10_2013">OWASP Top 10</a> for more than a decade. Web applications taking untrusted user inputs, keeping them intact without proper validations, and sending them back as part of the HTML are vulnerable to XSS. Nevertheless, why is XSS still being ranked among consistently high in OWASP Top 10? <a href="./filteringishard.html">Learn more...</a></p>
+          </div>
+
+          <div class="col-md-6 blog-post">
+          <h2>JS Templating is UNSAFE!</h2>
+          <p class="text-justify">Intended to defend aganist Cross-Site Scripting (XSS), the JS Templating libraries are defaulted to apply automatic HTML escaping on the untrusted binding outputs. However, it is known to be still VULNERABLE to XSS! <a href="./autoescaping.html">Learn more...</a></p>
+          </div>
+        </div><!-- blog-post -->
+
+      </div><!-- row -->
+    </div><!-- container -->
+
+    <div class="footer">
+    <a href="https://policies.yahoo.com/us/en/yahoo/privacy/index.htm" target="_blank">Privacy</a> |
+    <a href="https://policies.yahoo.com/us/en/yahoo/terms/utos/index.htm" target="_blank">Legal</a>
+    </div>
+        <!-- Bootstrap core JavaScript
+        ================================================== -->
+        <!-- Placed at the end of the document so the pages load faster -->
+        <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+        <script src="javascripts/jquery.min.js"></script>
+        <!-- Include all compiled plugins (below), or include individual files as needed -->
+        <script src="javascripts/bootstrap.min.js"></script>
+    
+        <script src="javascripts/docs.min.js"></script>
+        <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+        <script src="javascripts/ie10-viewport-bug-workaround.js"></script>
+    
+      </body>
+    </html>
