@@ -3,3 +3,21 @@ node_js:
 - '0.12'
 - '0.11'
 - '0.10'
+notifications:
+  email:
+    recipients:
+    - neraliu@yahoo-inc.com
+  on_success: change
+  on_failure: always
+after_success:
+- test $(cat $TRAVIS_BUILD_DIR/package.json | grep version | awk '{print $2}' | sed
+  's/"//g' | sed 's/,//g' | awk '{print "v"$1}' ) = $TRAVIS_TAG && export VALID_VERSION=true
+deploy:
+  provider: npm
+  email: neraliu@yahoo-inc.com
+  api_key:
+    secure: TNDHDZslbeI3CKi50Pe6wR6ZN+iAGsfaZ3+mFP/2w761bQV0Yc2Dbt2mP57sV8OHhP3XeKG7F3WXVLks9gu/pre6QObBQQEZlv7ojJKbvU+MYgedMw5VuehPT5Q8bz8mngkYvckL7uLegXiqTbPhsohfK00/xGzla0/RePeklpM=
+  on:
+    condition: $VALID_VERSION = true
+    tags: true
+    branch: master
