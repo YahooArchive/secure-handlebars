@@ -4,7 +4,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>What is Auto Escaping?</title>
+    <title></title>
     <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
@@ -38,8 +38,8 @@
         <div class="blog-masthead">
           <div class="container">
             <nav class="blog-nav">
-              <a class="blog-nav-item active" href="./">Safe JS Templating</a>
-              <a class="blog-nav-item " href="./gettingstart.html">Getting Started</a>
+              <a class="blog-nav-item " href="./">Safe JS Templating</a>
+              <a class="blog-nav-item active" href="./gettingstart.html">Getting Started</a>
               <a class="blog-nav-item " href="./demosContextParserHandlebars.html">Demos</a>
               <a class="blog-nav-item " href="./bugBounty.html">Bug Bounty</a>
             </nav>
@@ -50,59 +50,50 @@
       <!-- grid system: http://getbootstrap.com/css/#grid -->
       <div class="row">
         <div class="col-md-12 blog-main">
-          <h2 class="header-badge">What is Auto Escaping?</h2>
-          <p class="text-center">It is the default strategy in JavaScript Templating by auto HTML escaping the output to defend aganist cross site scripting (XSS)</p>
+          <h2 class="header-badge"></h2>
+          <p class="text-center"></p>
         </div> <!-- blog main -->
 
         <div class="col-md-8 blog-post">
           <div class="col-md-12 blog-post">
-            <h2>What is Auto Escaping?</h2>
-            <p class="text-justify">Auto Escaping is applied by JS Templating engines to mitigate Cross-Site Scripting (XSS). It works by encoding all harmful characters originated from untrusted inputs, and thus preventing browsers from interpreting them as HTML entities, which otherwise could lead to malicious script injections and executions.</p>
-            <p class="text-justify">Here we summarize those characters that are considered dangerous by the Auto Escaping approach:
-	    <table class="table table-bordered">
-	      <tbody>
-              <tr><td><b>Characters</b></td><td>&gt;</td><td>&lt;</td><td>&quot;</td><td>&apos;</td><td>&amp;</td></tr>
-              <tr><td><b>Characters (encoded)</b></td><td>&amp;gt;</td><td>&amp;lt;</td><td>&amp;quot;</td><td>&amp;apos;</td><td>&amp;amp;</td></tr>
-  	      </tbody>
-            </table>
-	    </p>
-            <p class="text-justify">While the approach can defend against some XSS vulnerabilities, it may give a false sense of security that the XSS problem is solved.</p>
+            <h2>I am new to JavaScript Templating</h2>
+            <p class="text-justify">I am new to JavaScript Templating...</p>
+            <p class="text-justify">We strongly recommened you to start with our <a href="https://www.npmjs.com/package/express-secure-handlebars">integrated Context Parser</a> with Handlebars on Express framework</p>
           </div><!-- blog-post -->
 
           <div class="col-md-12 blog-post">
-            <h2>What's wrong?</h2>
-            <p class="text-justify">Some JS templating engines miss characters that could lead to XSS. Taking DustJS and Handlerbars as examples, the table below summerizes which dangerous characters are encoded by their auto escaping implementations.</p>
-	    <table class="table table-bordered">
-	      <tbody>
-	      <tr><td>Characters</td><td>&gt;</td><td>&lt;</td><td>&quot;</td><td>&apos;</td><td>&amp;</td><td>SPACE</td></tr>
-	      <tr><td><b>DustJS</b></td><td>&amp;gt;</td><td>&amp;lt;</td><td>&amp;quot;</td><td>&amp;apos;</td><td>&amp;amp;</td><td><font color="red">SPACE</font></td></tr>
-	      <tr><td><b>Handlebars</b></td><td>&amp;gt;</td><td>&amp;lt;</td><td>&amp;quot;</td><td>&amp;apos;</td><td>&amp;amp;</td><td><font color="red">SPACE</font></td></tr>
-  	      </tbody>
-            </table>
-
-            <p class="text-justify">The dangerous characters are blindly encoded without considering the output execution contexts. According to the encoding character sets, both DustJS and HandlebarsJS do not encode space (&nbsp;) characters, which are arguably legitimate user inputs. However, it could be used as a XSS attack vector depending on the output context.</p>
-            <blockquote>
-              <h3>Example of Vulnerability</h3>
-              <ul>
-                <li>Visit <a href="https://linkedin.github.io/dustjs/test/test.html">the official DustJS demo page</a></li>
-                <li>Use &lt;input value={untrusted}/&gt; as template</li>
-                <li>Use {&quot;untrusted&quot;: &quot;<span style="color:#F00">break_the_context</span> <span style="color:#F00"> onblur=alert(1)</span>&quot;} as data input</li>
-                <li>After data binding, the output becomes &lt;input value=<span style="color:#F00">break_the_context onblur=alert(1)</span>/&gt;</li>
-                <li>Again, when rendered by browsers, you will see the alert prompt when the input box is out of focus.</li>
-              </ul>
-            </blockquote>
+            <h2>I am using the Handlebars in client side</h2>
+            <p class="text-justify">I am using the Handlebars in client side...</p>
+            <p class="text-justify">You can integrate our Context Parser with Handlebars by precompiling the original template files with our <a href="https://www.npmjs.com/package/secure-handlebars">secure-handlebars</a> and registering the required <a href="https://www.npmjs.com/package/secure-handlebars-helpers">secure XSS output filters</a> as handlebars' helpers at the client side.</p>
           </div><!-- blog-post -->
 
           <div class="col-md-12 blog-post">
-            <h2>Our Context-aware Solution</h2>
-            <p class="text-justify">The solution is to (1) parse the HTML template files to analyze the output execution context, and (2) apply context-sensitive encoding accordingly.</p>
+            <h2>I am using the Express/Handlebars framework</h2>
+            <p class="text-justify">I am using the Express/Handlebars framework...</p>
+            <p class="text-justify">You can integrate the Context Parser with Handlebars on Express framework at server side with our <a href="https://www.npmjs.com/package/express-secure-handlebars">express-secure-handlebars</a> npm package.</p>
+          </div><!-- blog-post -->
+
+          <div class="col-md-12 blog-post">
+            <h2>I want to apply XSS Filters manually</h2>
+            <p class="text-justify">I want to apply XSS Filters manually</p>
+            <p class="text-justify">You can start with this article to understand how our APIs being designed for our <a href="https://www.npmjs.com/package/xss-filters">XSS Filters</a>!</p>
+          </div>
+
+          <div class="col-md-12 blog-post">
+            <h2>more...</h2>
+            <p class="text-justify">If you want to have support on other templating engines, please request through <a href="https://github.com/yahoo/context-parser/issues">github issues</a>.</p>
           </div><!-- blog-post -->
         </div><!-- col-md-8 blog-post -->
 
         <div class="col-md-3 col-md-offset-1 blog-sidebar">
           <div class="sidebar-module sidebar-module-inset">
-          <h4>What's JavaScript Templating?</h4>
-          <p>JavaScript templating refers to the client side data binding method implemented with the JavaScript language.</p>
+          <h4>What's Express?</h4>
+          <p>Express is a minimal and flexible Node.js web application framework that provides a robust set of features for web and mobile applications.</p>
+          </div>
+
+          <div class="sidebar-module sidebar-module-inset">
+          <h4>What's Handlebars?</h4>
+          <p>Handlebars.js is an extension to the Mustache templating language created by Chris Wanstrath.</p>
           </div>
 
           <div class="sidebar-module">
@@ -130,8 +121,10 @@
 
             <h4>References</h4>
             <ol class="list-unstyled">
-            <li><a href="https://en.wikipedia.org/wiki/JavaScript_templating">JavaScript Templating</a></li>
+              <li><a href="http://expressjs.com/">Express</a></li>
+              <li><a href="http://handlebarsjs.com/">Handlebars</a></li>
             </ol>
+
           </div>
 
           <a class="back-to-top" href="#top">
@@ -140,13 +133,8 @@
         </div><!-- col-md-3 col-md-offset-1 blog-sidebar-->
 
         <div class="col-md-12 blog-post">
-          <div class="security-cta">
-            <form action="./contextparser.html" method="get">
-              <button type="submit">Continue</button>
-            </form>
-          </div>
-          <p class="text-center"><a href="./filteringishard.html">Back</a></p>
-        </div> <!-- blog post -->     
+          <p class="text-center"><a href="./">Back</a></p>
+        </div> <!-- blog post -->
 
       </div><!-- row -->
     </div><!-- container -->

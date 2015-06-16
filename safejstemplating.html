@@ -4,7 +4,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>Safe JavaScript Templating</title>
+    <title>Secure Handlebars</title>
     <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
@@ -23,13 +23,14 @@
     <script src="javascripts/jquery.min.js"></script>
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
-    <!--[if lt IE 9]>
+    <!--[if lt IE 9] >
       <script src="javascripts/html5shiv.min.js"></script>
       <script src="javascripts/respond.min.js"></script>
     <![endif]-->
   </head>
 
     <body>
+    <a href="https://github.com/yahoo/secure-handlebars"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/652c5b9acfaddf3a9c326fa6bde407b87f7be0f4/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6f72616e67655f6666373630302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png"></a>
     <div class="header">
       <h1 class="header-logo">
       </h1>
@@ -38,8 +39,8 @@
         <div class="blog-masthead">
           <div class="container">
             <nav class="blog-nav">
-              <a class="blog-nav-item " href="./">Safe JS Templating</a>
-              <a class="blog-nav-item active" href="./safejstemplating.html">Getting Started</a>
+              <a class="blog-nav-item active" href="./">Safe JS Templating</a>
+              <a class="blog-nav-item " href="./gettingstart.html">Getting Started</a>
               <a class="blog-nav-item " href="./demosContextParserHandlebars.html">Demos</a>
               <a class="blog-nav-item " href="./bugBounty.html">Bug Bounty</a>
             </nav>
@@ -50,51 +51,31 @@
       <!-- grid system: http://getbootstrap.com/css/#grid -->
       <div class="row">
         <div class="col-md-12 blog-main">
-          <h2 class="header-badge">Safe JavaScript Templating</h2>
-          <p class="text-center">We support Handlebars JavaScript Templating engine with our Context Parser and XSS Filters alone. Please select your favor!</p>
+          <h2 class="header-badge">Secure Handlebars</h2>
+          <p class="text-center">We support Handlebars JavaScript Templating engine with our Context Parser and XSS Filters alone.</p>
           <div class="security-cta">
             <form action="./demosContextParserHandlebars.html" method="get">
               <button type="submit">Try our demo</button>
             </form>
           </div>
-          <p class="text-center"><a href="https://www.npmjs.com/package/express-secure-handlebars">Integrate now!</a></p>
+          <p class="text-center"><a href="./gettingstart.html">Getting Started</a></p>
         </div> <!-- blog main -->
 
         <div class="col-md-8 blog-post">
           <div class="col-md-12 blog-post">
-            <h2>I am new to JavaScript Templating</h2>
-            <p class="text-justify">I am new to JavaScript Templating...</p>
-            <p class="text-justify">We strongly recommened you to start with our <a href="https://www.npmjs.com/package/express-secure-handlebars">integrated Context Parser</a> with Handlebars on Express framework</p>
-          </div><!-- blog-post -->
+              <p class="text-justify">In order to make our solution usable, we apply our solution to one of the most popular JavaScript Templating engines <a href="http://handlebarsjs.com/">Handlebars</a>. We hook our solution as a pre-processing process of the original Handlebars workflow as shown below, we analyze the output contexts of the templates and rewrite the templates compatible to Handlebars supported syntax, and register/apply our context-aware XSS filters as Handlebars supported helpers during the data binding process. In this way, we integrate our work as a pre-processing step without affecting the original data flow of Handlebars, making the solution to be integrated easily.</p>
 
-          <div class="col-md-12 blog-post">
-            <h2>I am using the Handlebars in client side</h2>
-            <p class="text-justify">I am using the Handlebars in client side...</p>
-            <p class="text-justify">You can integrate our Context Parser with Handlebars by precompiling the original template files with our <a href="https://www.npmjs.com/package/secure-handlebars">secure-handlebars</a> and registering the required <a href="https://www.npmjs.com/package/secure-handlebars-helpers">secure XSS output filters</a> as handlebars' helpers at the client side.</p>
-          </div><!-- blog-post -->
+              <p class="text-justify"><img src="assets/images/secure-handlebars.png"/>Figure 1 - Secure Handlebars</p>
 
-          <div class="col-md-12 blog-post">
-            <h2>I am using the Express/Handlebars framework</h2>
-            <p class="text-justify">I am using the Express/Handlebars framework...</p>
-            <p class="text-justify">You can integrate the Context Parser with Handlebars on Express framework at server side with our <a href="https://www.npmjs.com/package/express-secure-handlebars">express-secure-handlebars</a> npm package.</p>
-          </div><!-- blog-post -->
-
-          <div class="col-md-12 blog-post">
-            <h2>I want to apply XSS Filters manually</h2>
-            <p class="text-justify">I want to apply XSS Filters manually</p>
-            <p class="text-justify">You can start with this article to understand how our APIs being designed for our <a href="https://www.npmjs.com/package/xss-filters">XSS Filters</a>!</p>
+              <p class="text-justify">On top of that, we have extended our solution on the <a href="expressjs.com">Express</a> framework as <a href="https://www.npmjs.com/package/express-secure-handlebars">express-secure-handlebars</a> npm package.</p>
+              <blockquote>You can enable our solution with 2 lines of modification! Check <a href="https://www.npmjs.com/package/express-secure-handlebars">this</a> out!!</blockquote>
           </div>
-
-          <div class="col-md-12 blog-post">
-            <h2>more...</h2>
-            <p class="text-justify">If you want to have support on other templating engines, please request through <a href="https://github.com/yahoo/context-parser/issues">github issues</a>.</p>
-          </div><!-- blog-post -->
         </div><!-- col-md-8 blog-post -->
 
         <div class="col-md-3 col-md-offset-1 blog-sidebar">
           <div class="sidebar-module sidebar-module-inset">
           <h4>What's Express?</h4>
-          <p class="text-justify">Express is a minimal and flexible Node.js web application framework that provides a robust set of features for web and mobile applications.</p>
+          <p>Express is a minimal and flexible Node.js web application framework that provides a robust set of features for web and mobile applications.</p>
           </div>
 
           <div class="sidebar-module sidebar-module-inset">
@@ -103,19 +84,27 @@
           </div>
 
           <div class="sidebar-module">
-            <h4>Quick Links</h4>
-            <ol class="list-unstyled">
-              <li><a href="./safejstemplating.html">Getting Started</a></li>
-            </ol>
-
-            <h4>Source Code</h4>
-            <ol class="list-unstyled">
-              <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
-              <li><a href="https://github.com/yahoo/context-parser">Context Parser</a></li>
-              <li><a href="https://github.com/yahoo/secure-handlebars">Secure Handlebars</a></li>
-              <li><a href="https://github.com/yahoo/secure-handlebars-helpers">Secure Handlebars Helpers</a></li>
-              <li><a href="https://github.com/yahoo/express-secure-handlebars">Express Secure Handlebars</a></li>
-            </ol>
+                        <h4>Quick Links</h4>
+                        <ol class="list-unstyled">
+                          <li><a href="./safejstemplating.html">Getting Started</a></li>
+                        </ol>
+            
+                        <h4>Related Articles</h4>
+                        <ol class="list-unstyled">
+                          <li><a href="./filteringishard.html">Filtering is Hard!</a></li>
+                          <li><a href="./autoescaping.html">What is Auto Escaping?</a></li>
+                          <li><a href="./contextparser.html">Our Context Parser</a></li>
+                          <li><a href="./safejstemplating.html">Safe JS Templating</a></li>
+                        </ol>
+            
+                        <h4>Source Code</h4>
+                        <ol class="list-unstyled">
+                          <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
+                          <li><a href="https://github.com/yahoo/context-parser">Context Parser</a></li>
+                          <li><a href="https://github.com/yahoo/secure-handlebars">Secure Handlebars</a></li>
+                          <li><a href="https://github.com/yahoo/secure-handlebars-helpers">Secure Handlebars Helpers</a></li>
+                          <li><a href="https://github.com/yahoo/express-secure-handlebars">Express Secure Handlebars</a></li>
+                        </ol>
 
             <h4>References</h4>
             <ol class="list-unstyled">
@@ -123,12 +112,6 @@
               <li><a href="http://handlebarsjs.com/">Handlebars</a></li>
             </ol>
 
-            <h4>Related Articles</h4>
-            <ol class="list-unstyled">
-              <li><a href="./filteringishard.html">Filtering is Hard!</a></li>
-              <li><a href="./autoescaping.html">What is Auto Escaping?</a></li>
-              <li><a href="./contextparser.html">Our Context Parser</a></li>
-            </ol>
           </div>
 
           <a class="back-to-top" href="#top">
@@ -137,6 +120,11 @@
         </div><!-- col-md-3 col-md-offset-1 blog-sidebar-->
 
         <div class="col-md-12 blog-post">
+          <div class="security-cta">
+            <form action="./gettingstart.html" method="get">
+              <button type="submit">Getting Started</button>
+            </form>
+          </div>
           <p class="text-center"><a href="./">Back</a></p>
         </div> <!-- blog post -->
 
