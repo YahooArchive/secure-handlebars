@@ -4,7 +4,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>Secure Handlebars</title>
+    <title>Introducing Secure Handlebars</title>
     <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
@@ -41,7 +41,7 @@
             <nav class="blog-nav">
               <a class="blog-nav-item active" href="./">Safe JS Templating</a>
               <a class="blog-nav-item " href="./gettingstart.html">Getting Started</a>
-              <a class="blog-nav-item " href="./demosContextParserHandlebars.html">Demos</a>
+              <a class="blog-nav-item " href="./demosSecureHandlebars.html">Demos</a>
               <a class="blog-nav-item " href="./bugBounty.html">Bug Bounty</a>
             </nav>
           </div>
@@ -51,25 +51,62 @@
       <!-- grid system: http://getbootstrap.com/css/#grid -->
       <div class="row">
         <div class="col-md-12 blog-main">
-          <h2 class="header-badge">Secure Handlebars</h2>
-          <p class="text-center">We support Handlebars JavaScript Templating engine with our Context Parser and XSS Filters alone.</p>
+          <h2 class="header-badge">Introducing Secure Handlebars</h2>
+          <p class="text-center">The first template engine applied with our automatic contextual XSS escaping solution</p>
           <div class="security-cta">
-            <form action="./demosContextParserHandlebars.html" method="get">
+            <form action="./demosSecureHandlebars.html" method="get">
               <button type="submit">Try our demo</button>
             </form>
           </div>
-          <p class="text-center"><a href="./gettingstart.html">Getting Started</a></p>
+          <br><!--p class="text-center"><a href="./gettingstart.html">Getting Started</a></p-->
         </div> <!-- blog main -->
 
         <div class="col-md-8 blog-post">
           <div class="col-md-12 blog-post">
-              <p class="text-justify">In order to make our solution usable, we apply our solution to one of the most popular JavaScript Templating engines <a href="http://handlebarsjs.com/">Handlebars</a>. We hook our solution as a pre-processing process of the original Handlebars workflow as shown below, we analyze the output contexts of the templates and rewrite the templates compatible to Handlebars supported syntax, and register/apply our context-aware XSS filters as Handlebars supported helpers during the data binding process. In this way, we integrate our work as a pre-processing step without affecting the original data flow of Handlebars, making the solution to be integrated easily.</p>
+              <p class="text-justify">To demostrate our solution, we apply it to one of the most popular JavaScript Templating engines - <a href="http://handlebarsjs.com/">Handlebars</a>. The solution is hooked as a pre-processing process of the original Handlebars as shown below.</p>
 
               <p class="text-justify"><img src="assets/images/secure-handlebars.png"/>Figure 1 - Secure Handlebars</p>
 
-              <p class="text-justify">On top of that, we have extended our solution on the <a href="expressjs.com">Express</a> framework as <a href="https://www.npmjs.com/package/express-secure-handlebars">express-secure-handlebars</a> npm package.</p>
-              <blockquote>You can enable our solution with 2 lines of modification! Check <a href="https://www.npmjs.com/package/express-secure-handlebars">this</a> out!!</blockquote>
+              <p class="text-justify">In particular, the solution works independently by:
+                <ul style="list-style:inherit" class="text-justify">
+                  <li>analyzing templates to identify contexts of output expressions;</li>
+                  <li>inserting contextual filters to templates, of which the markup is compatible with Handlebars;</li>
+                  <li>registering the filter implementations as Handlebars helpers, to be used during data binding.</li>
+                </ul>
+              </p>
+              <p class="text-justify">
+                By such a loosely-coupled design, the original data flow of Handlebars is kept intact. This enables Handlebars to perform compilation and data binding using the processed templates alone, without incurring any runtime overheads for template analysis.
+              </p>
+              <div class="security-cta">
+                <form action="https://www.npmjs.com/package/secure-handlebars" method="get">
+                  <button type="submit">Get Started w/Secure Handlebars</button>
+                </form>
+              </div>
+
+              <br>
+              <h4>All it needs is 2 lines of code changes!</h4>
+              <p class="text-justify">What is easier than adopting the solution with 2 lines of code changes? We know it's exactly what you want! Here's the <a href="https://www.npmjs.com/package/express-secure-handlebars">express-secure-handlebars</a> npm package, readily available for those using the <a href="expressjs.com">Express</a> framework.</p>
+              <div class="security-cta">
+                <form action="https://www.npmjs.com/package/express-secure-handlebars" method="get">
+                  <button type="submit">Get Started w/Express Secure Handlebars</button>
+                </form>
+              </div>
           </div>
+
+          <div class="col-md-12 blog-post">
+              <h4>Secure Handlebars is empowered by the following technologies...</h4>
+          </div>
+
+          <div class="col-md-6 blog-post">
+              <h3>Context Parser</h3>
+              <p class="text-justify">Context Parsing is our solution to understand the execution contexts of the HTML5 web pages according to the <a href="https://html.spec.whatwg.org/multipage/">HTML5 WHATWG specification</a>, and we mainly focus on the Tokenization process only, instead of implementing the end-to-end model of the HTML5 parser, to make our code base tiny and speedy. <a href="./contextparser.html">Learn more...</a></p>
+          </div>
+
+          <div class="col-md-6 blog-post">
+              <h3>XSS Filters</h3>
+              <p class="text-justify"><a herf="https://github.com/yahoo/xss-filters">XSS-Filters</a> is the context-aware output filters for web applications. The design principle is to apply the filtering rules based on the output contexts in order to achieve the goal of “Just sufficient filtering”. This design principle is to address over-filtering and insufficient filtering through context awareness in the output, in order to provide a developer friendly and secure solution to web applications. <a href="https://github.com/yahoo/xss-filters/blob/master/README.md">Learn more...</a></p>
+          </div>
+
         </div><!-- col-md-8 blog-post -->
 
         <div class="col-md-3 col-md-offset-1 blog-sidebar">
@@ -86,24 +123,25 @@
           <div class="sidebar-module">
                         <h4>Quick Links</h4>
                         <ol class="list-unstyled">
-                          <li><a href="./safejstemplating.html">Getting Started</a></li>
+                          <li><a href="./gettingstart.html">Getting Started</a></li>
                         </ol>
             
                         <h4>Related Articles</h4>
                         <ol class="list-unstyled">
                           <li><a href="./filteringishard.html">Filtering is Hard!</a></li>
-                          <li><a href="./autoescaping.html">What is Auto Escaping?</a></li>
-                          <li><a href="./contextparser.html">Our Context Parser</a></li>
-                          <li><a href="./safejstemplating.html">Safe JS Templating</a></li>
+                          <li><a href="./blindlyescaping.html">Blindly-escaping is Insufficient</a></li>
+                          <li><a href="./safejstemplating.html">Automatic Contextual Escaping</a></li>
+                          <li>&nbsp; - <a href="./contextparser.html">Context Parser</a></li>
+                          <li>&nbsp; - <a href="https://github.com/yahoo/xss-filters/blob/master/README.md">XSS Filters</a></li>
                         </ol>
             
                         <h4>Source Code</h4>
                         <ol class="list-unstyled">
-                          <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
-                          <li><a href="https://github.com/yahoo/context-parser">Context Parser</a></li>
+                          <li><a href="https://github.com/yahoo/express-secure-handlebars">Express Secure Handlebars</a></li>
                           <li><a href="https://github.com/yahoo/secure-handlebars">Secure Handlebars</a></li>
                           <li><a href="https://github.com/yahoo/secure-handlebars-helpers">Secure Handlebars Helpers</a></li>
-                          <li><a href="https://github.com/yahoo/express-secure-handlebars">Express Secure Handlebars</a></li>
+                          <li><a href="https://github.com/yahoo/context-parser">Context Parser</a></li>
+                          <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
                         </ol>
 
             <h4>References</h4>
@@ -120,11 +158,6 @@
         </div><!-- col-md-3 col-md-offset-1 blog-sidebar-->
 
         <div class="col-md-12 blog-post">
-          <div class="security-cta">
-            <form action="./gettingstart.html" method="get">
-              <button type="submit">Getting Started</button>
-            </form>
-          </div>
           <p class="text-center"><a href="./">Back</a></p>
         </div> <!-- blog post -->
 

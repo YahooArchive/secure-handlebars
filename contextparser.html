@@ -41,7 +41,7 @@
             <nav class="blog-nav">
               <a class="blog-nav-item active" href="./">Safe JS Templating</a>
               <a class="blog-nav-item " href="./gettingstart.html">Getting Started</a>
-              <a class="blog-nav-item " href="./demosContextParserHandlebars.html">Demos</a>
+              <a class="blog-nav-item " href="./demosSecureHandlebars.html">Demos</a>
               <a class="blog-nav-item " href="./bugBounty.html">Bug Bounty</a>
             </nav>
           </div>
@@ -59,7 +59,7 @@
           <div class="col-md-12 blog-post">
             <h2>How to solve XSS?</h2>
             <p class="text-justify">In order to mitigate the XSS vulnerability in the web applications, we need to address two biggest challenges.</p>
-            <blockquote>Understanding the execution contexts according to the <a href="https://html.spec.whatwg.org/multipage/">HTML5 WHATWG specification</a> and apply context-sensitive encoding filters, unlike the widely-used <a href="./autoescaping.html">Auto Escaping</a> approach that blindly applies the same encoder on every output.</blockquote>
+            <blockquote>Understanding the execution contexts according to the <a href="https://html.spec.whatwg.org/multipage/">HTML5 WHATWG specification</a> and apply context-sensitive encoding filters, unlike the widely-used <a href="./blindlyescaping.html">Auto Escaping</a> approach that blindly applies the same encoder on every output.</blockquote>
             <blockquote>Addressing the cross browsers compatibility issue of some browsers do not fully compliant with the HTML5. This issue fails our execution contexts analysis and leads to wrong judgement of XSS filters.</blockquote>
           </div>
 
@@ -89,11 +89,6 @@
 	    <h3>Canonicalization</h3>
             <p class="text-justify">It is a process to convert the inputting HTML and rewrite it to be HTML5 compliant.</p>
           </div><!-- blog-post -->
-
-          <div class="col-md-12 blog-post">
-            <h2>Safe JavaScript Templating</h2>
-            <p class="text-justify">Empowered by our Context Parser, we identify the HTML5 execution context before applying the corresponding filter on the output. This capability allows us to integrate with different JavaScript templating engines and make them XSS free.</p>
-          </div><!-- blog-post -->
         </div><!-- col-md-8 blog-post -->
 
         <div class="col-md-3 col-md-offset-1 blog-sidebar">
@@ -105,24 +100,25 @@
           <div class="sidebar-module">
                         <h4>Quick Links</h4>
                         <ol class="list-unstyled">
-                          <li><a href="./safejstemplating.html">Getting Started</a></li>
+                          <li><a href="./gettingstart.html">Getting Started</a></li>
                         </ol>
             
                         <h4>Related Articles</h4>
                         <ol class="list-unstyled">
                           <li><a href="./filteringishard.html">Filtering is Hard!</a></li>
-                          <li><a href="./autoescaping.html">What is Auto Escaping?</a></li>
-                          <li><a href="./contextparser.html">Our Context Parser</a></li>
-                          <li><a href="./safejstemplating.html">Safe JS Templating</a></li>
+                          <li><a href="./blindlyescaping.html">Blindly-escaping is Insufficient</a></li>
+                          <li><a href="./safejstemplating.html">Automatic Contextual Escaping</a></li>
+                          <li>&nbsp; - <a href="./contextparser.html">Context Parser</a></li>
+                          <li>&nbsp; - <a href="https://github.com/yahoo/xss-filters/blob/master/README.md">XSS Filters</a></li>
                         </ol>
             
                         <h4>Source Code</h4>
                         <ol class="list-unstyled">
-                          <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
-                          <li><a href="https://github.com/yahoo/context-parser">Context Parser</a></li>
+                          <li><a href="https://github.com/yahoo/express-secure-handlebars">Express Secure Handlebars</a></li>
                           <li><a href="https://github.com/yahoo/secure-handlebars">Secure Handlebars</a></li>
                           <li><a href="https://github.com/yahoo/secure-handlebars-helpers">Secure Handlebars Helpers</a></li>
-                          <li><a href="https://github.com/yahoo/express-secure-handlebars">Express Secure Handlebars</a></li>
+                          <li><a href="https://github.com/yahoo/context-parser">Context Parser</a></li>
+                          <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
                         </ol>
 
             <h4>References</h4>
@@ -142,7 +138,7 @@
               <button type="submit">Continue</button>
             </form>
           </div>
-          <p class="text-center"><a href="./autoescaping.html">Back</a></p>
+          <p class="text-center"><a href="./blindlyescaping.html">Back</a></p>
         </div> <!-- blog post -->
 
       </div><!-- row -->

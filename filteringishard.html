@@ -40,7 +40,7 @@
             <nav class="blog-nav">
               <a class="blog-nav-item active" href="./">Safe JS Templating</a>
               <a class="blog-nav-item " href="./gettingstart.html">Getting Started</a>
-              <a class="blog-nav-item " href="./demosContextParserHandlebars.html">Demos</a>
+              <a class="blog-nav-item " href="./demosSecureHandlebars.html">Demos</a>
               <a class="blog-nav-item " href="./bugBounty.html">Bug Bounty</a>
             </nav>
           </div>
@@ -76,13 +76,6 @@
             <p class="text-justify">Besides the number of combinations of different output contexts, the filtering order is also critical to the filtering mechanism. The filtering order must be the same as the execution order of the contexts being invoked by the web browser and with the blacklist filter at the end of the filtering rules. When the developer puts the untrusted user input at the “href” attribute value as shown in Figure 2, the correct order is to apply the URI validation before the HTML attribute value filtering and with the HTTP protocol blacklist filter at the end to make it secure.
             <img src="assets/images/multiple-contexts.png"/>Figure 2 - User input at the "href" of the attribute value.</p>
           </div><!-- blog-post -->
-       
-          <div class="col-md-12 blog-post">
-            <h2>Our XSS Filters</h2>
-            <p class="text-justify"><a herf="https://github.com/yahoo/xss-filters">XSS-Filters</a> is the context-aware output filters for web applications. The design principle is to apply the filtering rules based on the output contexts in order to achieve the goal of “Just sufficient filtering”. This design principle is to address over-filtering and insufficient filtering through context awareness in the output, in order to provide a developer friendly and secure solution to web applications.</p>
-
-            <p class="text-justify">In our solution, we provide a set of self-explanatory API(s) by chaining up the context-aware filters based on the most common developer use cases without the pain of understanding the browser execution context order and what contexts being invoked. If you want to apply our filters, you can check out this tutorial on how to apply the context-aware filters manually or our advanced automation solution provided.</p>
-          </div>
         </div><!-- col-md-8 blog-post -->
 
         <div class="col-md-3 col-md-offset-1 blog-sidebar">
@@ -94,24 +87,25 @@
           <div class="sidebar-module">
                         <h4>Quick Links</h4>
                         <ol class="list-unstyled">
-                          <li><a href="./safejstemplating.html">Getting Started</a></li>
+                          <li><a href="./gettingstart.html">Getting Started</a></li>
                         </ol>
             
                         <h4>Related Articles</h4>
                         <ol class="list-unstyled">
                           <li><a href="./filteringishard.html">Filtering is Hard!</a></li>
-                          <li><a href="./autoescaping.html">What is Auto Escaping?</a></li>
-                          <li><a href="./contextparser.html">Our Context Parser</a></li>
-                          <li><a href="./safejstemplating.html">Safe JS Templating</a></li>
+                          <li><a href="./blindlyescaping.html">Blindly-escaping is Insufficient</a></li>
+                          <li><a href="./safejstemplating.html">Automatic Contextual Escaping</a></li>
+                          <li>&nbsp; - <a href="./contextparser.html">Context Parser</a></li>
+                          <li>&nbsp; - <a href="https://github.com/yahoo/xss-filters/blob/master/README.md">XSS Filters</a></li>
                         </ol>
             
                         <h4>Source Code</h4>
                         <ol class="list-unstyled">
-                          <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
-                          <li><a href="https://github.com/yahoo/context-parser">Context Parser</a></li>
+                          <li><a href="https://github.com/yahoo/express-secure-handlebars">Express Secure Handlebars</a></li>
                           <li><a href="https://github.com/yahoo/secure-handlebars">Secure Handlebars</a></li>
                           <li><a href="https://github.com/yahoo/secure-handlebars-helpers">Secure Handlebars Helpers</a></li>
-                          <li><a href="https://github.com/yahoo/express-secure-handlebars">Express Secure Handlebars</a></li>
+                          <li><a href="https://github.com/yahoo/context-parser">Context Parser</a></li>
+                          <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
                         </ol>
 
             <h4>References</h4>
@@ -128,7 +122,7 @@
 
         <div class="col-md-12 blog-post">
           <div class="security-cta">
-            <form action="./autoescaping.html" method="get">
+            <form action="./blindlyescaping.html" method="get">
               <button type="submit">Continue</button>
             </form>
           </div>
