@@ -4,7 +4,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>Context-aware HTML5 Parser</title>
+    <title>Getting Started</title>
     <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
@@ -30,7 +30,6 @@
   </head>
 
     <body>
-    <a href="https://github.com/yahoo/context-parser"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/652c5b9acfaddf3a9c326fa6bde407b87f7be0f4/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6f72616e67655f6666373630302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png"></a>
     <div class="header">
       <h1 class="header-logo">
       </h1>
@@ -39,8 +38,8 @@
         <div class="blog-masthead">
           <div class="container">
             <nav class="blog-nav">
-              <a class="blog-nav-item active" href="./">Safe JS Templating</a>
-              <a class="blog-nav-item " href="./gettingstart.html">Getting Started</a>
+              <a class="blog-nav-item " href="./">Safe JS Templating</a>
+              <a class="blog-nav-item active" href="./gettingstart.html">Getting Started</a>
               <a class="blog-nav-item " href="./demosSecureHandlebars.html">Demos</a>
               <a class="blog-nav-item " href="./bugBounty.html">Bug Bounty</a>
             </nav>
@@ -51,50 +50,52 @@
       <!-- grid system: http://getbootstrap.com/css/#grid -->
       <div class="row">
         <div class="col-md-12 blog-main">
-          <h2 class="header-badge">Context-aware HTML5 Parser</h2>
-          <p class="text-center">Our novel approach to implement a HTML5 compliant parser for cross browsers.</p>
+          <h2 class="header-badge">Getting Started</h2>
+          <p class="text-center"></p>
         </div> <!-- blog main -->
 
         <div class="col-md-8 blog-post">
-          <div class="col-md-12 blog-post">
-            <h2>How to solve XSS?</h2>
-            <p class="text-justify">In order to mitigate the XSS vulnerability in the web applications, we need to address two biggest challenges.</p>
-            <blockquote>Understanding the execution contexts according to the <a href="https://html.spec.whatwg.org/multipage/">HTML5 WHATWG specification</a> and apply context-sensitive encoding filters, unlike the widely-used <a href="./blindlyescaping.html">Auto Escaping</a> approach that blindly applies the same encoder on every output.</blockquote>
-            <blockquote>Addressing the cross browsers compatibility issue of some browsers do not fully compliant with the HTML5. This issue fails our execution contexts analysis and leads to wrong judgement of XSS filters.</blockquote>
-          </div>
 
-          <div class="col-md-12 blog-post">
-            <h2>Context Parser & HTML5 compliance</h2>
-            <p>&nbsp;</p>
-            <p class="text-justify">Context Parsing is our solution to understand the execution contexts of the HTML5 web pages according to the <a href="https://html.spec.whatwg.org/multipage/">HTML5 WHATWG specification</a>, and we mainly focus on the Tokenization process only, instead of implementing the end-to-end model of the HTML5 parser, to make our code base tiny and speedy.</p>
-
-            <p class="text-justify">Moreover, we address the cross browsers compatibility issue by a process called "canonicalization". In this process, we modify the inputting web page by rewriting the HTML to be HTML5 compliant, such that all browsers interpret the same for the page. With this strategy, all the downstream applications can focus on HTML5 specification without the concern of cross browsers compatibility issues.</p>
+          <div class="col-md-6 blog-post">
+            <h3>I'm using the express-handlebars package</h3>
+            <p class="text-justify"><a href="https://www.npmjs.com/package/express-handlebars">Express-handlebars</a> is a handy package to use Handlebars as the template renderer with the Express server. We worked with the author and extended it seamlessly. Here's the <a href="https://www.npmjs.com/package/express-secure-handlebars">express-secure-handlebars</a> pacakge requiring only 2 LoCs changes to upgrade.</p>
+            <a href="https://github.com/yahoo/express-secure-handlebars#usage">See Instructions</a>
           </div><!-- blog-post -->
 
-          <div class="col-md-12 blog-post">
-            <h2>Features of our Context Parser</h2>
-            <p>&nbsp;</p>
+          <div class="col-md-6 blog-post">
+            <h3>I'm using the Handlebars runtime</h3>
+            <p class="text-justify">Simply use the <a href="https://www.npmjs.com/package/secure-handlebars">secure-handlebars</a> package to perform contextual analysis and add context-aware XSS escaping filters to your templates. Then register the filter implementations as <a href="https://www.npmjs.com/package/secure-handlebars-helpers">Handlebars helpers</a> for compilation and data binding on client-side.</p>
+            <a href="./demosSecureHandlebars.html">Demo</a> | <a href="https://github.com/yahoo/secure-handlebars/#advanced-server-side-use-standalone-template-pre-processor">See Instructions</a> | <a href="safejstemplating.html">Learn More</a>
+          </div><!-- blog-post -->
 
-	    <h3>HTML5 Compliance</h3>
-            <p class="text-justify">We implement our HTML5 parser according to the <a href="https://html.spec.whatwg.org/multipage/">HTML5 WHATWG specification</a>. It is HTML5 Compliant!!!</p>
+          <!--div class="col-md-12 blog-post">
+            <h2>I'm new to JavaScript Templating</h2>
+            <p class="text-justify">We strongly recommened you to start with our <a href="https://www.npmjs.com/package/express-secure-handlebars">express-secure-handlebars</a> package</p>
 
-	    <h3>Speedy</h3>
-            <p class="text-justify">As our goal is to analyze the output execution context, there is no need to implement the <a href="https://html.spec.whatwg.org/multipage/syntax.html#overview-of-the-parsing-model">end to end parsing model</a> as the specification stated, so we can parse the HTML5 real fast.</p>
-	    <blockquote><p class="text-justify"><i>Currently, we can parse 12.903225806451612 MB per second in our JavaScript implementation.</i></p></blockquote>
- 	    <p class="text-justify"></p>
+          </div><!--blog-post -->
 
-	    <h3>Tiny code base</h3>
-            <p class="text-justify">Our code is around 500 lines, it is easy to be ported to different programming languages. Right now, we support native <a href="https://github.com/yahoo/context-parser">JavaScript</a> implementation.</p>
+          <div class="col-md-6 blog-post">
+            <h3>I want the filters only</h3>
+            <p class="text-justify">The filters observe a <em>just-sufficient</em> escaping principle to escape only those characters sensitive to the specific output context. It's generally faster and more secure than the typical one, that blindly escapes a fixed set of characters regardless of the contexts.</p>
+            <a href="">Demo</a> | <a href="https://github.com/yahoo/xss-filters#quick-start">See Instructions</a> | <a href="https://github.com/yahoo/xss-filters#goals">Learn More</a>
+            
+          </div>
 
-	    <h3>Canonicalization</h3>
-            <p class="text-justify">It is a process to convert the inputting HTML and rewrite it to be HTML5 compliant.</p>
+          <div class="col-md-6 blog-post">
+            <h3>Otherwise :)</h3>
+            <p class="text-justify">If you think there's a need to extend the solution to other template engines, please don't hesitate to make a proposal <a href="https://github.com/yahoo/context-parser/issues">here</a>. You may also help contribute to our different github repositories for feature enhancement as well as bug reporting and fixing.</p>
           </div><!-- blog-post -->
         </div><!-- col-md-8 blog-post -->
 
         <div class="col-md-3 col-md-offset-1 blog-sidebar">
           <div class="sidebar-module sidebar-module-inset">
-            <h4>What's WHATWG.org?</h4>
-            <p>The Web Hypertext Application Technology Working Group (WHATWG) is a community of people interested in evolving HTML and related technologies.</p>
+          <h4>What's Express?</h4>
+          <p><a href="http://expressjs.com/">Express</a> is a minimal and flexible Node.js web application framework that provides a robust set of features for web and mobile applications.</p>
+          </div>
+
+          <div class="sidebar-module sidebar-module-inset">
+          <h4>What's Handlebars?</h4>
+          <p><a href="http://handlebarsjs.com/">Handlebars</a> is one of the most popular template engines created by Chris Wanstrath.</p>
           </div>
 
           <div class="sidebar-module">
@@ -121,10 +122,12 @@
                           <li><a href="https://github.com/yahoo/xss-filters">XSS Filters</a></li>
                         </ol>
 
-            <h4>References</h4>
+            <!--h4>References</h4>
             <ol class="list-unstyled">
-              <li><a href="https://html.spec.whatwg.org/multipage/">HTML Living Standard</a></li>
-            </ol>
+              <li><a href="http://expressjs.com/">Express</a></li>
+              <li><a href="http://handlebarsjs.com/">Handlebars</a></li>
+            </ol-->
+
           </div>
 
           <a class="back-to-top" href="#top">
@@ -133,12 +136,7 @@
         </div><!-- col-md-3 col-md-offset-1 blog-sidebar-->
 
         <div class="col-md-12 blog-post">
-          <div class="security-cta">
-            <form action="./safejstemplating.html" method="get">
-              <button type="submit">Continue</button>
-            </form>
-          </div>
-          <p class="text-center"><a href="./blindlyescaping.html">Back</a></p>
+          <p class="text-center"><a href="./">Back</a></p>
         </div> <!-- blog post -->
 
       </div><!-- row -->

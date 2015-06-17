@@ -4,7 +4,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>Secure XSS Filters</title>
+    <title>XSS Filters Demo</title>
     <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
@@ -23,15 +23,13 @@
     <script src="javascripts/jquery.min.js"></script>
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
-    <!--[if lt IE 9]>
+    <!--[if lt IE 9] >
       <script src="javascripts/html5shiv.min.js"></script>
       <script src="javascripts/respond.min.js"></script>
     <![endif]-->
   </head>
-    <script src="javascripts/xss-filters.min.js"></script>
-    <script src="javascripts/demos_xss_filters.js"></script>
-
     <body>
+    <a href="https://github.com/yahoo/xss-filters"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/652c5b9acfaddf3a9c326fa6bde407b87f7be0f4/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6f72616e67655f6666373630302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png"></a>
     <div class="header">
       <h1 class="header-logo">
       </h1>
@@ -40,8 +38,8 @@
           <div class="container">
             <nav class="blog-nav">
               <a class="blog-nav-item " href="./">Safe JS Templating</a>
-              <a class="blog-nav-item " href="./safejstemplating.html">Getting Started</a>
-              <a class="blog-nav-item active" href="./demosContextParserHandlebars.html">Demos</a>
+              <a class="blog-nav-item " href="./gettingstart.html">Getting Started</a>
+              <a class="blog-nav-item active" href="./demosSecureHandlebars.html">Demos</a>
               <a class="blog-nav-item " href="./bugBounty.html">Bug Bounty</a>
             </nav>
           </div>
@@ -51,10 +49,10 @@
       <!-- grid system: http://getbootstrap.com/css/#grid -->
       <div class="row">
         <div class="col-md-12 blog-main">
-          <h2 class="header-badge">Secure XSS Filters</h2>
+          <h2 class="header-badge">XSS Filters Demo</h2>
         </div>
         <div class="col-md-12 blog-post">
-          <p class="text-justify">Secure XSS Filters is a npm package to provide <em>*just sufficient*</em> output filtering to prevent cross site scripting vulnerablities. This page demostrates the filtering result of untrusted input in its corresponding execution context! For more detail, please check <a href="https://www.npmjs.com/package/xss-filters">here</a>.</p>
+          <p class="text-justify">This page demostrates the escaping result of an untrusted input in its corresponding output context. <a href="https://www.npmjs.com/package/xss-filters">Learn More...</a></p>
         </div><!-- blog-post -->
 
         <div class="col-md-12 blog-post">
@@ -68,7 +66,10 @@
 
         <div class="col-md-12 blog-post" id="output">
         </div><!-- blog-post -->
-       
+           
+        <script src="javascripts/xss-filters.min.js"></script>
+        <script src="javascripts/demos_xss_filters.js"></script>
+
         <div class="col-md-12 blog-post">
           <ol class="list-unstyled">
            <li><img src="https://img.shields.io/npm/v/xss-filters.svg?style=flat-square"/> <a href="https://www.npmjs.com/package/xss-filters">XSS Filters</a></li>
@@ -76,7 +77,7 @@
         </div><!-- blog-post -->
 
         <div class="security-cta col-md-12 blog-post">
-          <form action="./demosContextParserHandlebars.html" method="get">
+          <form action="./demosSecureHandlebars.html" method="get">
           <button type="submit">Demo of Secure Handlebars</button>
           </form>
         </div><!-- blog-post-->
