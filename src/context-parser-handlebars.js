@@ -239,13 +239,21 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                 }
                 // 2 braces are encountered
                 else {
-                    handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, j);
-                    // 'expression' is the default handlebarsExpressionTypeName
-                    handlebarsExpressionTypeName = handlebarsExpressionType === handlebarsUtils.ESCAPE_EXPRESSION ? 'escapeexpression'
-                        : handlebarsExpressionType === handlebarsUtils.BRANCH_EXPRESSION ? 'branchstart' 
-                        : handlebarsExpressionType === handlebarsUtils.ELSE_EXPRESSION ? 'branchelse' 
-                        : handlebarsExpressionType === handlebarsUtils.BRANCH_END_EXPRESSION ? 'branchend' 
-                        : 'expression';
+                    var escapedMustache = handlebarsUtils.lookBackTest(input, j);
+                    if (escapedMustache === handlebarsUtils.NOT_ESCAPED_MUSTACHE ||
+                        escapedMustache === handlebarsUtils.DOUBLE_ESCAPED_MUSTACHE
+                        ) {
+                        handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, j);
+                        // 'expression' is the default handlebarsExpressionTypeName
+                        handlebarsExpressionTypeName = handlebarsExpressionType === handlebarsUtils.ESCAPE_EXPRESSION ? 'escapeexpression'
+                            : handlebarsExpressionType === handlebarsUtils.BRANCH_EXPRESSION ? 'branchstart' 
+                            : handlebarsExpressionType === handlebarsUtils.ELSE_EXPRESSION ? 'branchelse' 
+                            : handlebarsExpressionType === handlebarsUtils.BRANCH_END_EXPRESSION ? 'branchend' 
+                            : 'expression';
+                    } else if (escapedMustache === handlebarsUtils.SINGLE_ESCAPED_MUSTACHE) {
+                        // mark it as non-expression and untouch it
+                        handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION;
+                    }
                 }
             }
 

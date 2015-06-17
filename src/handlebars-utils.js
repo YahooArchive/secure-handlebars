@@ -69,6 +69,27 @@ HandlebarsUtils.commentLongFormExpressionRegExp = /^\{\{~?!--/;
 HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM = 8; // {{!.*}}
 HandlebarsUtils.commentShortFormExpressionRegExp = /^\{\{~?!/;
 
+HandlebarsUtils.SINGLE_ESCAPED_MUSTACHE = 9;
+HandlebarsUtils.DOUBLE_ESCAPED_MUSTACHE = 10;
+HandlebarsUtils.NOT_ESCAPED_MUSTACHE = 11;
+
+// @function HandlebarsUtils.lookBackTest
+HandlebarsUtils.lookBackTest = function(input, i) {
+    var len = input.length;
+
+    if (input[i] === '{' && i+1<len && input[i+1] === '{') {
+        if (i-2 >= 0 && input[i-1] === '\\' && input[i-2] === '\\') {
+            return HandlebarsUtils.DOUBLE_ESCAPED_MUSTACHE;
+        } else if (i-1 >= 0 && input[i-1] === '\\') {
+            return HandlebarsUtils.SINGLE_ESCAPED_MUSTACHE;
+        } else {
+            return HandlebarsUtils.NOT_ESCAPED_MUSTACHE;
+        } 
+    }
+    /* never falls into this and should throw error */
+    return HandlebarsUtils.UNHANDLED_EXPRESSION;
+};
+
 // @function HandlebarsUtils.lookAheadTest
 HandlebarsUtils.lookAheadTest = function(input, i) {
     var len = input.length,
