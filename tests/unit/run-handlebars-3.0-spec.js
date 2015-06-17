@@ -143,5 +143,21 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 }
             });
         });
+
+        /* Handlebars \{{expression}} \\{{expression}} test */
+        it("handlebars \{{expression}} \\{{expression} test", function() {
+            testPatterns.escapeBraceExpressionTestPatterns.forEach(function(testObj) {
+                var ast;
+                try {
+                    ast = handlebars.parse(testObj.syntax);
+                    expect(ast.body).to.be.ok;
+                    expect(testObj.result[0]).to.equal(ast.body[0].type);
+                } catch (e) {
+                    // guard against AssertionError, any good method to do it?
+                    expect(ast).to.equal(undefined); 
+                    expect(testObj.result[0]).to.equal(false);
+                }
+            });
+        });
     });
 }());

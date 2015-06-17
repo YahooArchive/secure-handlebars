@@ -534,6 +534,26 @@ var commentExpressionTestPatterns = [
 ];
 exports.commentExpressionTestPatterns = commentExpressionTestPatterns;
 
+var escapeBraceExpressionTestPatterns = [
+    { syntax: '{{expression}}    ', type:'' , rstr: '', result: [ 'MustacheStatement', '' , '']},
+
+    // same as '{{expression}}', so '\' can be skipped
+    { syntax: '\{{expression}}   ', type:'' , rstr: '', result: [ 'MustacheStatement', '' , '']},
+
+    // escaped mustache
+    { syntax: '\\{{expression}}  ', type:'' , rstr: '', result: [ 'ContentStatement', '' , '']},
+    { syntax: '\\{{expression1}}  {{expression2}}',   type:'' , rstr: '', result: [ 'ContentStatement', '' , '']},
+    { syntax: '\\{{expression1}}  \{{expression2}}',  type:'' , rstr: '', result: [ 'ContentStatement', '' , '']},
+    { syntax: '\\{{expression1}}  \\{{expression2}}', type:'' , rstr: '', result: [ 'ContentStatement', '' , '']},
+
+    // same as '\{{expressionA}}' in the stream.
+    { syntax: '\\\{{expressionA}}  ', type:'' , rstr: '', result: [ 'ContentStatement', '' , '']},
+
+    // same as '\\{{expressionB}}' in the stream.
+    { syntax: '\\\\{{expressionB}}  ', type:'' , rstr: '', result: [ 'ContentStatement', '' , '']},
+];
+exports.escapeBraceExpressionTestPatterns = escapeBraceExpressionTestPatterns;
+
 var buildAstPatterns = [
     { syntax: 'xxxx{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}xxxx', 
       output: 'xxxx{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}xxxx', 
@@ -736,6 +756,13 @@ var templatePatterns = [
                   /{{{placeholder1C}}}/, /{{{placeholder2C}}}/, /{{{yd placeholder3C}}}/, /{{{yavd valueC}}}/,
         ],
     },
+    {
+        title: './bin/handlebarspp escaped mustache test',
+        file: 'tests/samples/files/handlebarsjs_escaped_mustache.hbs',
+        result: [ /{{{yd expression1}}}/, /{{expression2}}/, /{{{yd expression3}}}/,
+                  /{{{rawexpression1}}}/, /{{{rawexpression2}}}/, /{{{rawexpression3}}}/,
+        ],
+    }
 ];
 exports.templatePatterns = templatePatterns;
 

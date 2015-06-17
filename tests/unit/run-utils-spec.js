@@ -18,6 +18,23 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
     describe("handlebars-utils test suite", function() {
 
+        /* lookBackTest */
+        it("handlebars-utils#lookBacktest", function() {
+            [
+                {str:'{{xxxxxxxx       ', pos:0, type:handlebarsUtils.NOT_ESCAPED_MUSTACHE},
+                {str:'\\{{xxxxxxxx     ', pos:1, type:handlebarsUtils.SINGLE_ESCAPED_MUSTACHE},
+                {str:'\\\\{{xxxxxxxx   ', pos:2, type:handlebarsUtils.DOUBLE_ESCAPED_MUSTACHE},
+
+                {str:'\\{{xxxxxxxx     ', pos:0, type:handlebarsUtils.UNHANDLED_EXPRESSION},
+                {str:'\\\\{{xxxxxxxx   ', pos:0, type:handlebarsUtils.UNHANDLED_EXPRESSION},
+
+                {str:'\\\\\\{{xxxxxxxx ', pos:3, type:handlebarsUtils.DOUBLE_ESCAPED_MUSTACHE},
+            ].forEach(function(testObj) {
+                var r = handlebarsUtils.lookBackTest(testObj.str, testObj.pos);
+                expect(r).to.equal(testObj.type);
+            });
+        });
+
         /* lookAheadTest */
         it("handlebars-utils#lookAheadTest test", function() {
             [
