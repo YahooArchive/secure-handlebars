@@ -5,41 +5,38 @@ document.addEventListener("DOMContentLoaded", function(event) {
   var jsonInput = document.getElementById("jsonInput");
 
   templateInput.focus();
-  templateInput.value = "{{data}}";
-  jsonInput.value = '{\n"data": "data"\n}\n';
+  templateInput.value = '<h1>{{title}}</h1>\n<a href="{{url}}">{{url}}</a>';
+  jsonInput.value = '{\n  "title": "Demo\\n<script>alert(1)</script>",\n  "url": "javascript:alert(1)"\n}\n';
   
-  var preProcessTemplate = function() {
+  function preProcessTemplate() {
     try {
         var strictMode = document.getElementById("strictMode").checked;
         console.log("[INFO] Strict Mode?"+strictMode);
         var preProcessor = new Handlebars.ContextParserHandlebars({printCharEnable: false, strictMode: strictMode});
         preProcessedTemplate = preProcessor.analyzeContext(templateInput.value);
         document.getElementById("templateOutput").value = preProcessedTemplate;
-        if (preProcessedTemplate !== "") {
-          dataBinding();
-        }
+        return true;
     } catch (err) {
         document.getElementById("templateOutput").value = err.msg;
     }
   };
-  var dataBinding = function() {
+  function dataBinding() {
       var template = Handlebars.compile(preProcessedTemplate);
-      var jsonString = jsonInput.value;
+      var jsonString = jsonInput.value || '{}';
       try {
           var data = JSON.parse(jsonString);
           document.getElementById("output").value = template(data);
       } catch (err) {
-          document.getElementById("output").value = err;
+          document.getElementById("output").value = 'JSON Format ' + err;
       }
   };
-  var processing = function(event){
-    if (templateInput.value !== "") {
-        preProcessTemplate();
-    }
-  };
 
-  templateInput.addEventListener("blur", processing);
-  jsonInput.addEventListener("blur", processing);
-  preProcessTemplate();
+  function processTemplate() {
+    preProcessTemplate() && dataBinding();
+  }
+
+  templateInput.addEventListener("blur", processTemplate);
+  jsonInput.addEventListener("blur", processTemplate);
+  processTemplate();
 
 });
