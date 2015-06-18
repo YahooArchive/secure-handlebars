@@ -4,7 +4,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>Introducing Secure Handlebars</title>
+    <title>Automatic Contextual Escaping</title>
     <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
@@ -51,8 +51,8 @@
       <!-- grid system: http://getbootstrap.com/css/#grid -->
       <div class="row">
         <div class="col-md-12 blog-main">
-          <h2 class="header-badge">Introducing Secure Handlebars</h2>
-          <p class="text-center">The first template engine applied with our automatic contextual XSS escaping solution</p>
+          <h2 class="header-badge">Automatic Contextual Escaping</h2>
+          <p class="text-center">Secure Handlebars - the first template engine applied with our automatic contextual escaping solution</p>
           <div class="security-cta">
             <form action="./demosSecureHandlebars.html" method="get">
               <button type="submit">Try our demo</button>
@@ -77,6 +77,11 @@
               <p class="text-justify">
                 By such a loosely-coupled design, the original data flow of Handlebars is kept intact. This enables Handlebars to perform compilation and data binding using the processed templates alone, without incurring any runtime overheads for template analysis.
               </p>
+
+              <p>
+                <p>Learn more about the core components: <a href="./contextparser.html">Context-Parser</a>, <a href="https://github.com/yahoo/xss-filters/blob/master/README.md">XSS Filters</a>
+              </p>
+
               <div class="security-cta">
                 <form action="https://www.npmjs.com/package/secure-handlebars" method="get">
                   <button type="submit">Get Started w/Secure Handlebars</button>
@@ -99,12 +104,14 @@
 
           <div class="col-md-6 blog-post">
               <h3>Context Parser</h3>
-              <p class="text-justify">Context Parsing is our solution to understand the execution contexts of the HTML5 web pages according to the <a href="https://html.spec.whatwg.org/multipage/">HTML5 WHATWG specification</a>, and we mainly focus on the Tokenization process only, instead of implementing the end-to-end model of the HTML5 parser, to make our code base tiny and speedy. <a href="./contextparser.html">Learn more...</a></p>
+              <p class="text-justify">Context Parsing is our solution to understand the execution contexts of the HTML5 web pages according to the <a href="https://html.spec.whatwg.org/multipage/">HTML5 WHATWG specification</a>, and we mainly focus on the Tokenization process only, instead of implementing the end-to-end model of the HTML5 parser, to make our code base tiny and speedy.</p>
+              <a href="./contextparser.html">Learn more...</a>
           </div>
 
           <div class="col-md-6 blog-post">
               <h3>XSS Filters</h3>
-              <p class="text-justify"><a herf="https://github.com/yahoo/xss-filters">XSS-Filters</a> is the context-aware output filters for web applications. The design principle is to apply the filtering rules based on the output contexts in order to achieve the goal of “Just sufficient filtering”. This design principle is to address over-filtering and insufficient filtering through context awareness in the output, in order to provide a developer friendly and secure solution to web applications. <a href="https://github.com/yahoo/xss-filters/blob/master/README.md">Learn more...</a></p>
+              <p class="text-justify"><a herf="https://github.com/yahoo/xss-filters">XSS-Filters</a> is the context-aware output filters for web applications. The design principle is to apply the filtering rules based on the output contexts in order to achieve the goal of “Just sufficient filtering”. This design principle is to address over-filtering and insufficient filtering through context awareness in the output, in order to provide a developer friendly and secure solution to web applications.</p>
+              <a href="https://github.com/yahoo/xss-filters/blob/master/README.md">Learn more...</a>
           </div>
 
         </div><!-- col-md-8 blog-post -->

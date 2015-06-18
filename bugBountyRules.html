@@ -54,41 +54,78 @@
         </div> <!-- blog main -->
 
         <div class="col-md-12 blog-post">
-          <h3>Products in scope</h3>
-          <p class="text-justify">We would like to sincerely request for your reviews and participations in testing out the following two products.</p>
-          <p class="text-justify">&nbsp;</p>
-
-          <h4><a href="https://www.npmjs.com/package/xss-filters">Secure XSS Filters</a></h4>
-          <p class="text-justify"><a href="https://www.npmjs.com/package/xss-filters">xss-filters</a> is the output sanitization filters to defend against cross site scripting (XSS), any untrusted input that can bypass the filtering rules and trigger the Javascript execution in its corresponding execution context is qualified!</p>
-          <p class="text-justify">For the full list of supported filters and corresponding execution contexts, please check the API section of the <a href="https://www.npmjs.com/package/xss-filters">documentation</a> and try our <a href="./demosXssFilters.html">demo</a>.</p>
-          <p class="text-justify">&nbsp;</p>
-
-          <h4><a href="https://www.npmjs.com/package/secure-handlebars">Secure Handlebars</a></h4>
-          <p class="text-justify"><a href="https://www.npmjs.com/package/secure-handlebars">secure-handlebars</a> is a utility to inspect the Handlebars template expression and auto-inject the context-aware filter based on the context analysis of our <a href="https://www.npmjs.com/package/context-parser">HTML5 Context Parser</a>, any untrusted user input from JSON data can bypass the filtering rules and trigger the Javascript execution in a legitimate Handlebars template is qualified!</p>
-          <p class="text-justify">For demonstration, please try our <a href="./demosSecureHandlebars.html">demo</a>.</p>
+          <h3>Products in Scope</h3>
+          <br>
+          <div class="col-md-6">
+            <h4><a href="https://www.npmjs.com/package/xss-filters">Secure XSS Filters</a></h4>
+            <p class="text-justify"><a href="https://www.npmjs.com/package/xss-filters">xss-filters</a> provides context-aware output sanitization filters to defend against Cross-Site Scripting (XSS). Check out the <a href="https://www.npmjs.com/package/xss-filters#api-documentations">API</a> for the full list of public contextual filters. Click <a href="./demosXssFilters.html">here</a> for a demo.</p>
+          </div>
+            <div class="col-md-6">
+            <h4><a href="https://www.npmjs.com/package/secure-handlebars">Secure Handlebars</a></h4>
+            <p class="text-justify"><a href="https://www.npmjs.com/package/secure-handlebars">secure-handlebars</a> performs static contextual analysis on handlebars templates, and applies contextual filtering to every output expression. Click <a href="./demosSecureHandlebars.html">here</a> for a demo.</p>
+          </div>
         </div>
 
         <div class="col-md-12 blog-post">
-          <h3>Qualifying vulnerabilities</h3>
-          <p class="text-justify">We would like to learn if there are any corner cases where the two products would fail in protecting websites from XSS. We welcome any Proof-of-Concept (PoC) demonstrations that show how correct uses of our products would end up in situations that are even worse than their respective security baselines, as stated below:
-          <p class="text-justify">&nbsp;</p>
-
-          <h4>Secure XSS Filters</h4>
-          <p class="text-justify">The xss-filters, when correctly applied in their desired contexts, are found vulnerable to XSS, yet replacing them with the context-insensitive filter (which escapes &, &lt;, >, ', ", and `) would become invulnerable.</p>
-          <p class="text-justify">&nbsp;</p>
-
-          <h4>Secure Handlebars</h4>
-          <p class="text-justify">The secure-handlebars, when correctly applied without any errors and warnings, are found vulnerable to XSS due to those automatically inserted filter(s) that would otherwise be invulnerable by the default escaping automatically applied by the vanilla Handlebars.</p>
-          <p class="text-justify">&nbsp;</p>
-          <p class="text-justify">Some known issues are documented next, and are excluded from monetary rewards.</p>
+          <h3>Qualified Vulnerability Reports</h3>
+          <p class="text-justify">We are generally interested in knowing how these products would fail in defending against XSS in UTF-8 documents:</p>
+          <br>
+          <div class="col-md-6">
+            <h4>Secure XSS Filters</h4>
+            <p class="text-justify">A qualified vulnerability report must include a malicious input to bypass the filters, resulting in JavaScript execution in the desired execution contexts of the filters.</p>
+            <p class="text-justify">When applied in their appropriate output contexts, the filters are designed to support desktop versions of Google Chrome 31 or above, Mozilla Firefox 31 or above, Microsoft Internet Explorer 7 or above, and Apple Safari 5.1 or above.</p>
+          </div>
+            <div class="col-md-6">
+            <h4>Secure Handlebars</h4>
+            <p class="text-justify">A qualified vulnerability report must include a malicious input and an Handlebars template, to which the filter(s) inserted for supported contexts can be bypassed by the input, resulting in JavaScript execution after compilation and data binding.</p>
+            <p class="text-justify">More precisely, (1) secure-handlebars is correctly applied while throwing no errors nor warnings; and (2) it is vulnerable due to those automatically inserted filter(s), <i>that would otherwise be secured by the Handlebars default escaping filter</i>.</p>
+          </div>
+          <p>In addition to the <a href="https://hackerone.com/yahoo">common rules and terms</a>, click <a href="#unqualified" onclick="document.getElementById('unqualified').classList.remove('hide')">here</a> for the specific known issues of these products that are excluded from monetary rewards.</p>
         </div>
 
-        <div class="col-md-12 blog-post">
-          <h3>Unqualifying vulnerabilities</h3>
-          <p class="text-justify">Vulnerabilities that fall outside of the scope of Qualifying vulnerabilities will be reviewed on a case-by-case basis and may not earn monetary rewards. Below are some known issues/cases/limitations that are excluded from monetary rewards:</p>
-          <p class="text-justify">&nbsp;</p>
+        <div id="unqualified" class="col-md-12 blog-post hide">
+          <h3>Unqualified Vulnerabilities</h3>
+          <p class="text-justify">Vulnerabilities that fall outside of the scope of qualified vulnerability reports will be reviewed on a case-by-case basis and may not earn monetary rewards. Below are some known issues that are excluded from monetary rewards:</p>
 
-          <h4>Supported browsers for XSS Filters</h4>
+          <br>
+          <h4>Unsupported Encoding and Contexts</h4>
+          <p class="text-justify">We have largely provided filters for use under the HTML 5 contexts. JavaScript and Cascade Style Sheet (CSS) are however not fully supported yet. The products MUST ONLY be applied to UTF-8-encoded documents.</p>
+
+          <p class="text-justify">For XSS filters, DON'T apply any filters inside any scriptable contexts, i.e., &lt;script>, &lt;style>, &lt;object>, &lt;embed>, and &lt;svg> tags as well as style="" and onXXX="" (e.g., onclick) attributes. It is known to be insecure to permit untrusted input inside a scriptable context.</p>
+
+          <p class="text-justify">For Secure Handlebars, any malicious inputs found executing in the unsupported contexts are unqualified for this program. When the strict mode option is disabled, we now handle them by falling back to use the default Handlebars escaping filter and give a warning. When the strict mode is set, we throw exceptions instead of warnings during the contextual analysis. Hence, our claim is that using secure-handlebars is always no worse than the original Handlebars. Click <a href="https://github.com/yahoo/secure-handlebars#supported-contexts">here</a> for the supported contexts.</p>
+
+          <br>
+          <h4>Partial Templates and Raw Block in Handlebars</h4>
+          <p class="text-justify">Most JavaScript template engine supports the feature of partial to facilitate sharing of common layouts. In our current implementation, we treat each partial file as a standalone template file to process. It means that the initial and final state of each partial file is in the <a href="https://html.spec.whatwg.org/multipage/syntax.html#data-state">Data State</a> as defined in the HTML5 Specification. Any partial file that does not start and return in the Data State does not qualify for this program.</p>
+          <p class="text-justify">Since Handlebars v3.0, the feature of raw block is introduced for developers to handle unprocessed mustache blocks. During the contextual analysis, we do not touch anything within the raw block and hold the same assumption as in partial handling. Therefore, the initial and final state of the raw block is the Data State.</p>
+
+          <br>
+          <h4>Broken Template</h4>
+          <p class="text-justify">In our implementation, we decouple the templating analysis and AST constructions from the Handlebars parser. Only relaxed syntax validation is applied. Templates that would cause Handlebars compilation process or <a href="https://www.npmjs.com/package/context-parser">Context-parser</a> to throw errors are generally unqualified for the reward, since such an error has already prohibited any data binding and rendering, and will not result in XSS vulnerabilities.</p>
+          <p class="text-justify">Nevertheless, we would still love to learn how broken templates can be creatively crafted that you think deserve our special attention. Please report such kind of issues through <a href="https://github.com/yahoo/secure-handlebars/issues">github issue page</a>.</p>
+
+          <br>
+          <h4>JavaScript in Template</h4>
+          <p class="text-justify">A report is unqualified if (malicious) JavaScript code already existed in the template. It is because for legitimate use, the template is considered an honest and trusted input. This program is targeting vulnerability reports that can bypass filters through the input data.</p>
+
+          <br>
+          <h4>Static Template Analysis</h4>
+          <p class="text-justify">Our static contextual analysis is based only on the template. The limitations of this approach is known, and here're some of them:</p>
+
+          <p class="text-justify">
+            Example 1: <code>&lt;img &lbrace;&lbrace;output1}}&lbrace;&lbrace;output2}}/&gt;</code>
+          </p>
+
+          <p class="text-justify">In Example 1, both output expressions are in the attribute name context, which is NOT among the <a href="https://github.com/yahoo/secure-handlebars#supported-contexts">supported ones</a>. Imagine an attacker supplies <code>href=</code> as the value for <code>&lbrace;{output1}}</code>. Unfortunately, the default Handlebars escaping filter being used for such an unsupported context has kept the input intact. If the developer ignores our warning and proceed compiling the template, the output context of <code>&lbrace;{output2}}</code> can be dynamically altered as a URI in an unquoted attribute value context. It is known that the static approach cannot apply an appropriate contextual filter in this situation, although this is still no worse than using the original Handlebars only.
+
+          <p class="text-justify">
+            Example 2: <code>&lt;a href="&lbrace;&lbrace;output1}}&lbrace;&lbrace;output2}}"&gt;link&lt;/a&gt;</code> or <code>&lt;a href="java&lbrace;{output3}}">link&lt;/a></code>
+          </p>
+
+          <p class="text-justify">In example 2, the blacklist URI protocol filter can be bypassed by splitting the malicious protocol such as javascript: into two.</p>
+
+          <!--h4>Supported browsers for XSS Filters</h4>
           <p class="text-justify">In our design principle of XSS Filters, we mainly focus on the HTML5 specification and state transition for just sufficient encoding. However, browser implementation from different vendors may deviate from HTML5 specification and we have to address to make our XSS Filters pragmatic, we also consider non-HTML5 specification in our XSS Filter filtering rules and support the following browsers with minimum version based on the market share of each browser in Feb-2015 based on the statcounter data.</p>
           <p class="text-justify">The minimum version of each browser qualified for this program is listed below, otherwise, it is not qualified.</p>
           <table class="table table-bordered">
@@ -97,65 +134,19 @@
             <tr><td><b>Minimum Version</b></td><td>31</td><td>27</td><td>7</td><td>5.1</td></tr>
             </tbody>
           </table>
-          <p class="text-justify">&nbsp;</p>
+          <p class="text-justify">&nbsp;</p-->
 
-          <h4>Broken Template</h4>
-          <p class="text-justify">In our implementation, we decouple the template processing from Handlebars parser to build AST and apply relaxed syntax validation. Templates that would cause either Context-parser and/or Handlebars’ compilation process to throw errors are generally unqualified for this reward program, since such an error has already prohibited any data binding and rendering to trigger XSS vulnerabilities.</p>
-          <p class="text-justify">Nevertheless, we would still love to learn how broken templates can be creatively crafted that you think deserve our special attention and please report any issue through <a href="https://github.com/yahoo/secure-handlebars/issues">github issue page</a>.</p>
-          <p class="text-justify">&nbsp;</p>
-
-          <h4>Static Template Analysis</h4>
-          <p class="text-justify">Our context parsing analysis is based on the static template, a special crafted template file that can alter the contexts of 2 adjacent output markups during the runtime dynamically, does not qualify for this program. Most of the cases come with by putting 2 output markups next to each other and the dynamic data in the first one affects the context and filtering rules of the next one.</p>
-          <p class="text-justify">In the first example, both output markups are treated as attribute name context. However, dynamic data in the runtime (i.e. href=) can alter the second output context to URI context and leads to the incorrect filtering rules being applied.</p>
-          <p class="text-justify" re><code>&lt;img &lbrace;&lbrace;output1}}&lbrace;&lbrace;output2}}/&gt;</code></pre>
-          <p class="text-justify">The second example can bypass the filtering rule of our blacklist protocol filtering by splitting the protocol data into two.</p>
-          <p class="text-justify" re><code>&lt;a href="&lbrace;&lbrace;output1}}&lbrace;&lbrace;output2}}"&gt;link&lt;/a&gt;</code></pre>
-          <p class="text-justify">&nbsp;</p>
-
-          <h4>Partial Templates and Raw Block in Handlebars</h4>
-          <p class="text-justify">Most Javascript templating engine supports the feature of partial to facilitate the sharing of common layouts. In our current implementation, we treat each partial file as a standalone HTML5 compliant template file to process, it means that the initial and final state of each partial file is <a href="https://html.spec.whatwg.org/multipage/syntax.html#data-state">Data State</a> as defined in the HTML5 Specification. Any partial file that does not start and end with Data State does not qualify for this program.</p>
-          <p class="text-justify">Besides, Handlebars 3.0 introduces the feature of raw block, allowing developer to handle unprocessed mustache blocks. During our analyszing of Handlebars template file, we untouch the string within the raw block and have the same assumption as partial that the initial and final state of the raw block is Data State.</p>
-          <p class="text-justify">&nbsp;</p>
-      
-          <h4>Unsupported Contexts</h4>
-          <p class="text-justify">Currently, we only support the HTML5 specification for our context analysis, there are few other common contexts such as JavaScript and Cascade Style Sheet (CSS) that we are not fully supporting now, and we would like to support it in the near future. Any untrusted user input in the unsupported context does not qualify for this program.</p>
-          <p class="text-justify">In our non-strict mode implementation, we fall back to default HTML escaping with the claim that we are not worst off to the original solution and warn the developers. In our strict mode implementation, we throw exception during our context analysis.</p>
-          <p class="text-justify">Below is the known list of supported contexts as defined in HTML5 Specification.</p>
-          <table class="table table-bordered">
-            <thead>
-            <tr><th><b>Context<b></th><th><b>Example</b></th></tr>
-            </thead>
-            <tbody>
-            <tr><td>HTML context</td><td>&lt;div&gt;&lbrace;&lbrace;output&rbrace;&rbrace;&lt;/div&gt;</td></tr>
-            <tr><td>Comment context</td><td>&lt;!-- &lbrace;&lbrace;output&rbrace;&rbrace; --&gt;</td></tr>
-            <tr><td rowspan="3">Attribute Value context (unquoted, single quoted and double quoted)*</td>
-                <td>&lt;div class=&lbrace;&lbrace;output&rbrace;&rbrace;&gt;</td></tr>
-                <tr><td>&lt;div class='&lbrace;&lbrace;output&rbrace;&rbrace;'&gt;</td></tr>
-                <tr><td>&lt;div class="&lbrace;&lbrace;output&rbrace;&rbrace;"&gt;</td></tr>
-            <tr><td rowspan="3">Attribute Value with URI context (unquoted, single quoted and double quoted)</td>
-                <td>&lt;a href=&lbrace;&lbrace;output&rbrace;&rbrace;&gt;</td></tr>
-                <tr><td>&lt;a href='&lbrace;&lbrace;output&rbrace;&rbrace;'&gt;</td></tr>
-                <tr><td>&lt;a href="&lbrace;&lbrace;output&rbrace;&rbrace;"&gt;</td></tr>
-            <tr><td rowspan="2">Attribute Value with CSS context (unquoted, single quoted and double quoted)</td>
-                <td>&lt;div style="color:&lbrace;&lbrace;output&rbrace;&rbrace;"&gt;</td></tr>
-                <tr><td>&lt;div style="backgrount:url(&lbrace;&lbrace;output&rbrace;&rbrace;)"&gt;</td></tr>
-            </tbody>
-          </table>
-          <p class="text-justify">* We does not support the JavaScript context yet!</p>
-          <p class="text-justify">&nbsp;</p>
-
-          <h4>JavaScript in Template</h4>
-          <p class="text-justify">Any javascript code in the template does not qualify for reward, as legitimate template is regarded as trusted input and our review goal is to bypass the filtering rules through JSON data in a legitimate Handlebars template.</p>
         </div>
 
         <div class="col-md-12 blog-post">
-          <h3>Reward amounts</h3>
-          <p class="text-justify">Qualifying reports will be rewarded based on severity and we will DOUBLE our reward based on our original <a href="http://yahoodevelopers.tumblr.com/post/65622522325/the-bug-bounty-program-is-now-live">bug bounty program</a>. Rewards are granted entirely at the discretion of Yahoo.</p>
+          <h3>Reward Amounts</h3>
+          <p class="text-justify">
+          You will be paid for qualifying submissions, depending on the severity and complexity of the issue. These amounts will generally be <a href="http://yahoodevelopers.tumblr.com/post/65622522325/the-bug-bounty-program-is-now-live">DOUBLED</a> for vulnerabilities specific to the products in scope. Rewards are granted entirely at the discretion of Yahoo.</p>
         </div>
 
         <div class="col-md-12 blog-post">
-          <h3>Investigating and reporting</h3>
-          <p class="text-justify">Please submit your reports through <a href="https://hackerone.com/yahoo">Yahoo HackerOne</a> and please add the keyword "<b>xss-filters</b>" or "<b>secure-handlebars</b>" in the subject for triaging easily. Your submission will be reviewed within 30 days.</p>
+          <h3>Investigating and Reporting</h3>
+          <p class="text-justify">Please submit your reports through <a href="https://hackerone.com/yahoo">Yahoo HackerOne</a> and please add a subject prefix "<b>xss-filters</b>" or "<b>secure-handlebars</b>" for triaging. Your submission will be reviewed within 30 days.</p>
         </div>
 
         <div class="col-md-12 blog-post">
