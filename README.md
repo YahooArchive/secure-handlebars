@@ -4,6 +4,7 @@ SecureHandlebars
 
 [![npm version][npm-badge]][npm]
 [![dependency status][dep-badge]][dep-status]
+[![Build Status](https://travis-ci.org/yahoo/secure-handlebars.svg?branch=master)](https://travis-ci.org/yahoo/secure-handlebars)
 
 [npm]: https://www.npmjs.org/package/secure-handlebars
 [npm-badge]: https://img.shields.io/npm/v/secure-handlebars.svg?style=flat-square
@@ -15,9 +16,20 @@ The original [Handlebars](http://handlebarsjs.com/) is overriden to perform the 
 
 - *Template Pre-processor* executes static contextual analysis on a handlebars template, of which every output expression is applied with some context-dependent [helper markups](http://handlebarsjs.com/#helpers) (e.g., `<h1>{{title}}</h1>` is rewritten into `<h1>{{{yd title}}}</h1>`<sup>^</sup>). The pre-processed template is compatible with the original (runtime) Handlebars.
 - The original Handlebars template engine compiles the pre-processed template.
-- *Context-sensitive XSS filters* are registered as Handlebars helpers, so that any untrusted user inputs assigned to those pre-processed output expressions can be escaped with respect to the output context during data binding.
+- *Contextual output filters* are registered as Handlebars helpers, so that any untrusted user inputs assigned to those pre-processed output expressions are escaped with respect to the output context during data binding.
 
-<sup>^</sup> The default [context-insensitive HTML escaping](http://handlebarsjs.com/#html-escaping) by Handlebars is disabled with the raw {{{expression}}} to avoid redundant escaping.
+<sup>^</sup> The raw `{{{expression}}}` is used to avoid redundant escaping by the default Handlebars [`escapeExpression()`](http://handlebarsjs.com/#html-escaping).
+
+### Supported Contexts
+
+| Context  | Examples  |
+|---|---|
+| HTML Data | `<div>{{output}}</div>` |
+| HTML Comment | `<!-- {{output}} -->` |
+| HTML Attribute Value <br>(unquoted, single-quoted and double-quoted) | `<a class={{output}}>` <br> `<div class='{{output}}'>` <br> `<div class="{{output}}">` |
+| URI in Attribute Value <br>(unquoted, single-quoted and double-quoted) | `<a href={{output}}>` <br> `<a href='{{output}}'>` <br> `<a href="{{output}}">` |
+| CSS in Attribute Value <br>(unquoted, single-quoted and double-quoted) | `<div style="color:{{output}}">` <br> `<div style="backgrount:url({{output}})">` |
+In case an `{{expression}}` is found inside those yet-to-be-supported contexts (e.g., `<script>{{script}}</script>` or `<div onclick="{{onclick}}"`), the current strategy is to fallback to use the default Handlebars  [`escapeExpression()`](http://handlebarsjs.com/#html-escaping).
 
 ## Quick Start
 
@@ -79,12 +91,7 @@ You may then come up with some statistics such as counting the number of dangero
 ```sh
 npm test
 ```
-
-### Build
-
-[![Build Status](https://travis-ci.org/yahoo/secure-handlebars.svg?branch=master)](https://travis-ci.org/yahoo/secure-handlebars)
-
-### Known Limitations & Issues
+## Known Limitations & Issues
 - Templates MUST be in UTF-8 encoding and using HTML 5 doctype (i.e., <!doctype html>).
 - We handle the HTML contextual analysis right now, and provide no support to the JavaScript yet. For CSS context, we support output expression at style attribute value ONLY.
 - Our approach involves only static analysis on the template files, and thus data dynamically binded through raw output expressions that may alter the execution context on the rendered HTML CANNOT be taken into account.
