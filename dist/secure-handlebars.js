@@ -9519,13 +9519,21 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                 }
                 // 2 braces are encountered
                 else {
-                    handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, j);
-                    // 'expression' is the default handlebarsExpressionTypeName
-                    handlebarsExpressionTypeName = handlebarsExpressionType === handlebarsUtils.ESCAPE_EXPRESSION ? 'escapeexpression'
-                        : handlebarsExpressionType === handlebarsUtils.BRANCH_EXPRESSION ? 'branchstart' 
-                        : handlebarsExpressionType === handlebarsUtils.ELSE_EXPRESSION ? 'branchelse' 
-                        : handlebarsExpressionType === handlebarsUtils.BRANCH_END_EXPRESSION ? 'branchend' 
-                        : 'expression';
+                    var escapedMustache = handlebarsUtils.lookBackTest(input, j);
+                    if (escapedMustache === handlebarsUtils.NOT_ESCAPED_MUSTACHE ||
+                        escapedMustache === handlebarsUtils.DOUBLE_ESCAPED_MUSTACHE
+                        ) {
+                        handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, j);
+                        // 'expression' is the default handlebarsExpressionTypeName
+                        handlebarsExpressionTypeName = handlebarsExpressionType === handlebarsUtils.ESCAPE_EXPRESSION ? 'escapeexpression'
+                            : handlebarsExpressionType === handlebarsUtils.BRANCH_EXPRESSION ? 'branchstart' 
+                            : handlebarsExpressionType === handlebarsUtils.ELSE_EXPRESSION ? 'branchelse' 
+                            : handlebarsExpressionType === handlebarsUtils.BRANCH_END_EXPRESSION ? 'branchend' 
+                            : 'expression';
+                    } else if (escapedMustache === handlebarsUtils.SINGLE_ESCAPED_MUSTACHE) {
+                        // mark it as non-expression and untouch it
+                        handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION;
+                    }
                 }
             }
 
@@ -9760,56 +9768,6 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
 */
 ContextParserHandlebars.prototype.countNewLineChar = function(str) {
     return str.split('\n').length - 1;
-};
-
-/**
-* @function ContextParserHandlebars.handleTemplate
-*
-* @description
-* Handle the Handlebars template. (Handlebars Template Context)
-*/
-ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) {
-
-    /* the max length of the input string */
-    var len = input.length;
-    /* error msg */
-    var exceptionObj;
-    /* _handleXXXX return object */
-    var obj;
-    /* Handlebars expression type */
-    var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
-
-    try {
-        if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
-            handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
-            /* _handleRawExpression and no validation need, it is safe guard in buildAst function */
-            obj = this.consumeExpression(input, i, handlebarsExpressionType, true);
-            return;
-        } else if (input[i] === '{' && i+1<len && input[i+1] === '{') {
-            // this is just for lookAhead, does not guarantee the valid expression.
-            handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, i);
-            switch (handlebarsExpressionType) {
-                case handlebarsUtils.ESCAPE_EXPRESSION:
-                    /* handleEscapeExpression and no validation need, it is safe guard in buildAst function */
-                    obj = this.handleEscapeExpression(input, i, len, stateObj, true);
-                    return;
-                default:
-                    throw "Parsing error! unexpected Handlebars markup.";
-            }
-        } else {
-            throw "Parsing error! unexpected Handlebars markup.";
-        }
-    } catch (exception) {
-        if (typeof exception === 'string') {
-            exceptionObj = new ContextParserHandlebarsException(
-                '[ERROR] SecureHandlebars: ' + exception,
-                this._lineNo, 
-                this._charNo);
-            handlebarsUtils.handleError(exceptionObj, true);
-        } else {
-            handlebarsUtils.handleError(exception, true);
-        }
-    }
 };
 
 /**
@@ -10053,6 +10011,56 @@ ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, s
 };
 
 /**
+* @function ContextParserHandlebars.handleTemplate
+*
+* @description
+* Handle the Handlebars template. (Handlebars Template Context)
+*/
+ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) {
+
+    /* the max length of the input string */
+    var len = input.length;
+    /* error msg */
+    var exceptionObj;
+    /* _handleXXXX return object */
+    var obj;
+    /* Handlebars expression type */
+    var handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
+
+    try {
+        if (input[i] === '{' && i+2<len && input[i+1] === '{' && input[i+2] === '{') {
+            handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
+            /* _handleRawExpression and no validation need, it is safe guard in buildAst function */
+            obj = this.consumeExpression(input, i, handlebarsExpressionType, true);
+            return;
+        } else if (input[i] === '{' && i+1<len && input[i+1] === '{') {
+            // this is just for lookAhead, does not guarantee the valid expression.
+            handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, i);
+            switch (handlebarsExpressionType) {
+                case handlebarsUtils.ESCAPE_EXPRESSION:
+                    /* handleEscapeExpression and no validation need, it is safe guard in buildAst function */
+                    obj = this.handleEscapeExpression(input, i, len, stateObj, true);
+                    return;
+                default:
+                    throw "Parsing error! unexpected Handlebars markup.";
+            }
+        } else {
+            throw "Parsing error! unexpected Handlebars markup.";
+        }
+    } catch (exception) {
+        if (typeof exception === 'string') {
+            exceptionObj = new ContextParserHandlebarsException(
+                '[ERROR] SecureHandlebars: ' + exception,
+                this._lineNo, 
+                this._charNo);
+            handlebarsUtils.handleError(exceptionObj, true);
+        } else {
+            handlebarsUtils.handleError(exception, true);
+        }
+    }
+};
+
+/**
 * @function ContextParserHandlebars.handleEscapeExpression
 *
 * @description
@@ -10075,6 +10083,18 @@ ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, le
     /* get the customized filter based on the current HTML5 state before the Handlebars template expression. */
     filters = this.addFilters(stateObj, input);
     for(var k=filters.length-1;k>=0;--k) {
+        //
+        // NOTE: the isSingleID is being used for making the following judgement.
+        //
+        // 1. if the parser encounters single helperName in the expression, we will simply add 
+        //    the customized filter with space as a separator (example: filterName helperName).
+        //    it is noted that filterName (helperName) is an invalid format
+        // 2. if the parser encounters multiple helperName/subExpression, we will add 
+        //    the customized filter as subExpression format (example: filterName (helperName* subExpression*)).
+        //
+        // Reference: 
+        // https://github.com/wycats/handlebars.js/blob/master/src/handlebars.yy
+        //
         if (saveToBuffer) {
             (re.isSingleID && k === 0) ? this.saveToBuffer(filters[k]+" ") : this.saveToBuffer(filters[k]+" (");
         } else {
@@ -11133,6 +11153,27 @@ HandlebarsUtils.commentLongFormExpressionRegExp = /^\{\{~?!--/;
 /* '{{' '~'? '!' */
 HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM = 8; // {{!.*}}
 HandlebarsUtils.commentShortFormExpressionRegExp = /^\{\{~?!/;
+
+HandlebarsUtils.SINGLE_ESCAPED_MUSTACHE = 9;
+HandlebarsUtils.DOUBLE_ESCAPED_MUSTACHE = 10;
+HandlebarsUtils.NOT_ESCAPED_MUSTACHE = 11;
+
+// @function HandlebarsUtils.lookBackTest
+HandlebarsUtils.lookBackTest = function(input, i) {
+    var len = input.length;
+
+    if (input[i] === '{' && i+1<len && input[i+1] === '{') {
+        if (i-2 >= 0 && input[i-1] === '\\' && input[i-2] === '\\') {
+            return HandlebarsUtils.DOUBLE_ESCAPED_MUSTACHE;
+        } else if (i-1 >= 0 && input[i-1] === '\\') {
+            return HandlebarsUtils.SINGLE_ESCAPED_MUSTACHE;
+        } else {
+            return HandlebarsUtils.NOT_ESCAPED_MUSTACHE;
+        } 
+    }
+    /* never falls into this and should throw error */
+    return HandlebarsUtils.UNHANDLED_EXPRESSION;
+};
 
 // @function HandlebarsUtils.lookAheadTest
 HandlebarsUtils.lookAheadTest = function(input, i) {
