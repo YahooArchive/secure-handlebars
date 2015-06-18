@@ -4,7 +4,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>Why filtering is hard!</title>
+    <title>Why filtering is hard?</title>
     <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
@@ -50,31 +50,35 @@
       <!-- grid system: http://getbootstrap.com/css/#grid -->
       <div class="row">
         <div class="col-md-12 blog-main">
-          <h2 class="header-badge">Why filtering is hard!</h2>
-          <p class="text-center">Cross Site Scripting (a.k.a. XSS) is still ranked among Top 3 in the OWASP Top 10 for more than a decade!</p>
+          <h2 class="header-badge">Why filtering is hard?</h2>
+          <p class="text-center">Cross Site Scripting (XSS) has been ranked among Top 3 in the OWASP Top 10 for more than a decade!</p>
         </div> <!-- blog main -->
 
         <div class="col-md-8 blog-post">
+          <br>
           <div class="col-md-12 blog-post">
-            <h2>Filtering is hard!!!</h2>
-            <p class="text-justify">Cross Site Scripting (a.k.a. XSS) has long been ranked among Top 3 in the OWASP Top 10 for more than a decade. Web applications taking untrusted user inputs, keeping them intact without proper validations, and sending them back as part of the HTML are vulnerable to XSS. Attackers can execute arbitrary JavaScript in the vulnerable application, deface the website, and even steal users’ sessions and personal information. Given these severe consequences, XSS is unarguably a critical vulnerability.</p>
-            <p class="text-justify">Nevertheless, why is XSS still being ranked among consistently high in OWASP Top 10? In this article, we further elaborate the difficulty, and how we tackle this problem when designing XSS filters and <a href="https://github.com/yahoo/secure-handlebars">automated secure handlebars solutions</a>.</p>
+            <h2>Cross-Site Scripting</h2>
+            <p class="text-justify">Cross Site Scripting (XSS) has been ranked among Top 3 in the OWASP Top 10 for more than a decade. Web applications taking untrusted user inputs, keeping them intact without proper validations, and sending them back as part of the HTML are vulnerable to XSS. Attackers can execute arbitrary JavaScript in the vulnerable application, deface the website, and even steal users’ sessions and personal information. Given these severe consequences, XSS is unarguably a critical vulnerability.</p>
           </div><!-- blog-post -->
 
           <div class="col-md-12 blog-post">
             <h2>Input Validation v.s. Output Filtering</h2>
-            <p class="text-justify">User input validation is implemented at the server-side, often as the first interface to validate all inputs before further processing; whereas output filtering is implemented as the last component at the output, right before the data is sent back to user’s browsers as shown in Figure 1 below. There is is no conflicting reason of just doing the filtering mechanism in one place, since it depends on the use case and functionality of your web applications.</p>
+            <p class="text-justify">User input validation is implemented at the server-side, often as the first interface to validate all inputs before further processing; whereas output filtering is implemented as the last output component, right before the data is sent back to user’s browsers as shown in Figure 1 below.</p>
+            
             <p class="text-justify"><img src="assets/images/input-validation-output-filtering.png"/>Figure 1 - Input Validation v.s. Output Filtering</p>
-            <p class="text-justify">However, why does input filtering fail in most cases? It is because the first interfacing component of the system can never anticipate what system component comes next when we are developing the modern web applications at scale with different internal and external systems interacting with each other. As a consequence, input filtering can either be over-filtering or insufficient filtering, the first case definitely affects the normal functionality while the latter case can lead to XSS vulnerabilities. This scenario makes output filtering more suitable and effective in the validation/filtering strategy, as it is the last component of the web application returning data back to the user’s browser.</p>
+            
+            <p class="text-justify">Input validation and output filtering have their respective pros and cons, and it really depends on the use cases of a web application to apply either one, or both.</p>
+
+            <p class="text-justify">Nevertheless, input filtering has a fundamental limitation. Being the first interfacing component of the system, it's hard to anticipate how downstream components act on the data. This's especially true when developing web applications at scale, in which many internal and external APIs are interacting with each other. Oftentimes, a system uses the same inputs to build a plaintext output, for which no HTML escaping is ever needed. As a result, input filtering can either be over- or insufficiently-filtering. While the former case will definitely hurt usability, the latter one will even lead to XSS vulnerabilities. In this regard, output escaping is more suitable as to judge what filters are needed by being the last output component.</p>
           </div><!-- blog-post -->
 
           <div class="col-md-12 blog-post">
             <h2>Output Contexts</h2>
-            <p class="text-justify">With the output filtering strategy in the design, it is still not easy to stop the XSS, as the developers need to understand the output contexts of the web applications and the execution order of the contexts in the web browsers.</p>
-            <p class="text-justify">Taking a HTML5 web application as an example, there are at least 4 superset classifications of output contexts, including HTML, CSS, JavaScript and URI, and each output context can be further broken down to finer granularity for classification. Based on our study, we have at least 25 output contexts if we just consider HTML and URI together, it means that we need at least 25 different types of filtering rules in practice.</p>
+            <p class="text-justify">It's still a complicated problem for developers to stop XSS with the output filtering approach. There're 4 common supersets of output contexts, including HTML, CSS, JavaScript and URI. An output context can be very fine-grained and even compounded too (e.g., URI in a double-quoted HTML attribute value). Even if only HTML and URI contexts are taken into considerations, there're already more than 25 output contexts.</p>
+            
+            <p><img src="assets/images/multiple-contexts.png" style="margin:0 -15px;width:104%"/>Figure 2 - User input at the "href" of the attribute value.</p>
 
-            <p class="text-justify">Besides the number of combinations of different output contexts, the filtering order is also critical to the filtering mechanism. The filtering order must be the same as the execution order of the contexts being invoked by the web browser and with the blacklist filter at the end of the filtering rules. When the developer puts the untrusted user input at the “href” attribute value as shown in Figure 2, the correct order is to apply the URI validation before the HTML attribute value filtering and with the HTTP protocol blacklist filter at the end to make it secure.
-            <img src="assets/images/multiple-contexts.png"/>Figure 2 - User input at the "href" of the attribute value.</p>
+            <p class="text-justify">Besides these many combinations of output contexts, the filtering order is also critical for correct encoding. The filters must observe and be built in the same execution order as in web browsers. As a XSS defense, a URI protocol filter is also required as the last filtering rule for the URI context. Given an untrusted user input to be outputed in the “href” attribute value as shown in Figure 2, the correct order is to first apply URI encoding, then HTML double-quoted attribute value escaping, and finally the URI protocol blacklist to make it secure.</p>
           </div><!-- blog-post -->
         </div><!-- col-md-8 blog-post -->
 
@@ -123,10 +127,10 @@
         <div class="col-md-12 blog-post">
           <div class="security-cta">
             <form action="./blindlyescaping.html" method="get">
-              <button type="submit">Continue</button>
+              <button type="submit">Blindly-escaping is insufficient</button>
             </form>
           </div>
-          <p class="text-center"><a href="./">Back</a></p>
+          <p class="text-center"><a href="./">Back</a> | <a href="/safejstemplating.html">Jump to the solution</a></p>
         </div> <!-- blog post -->     
 
       </div><!-- row -->

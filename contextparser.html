@@ -4,7 +4,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <title>Context-aware HTML5 Parser</title>
+    <title>HTML 5 Context Parser</title>
     <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
@@ -51,43 +51,24 @@
       <!-- grid system: http://getbootstrap.com/css/#grid -->
       <div class="row">
         <div class="col-md-12 blog-main">
-          <h2 class="header-badge">Context-aware HTML5 Parser</h2>
-          <p class="text-center">Our novel approach to implement a HTML5 compliant parser for cross browsers.</p>
+          <h2 class="header-badge">HTML 5 Context Parser</h2>
+          <p class="text-center">Our novel approach to enforce HTML 5 parsing across the browsers</p>
         </div> <!-- blog main -->
 
         <div class="col-md-8 blog-post">
+          <br>
           <div class="col-md-12 blog-post">
-            <h2>How to solve XSS?</h2>
-            <p class="text-justify">In order to mitigate the XSS vulnerability in the web applications, we need to address two biggest challenges.</p>
-            <blockquote>Understanding the execution contexts according to the <a href="https://html.spec.whatwg.org/multipage/">HTML5 WHATWG specification</a> and apply context-sensitive encoding filters, unlike the widely-used <a href="./blindlyescaping.html">Auto Escaping</a> approach that blindly applies the same encoder on every output.</blockquote>
-            <blockquote>Addressing the cross browsers compatibility issue of some browsers do not fully compliant with the HTML5. This issue fails our execution contexts analysis and leads to wrong judgement of XSS filters.</blockquote>
+            <h2>Contextual Analysis</h2>
+            <p class="text-justify">In order to prevent XSS vulnerabilities, we need to address two big challenges.</p>
+            <blockquote>We have to understand all output contexts as defined in the <a href="https://html.spec.whatwg.org/multipage/">HTML 5 specification</a> to perform the contextual analysis and apply the context-dependent escaping filters.</blockquote>
+            <blockquote>Browsers are NOT fully compliant with HTML 5, and can interpret the resulted HTML in a way inconsistent to our compliant contextual analysis. This issue could make our filters ineffective in escaping characters that are sensitive to the misaligned context.</blockquote>
           </div>
 
           <div class="col-md-12 blog-post">
-            <h2>Context Parser & HTML5 compliance</h2>
-            <p>&nbsp;</p>
-            <p class="text-justify">Context Parsing is our solution to understand the execution contexts of the HTML5 web pages according to the <a href="https://html.spec.whatwg.org/multipage/">HTML5 WHATWG specification</a>, and we mainly focus on the Tokenization process only, instead of implementing the end-to-end model of the HTML5 parser, to make our code base tiny and speedy.</p>
+            <h2>Context Parser & HTML 5 Compliance</h2>
+            <p class="text-justify"><a href="https://www.npmjs.com/package/context-parser">Context Parser</a> is our underlying component to interpret the execution contexts of HTML templates based on the <a href="https://html.spec.whatwg.org/multipage/">HTML 5 specification</a>. It largely focuses on the Tokenization process only, instead of implementing the end-to-end model of the whole HTML 5 parser, to make our codebase tiny and speedy.</p>
 
-            <p class="text-justify">Moreover, we address the cross browsers compatibility issue by a process called "canonicalization". In this process, we modify the inputting web page by rewriting the HTML to be HTML5 compliant, such that all browsers interpret the same for the page. With this strategy, all the downstream applications can focus on HTML5 specification without the concern of cross browsers compatibility issues.</p>
-          </div><!-- blog-post -->
-
-          <div class="col-md-12 blog-post">
-            <h2>Features of our Context Parser</h2>
-            <p>&nbsp;</p>
-
-	    <h3>HTML5 Compliance</h3>
-            <p class="text-justify">We implement our HTML5 parser according to the <a href="https://html.spec.whatwg.org/multipage/">HTML5 WHATWG specification</a>. It is HTML5 Compliant!!!</p>
-
-	    <h3>Speedy</h3>
-            <p class="text-justify">As our goal is to analyze the output execution context, there is no need to implement the <a href="https://html.spec.whatwg.org/multipage/syntax.html#overview-of-the-parsing-model">end to end parsing model</a> as the specification stated, so we can parse the HTML5 real fast.</p>
-	    <blockquote><p class="text-justify"><i>Currently, we can parse 12.903225806451612 MB per second in our JavaScript implementation.</i></p></blockquote>
- 	    <p class="text-justify"></p>
-
-	    <h3>Tiny code base</h3>
-            <p class="text-justify">Our code is around 500 lines, it is easy to be ported to different programming languages. Right now, we support native <a href="https://github.com/yahoo/context-parser">JavaScript</a> implementation.</p>
-
-	    <h3>Canonicalization</h3>
-            <p class="text-justify">It is a process to convert the inputting HTML and rewrite it to be HTML5 compliant.</p>
+            <p class="text-justify">To address the cross-browser compatibility issues, we introduce a template pre-processor called "Canonicalization". In this process, it automatically rewrite the HTML templates to correct any potential parse errors. This ensures that the resulted templates can be consistently interpreted by all supported browsers based on the HTML 5 specification. Downstream components and applications can thus focus on the HTML 5 contextual analysis and escaping without worrying about cross-browser compatibility issues.</p>
           </div><!-- blog-post -->
         </div><!-- col-md-8 blog-post -->
 
@@ -133,12 +114,7 @@
         </div><!-- col-md-3 col-md-offset-1 blog-sidebar-->
 
         <div class="col-md-12 blog-post">
-          <div class="security-cta">
-            <form action="./safejstemplating.html" method="get">
-              <button type="submit">Continue</button>
-            </form>
-          </div>
-          <p class="text-center"><a href="./blindlyescaping.html">Back</a></p>
+          <p class="text-center"><a href="./safejstemplating.html">Back</a></p>
         </div> <!-- blog post -->
 
       </div><!-- row -->

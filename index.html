@@ -51,7 +51,7 @@
       <div class="row">
         <div class="col-md-12 blog-main">
           <h2 class="header-badge">Safe JavaScript Templating</h2>
-          <p class="text-center">Our novel approach to defend JavaScript Templating solutions against Cross-site Scripting (XSS).</p>
+          <p class="text-center">Automatic Contextual XSS Escaping made robust, easy, and fast</p>
           <div class="security-cta">
             <form action="./safejstemplating.html" method="get">
               <button type="submit">Secure Handlebars</button>
@@ -59,21 +59,43 @@
           </div>
           <p class="text-center"><a href="./demosSecureHandlebars.html">Try our demo!</a></p>
         </div> <!-- blog main -->
+      </div><!-- row -->
 
-        <div>&nbsp;</div>
-
-        <div class="col-md-12 blog-post">
-          <div class="col-md-6 blog-post">
-          <h2>Why filtering is HARD?</h2>
-          <p class="text-justify"><a href="https://en.wikipedia.org/wiki/Cross-site_scripting">Cross Site Scripting</a> (a.k.a. XSS) has long been ranked among Top 3 in the <a href="https://owasp.org/index.php/Top_10_2013">OWASP Top 10</a> for more than a decade. Web applications taking untrusted user inputs, keeping them intact without proper validations, and sending them back as part of the HTML are vulnerable to XSS. Nevertheless, why is XSS still being ranked among consistently high in OWASP Top 10? <a href="./filteringishard.html">Learn more...</a></p>
-          </div>
-
-          <div class="col-md-6 blog-post">
-          <h2>JS Templating is UNSAFE!</h2>
-          <p class="text-justify">Intended to defend aganist Cross-Site Scripting (XSS), the JS Templating libraries are defaulted to apply automatic HTML escaping on the untrusted binding outputs. However, it is known to be still VULNERABLE to XSS! <a href="./blindlyescaping.html">Learn more...</a></p>
-          </div>
+      <div class="row">
+        <br>
+        <div class="col-md-6">
+          <h3>Is XSS defense too hard?</h3>
+          <p class="text-justify"><a href="https://en.wikipedia.org/wiki/Cross-site_scripting">Cross Site Scripting</a> (XSS) has topped the list of <a href="https://owasp.org/index.php/Top_10_2013">OWASP Top 10 Web Application Security Risks</a> over a decade. We all know its consequence is terrible, allowing attackers to compromise a website and exfiltrate sensitive user information. But what makes it so hard to be eliminated from web applications?</p>
+          <a href="./filteringishard.html">Learn more...</a>
         </div><!-- blog-post -->
 
+        <div class="col-md-6">
+          <h3>Blindly-escaping is still vulnerable!</h3>
+          <p class="text-justify"><a href="https://en.wikipedia.org/wiki/JavaScript_templating">JavaScript Templating</a> is prevalent in modern web development. Hence, an HTML template with placeholders (e.g., &lbrace;&lbrace;name&rbrace;&rbrace;) can be easily substituted with user inputs. In view of potentially malicious inputs, all values are by default piped through an HTML escaping filter to defend against XSS. But such a blindly-escaping approach is still vulnerable!</p>
+          <a href="./blindlyescaping.html">Learn more...</a>
+        </div><!-- blog-post -->
+
+      </div><!-- row -->
+
+      <br><br>
+      <div class="row">
+        
+        <div class="col-md-3">
+          <h3>Secure</h3>
+          <p>Escaping filters are applied according to the output context of every placeholder, at the right place and in a correct order. All automagically done by standard-compliant parsers written by us.</p>
+        </div><!-- blog-post -->
+        <div class="col-md-3">
+          <h3>Robust</h3>
+          <p>The solution has undergone series of manual code reviews, as well as unit and integration tests. The filters also stand against fuzzing tests under a vast majority of web browsers.</p>
+        </div><!-- blog-post -->
+        <div class="col-md-3">
+          <h3>Easy</h3>
+          <p>With as little as 2 lines of code changes, the <a href="https://www.npmjs.com/package/express-secure-handlebars">express-secure-handlebars</a> package is capable of applying contextual escaping filters, and even correct HTML parsing errors, all automatically!</p>
+        </div><!-- blog-post -->
+        <div class="col-md-3">
+          <h3>Fast</h3>
+          <p>Templates can be pre-processed completely offline to avoid any runtime contextual analysis. Filters escape just sufficiently to be secure, and are thus up to 2 times faster than the default one.</p>
+        </div><!-- blog-post -->
       </div><!-- row -->
     </div><!-- container -->
 
