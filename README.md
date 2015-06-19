@@ -1,6 +1,6 @@
 SecureHandlebars
 ===============================
-*Automatically* applying context-sensitive XSS output filtering to prevent XSS!
+*Automatically* applying context-sensitive output escaping to prevent XSS!
 
 [![npm version][npm-badge]][npm]
 [![dependency status][dep-badge]][dep-status]
@@ -12,13 +12,22 @@ SecureHandlebars
 [dep-badge]: https://img.shields.io/david/yahoo/secure-handlebars.svg?style=flat-square
 
 ## Introduction
-The original [Handlebars](http://handlebarsjs.com/) is overriden to perform the following major steps:
+Security is of utmost importance! 
 
-- *Template Pre-processor* executes static contextual analysis on a handlebars template, of which every output expression is applied with some context-dependent [helper markups](http://handlebarsjs.com/#helpers) (e.g., `<h1>{{title}}</h1>` is rewritten into `<h1>{{{yd title}}}</h1>`<sup>^</sup>). The pre-processed template is compatible with the original (runtime) Handlebars.
-- The original Handlebars template engine compiles the pre-processed template.
-- *Contextual output filters* are registered as Handlebars helpers, so that any untrusted user inputs assigned to those pre-processed output expressions are escaped with respect to the output context during data binding.
+Imagine a template is written like so: `<a href="{{url}}">{{url}}</a>`. When it is compiled with an untrusted user data like `{url: 'javascript:alert(666)'}`, secure-handlebars automatically applies contextual escaping and generates the HTML `<a href="x-javascript:alert(666)">javascript:alert(666)</a>` as a result. 
 
-<sup>^</sup> The raw `{{{expression}}}` is used to avoid redundant escaping by the default Handlebars [`escapeExpression()`](http://handlebarsjs.com/#html-escaping).
+Clearly, the same `{{url}}` is accurately escaped according to its output contexts to prevent malicious script executions, which otherwise is vulnerable if the original Handlebars is used alone.
+
+This is archived by enhancing the original [Handlebars](http://handlebarsjs.com/) to perform the following major steps:
+
+![alt Visualizing the architecture of secure-handlebars](https://yahoo.github.io/secure-handlebars/assets/images/secure-handlebars.png)
+
+- analyze templates to identify contexts of output expressions;
+- insert contextual escaping filters to templates, of which the markup is compatible with Handlebars;
+- register the filter implementations as Handlebars helpers, to be used during data binding.
+
+<!--### Demonstration
+Click [here](https://yahoo.github.io/secure-handlebars/demosSecureHandlebars.html) for a quick demo!-->
 
 ### Supported Contexts
 
@@ -29,39 +38,34 @@ The original [Handlebars](http://handlebarsjs.com/) is overriden to perform the 
 | HTML Attribute Value <br>(unquoted, single-quoted and double-quoted) | `<a class={{output}}>` <br> `<div class='{{output}}'>` <br> `<div class="{{output}}">` |
 | URI in Attribute Value <br>(unquoted, single-quoted and double-quoted) | `<a href={{output}}>` <br> `<a href='{{output}}'>` <br> `<a href="{{output}}">` |
 | CSS in Attribute Value <br>(unquoted, single-quoted and double-quoted) | `<div style="color:{{output}}">` <br> `<div style="backgrount:url({{output}})">` |
-In case an `{{expression}}` is found inside those yet-to-be-supported contexts (e.g., `<script>{{script}}</script>` or `<div onclick="{{onclick}}"`), the current strategy is to fallback to use the default Handlebars  [`escapeExpression()`](http://handlebarsjs.com/#html-escaping).
+It is generally a bad idea to place an `{{expression}}` inside those scriptable contexts (e.g., `<script>{{script}}</script>` or `<div onclick="{{onclick}}"`). Check out the [Section of Warnings and Workarounds](#warnings-and-workarounds) for resolutions.
 
 ## Quick Start
 
-### Client-side Use
+### Server-side Use for Express w/Handlebars
+We highly recommend using the [express-secure-handlebars npm](https://www.npmjs.com/package/express-secure-handlebars) for a streamlined experience of template pre-processing, compilating, context-sensitive output escaping, and data binding.
 
-Analyze the HTML contexts of Handlebars templates on client-side
+### Client-side Use
+Automatically apply Contextual XSS Escaping for Handlebars templates on client-side
 ```html
-<!-- Disable the original handlebars -->
-<!--script src="dist/handlebars.min.js"></script-->
+<!-- Disable <script src="dist/handlebars.min.js"></script> -->
 <script src="dist/secure-handlebars.min.js"></script>
 
 <script>
 // given data stores a handlebars template as string
-var html = '<html><title>{{title}}</title></html>',
-    data = {title: 'Hello'};
+var html = '<a href="{{url}}">{{url}}</a>',
+    data = {url: 'javascript:alert(666)'};
 
-// analyze the HTML contexts, and return a handlebars template with context-sensitive helpers added
-var template = Handlebars.compile(html);
-// html is '<html><title>Hello</title></html>'
-var html = template(data);
-// inserts the html to the DOM
-// ...
+// Compile the template and apply data binding w/automatic contextual escaping
+// the resulted html is '<a href="x-javascript:alert(666)">javascript:alert(666)</a>'
+var html = Handlebars.compile(html)(data);
 </script>
 ```
 
-### Server-side Use (Express/Node.js)
-We highly recommend using the [express-secure-handlebars npm](https://www.npmjs.com/package/express-secure-handlebars) for a streamlined experience of template pre-processing, compilating, context-sensitive output escaping, and data binding.
+### Advanced Usage for Pre-processing Templates Only
+You can perform offline pre-processing for your templates using the provided CLI utility, which rewrites the templates to insert contextual output escaping filter markups. Fully compatible with the original Handlebars, the rewritten templates can be further compiled and data-binded with [secure-handlebars-helpers](https://www.npmjs.com/package/secure-handlebars-helpers).
 
-### Advanced Server-side Use (Standalone Template Pre-processor)
-Here's deeper dive into using the standalone template pre-processor to insert context-dependent helper markups. 
-
-Install the [secure-handlebars npm](https://www.npmjs.com/package/secure-handlebars) globally, so it can be used in any project.
+To achieve this, install the [secure-handlebars npm](https://www.npmjs.com/package/secure-handlebars) globally, so it can be used in any project.
 ```sh
 npm install secure-handlebars -g
 ```
@@ -72,18 +76,18 @@ Given a handlebars template file named `sample.hbs` like so:
 <html><title>{{title}}</title></html>
 ```
 
-Pre-process the template:
+Get the template with contextual escaping filters inserted:
 ```sh
 handlebarspp sample.hbs > sample.shbs
 ```
 
-The pre-processed template file `sample.shbs` that is fully-compatible with the original ([runtime](http://builds.handlebarsjs.com.s3.amazonaws.com/handlebars.runtime.min-latest.js)) Handlebars:
+The pre-processed template file `sample.shbs` that is fully-compatible with the original ([runtime](http://builds.handlebarsjs.com.s3.amazonaws.com/handlebars.min-latest.js)) Handlebars:
 ```html
 <!doctype html>
 <html><title>{{{yd title}}}</title></html>
 ```
-
-You may then come up with some statistics such as counting the number of dangerous/unhandled contexts (such as `<script>{{script}}</script>`) that deserve more intensive inspections and perhaps workarounds. And in case you would like to work on these pre-processed templates for further Handlebars (pre-)compilations without using the [express-secure-handlebars npm](https://www.npmjs.com/package/express-secure-handlebars), be reminded to register the [secure-handlebars-helpers](https://www.npmjs.com/package/secure-handlebars-helpers) to apply context-sensitive output filtering accordingly.
+These rewritten templates can then go through the standard Handlebars pre-compilation process, and be used with [secure-handlebars-helpers](https://www.npmjs.com/package/secure-handlebars-helpers) during runtime compilation.
+On the other hand, this utility also faciilates statistics collection. For instance, you can write a simple script to count the number of dangerous contexts (such as `<script>{{script}}</script>`).
 
 ## Development
 
@@ -93,9 +97,24 @@ npm test
 ```
 ## Known Limitations & Issues
 - Templates MUST be in UTF-8 encoding and using HTML 5 doctype (i.e., <!doctype html>).
-- We handle the HTML contextual analysis right now, and provide no support to the JavaScript yet. For CSS context, we support output expression at style attribute value ONLY.
+- There is no support to the JavaScript contexts and `<style>` tags yet. See the [section](#warnings-and-workarounds) below for details.
 - Our approach involves only static analysis on the template files, and thus data dynamically binded through raw output expressions that may alter the execution context on the rendered HTML CANNOT be taken into account.
-- We now assume that {{>partial}} and {{{{rawblock}}}} is always placed in the HTML Data context, and by itself will result in the same Data context after its binding (hence, in-state and out-state are both of the data context). 
+- We now assume that `{{>partial}}` and `{{{{rawblock}}}}` is always placed in the HTML Data context, and by itself will result in the same Data context after its binding (hence, in-state and out-state are both of the data context). 
+
+### Warnings and Workarounds
+When output expressions are found inside dangerous (yet-to-be-supported) contexts, we echo warnings and gracefully fallback to apply the default Handlebars [`escapeExpression()`](http://handlebarsjs.com/#html-escaping). These warnings are indications of potential security exploits, and thus require closer inspections. Instead of simply abusing raw expressions to supress the warnings, here are some alternative suggestions to secure your applications.
+- Output placeholder in the `<script>` tag:
+```html
+<!-- Rewrite <script>var strJS = {{strJS}};</script> as: -->
+<input id="strJS" value="{{strJS}}">
+<script>var strJS = document.getElementById('strJS').value;</script>
+```
+- Output placeholder in an event attribute (e.g., `onclick=""`):
+```html
+<!-- Rewrite <div onclick="hello({{name}})"> as: -->
+<div onclick="hello(this.getAttribute('data-name'))" data-name="{{name}}">
+```
+
 
 ## License
 
