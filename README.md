@@ -102,7 +102,7 @@ npm test
 - We now assume that `{{>partial}}` and `{{{{rawblock}}}}` is always placed in the HTML Data context, and by itself will result in the same Data context after its binding (hence, in-state and out-state are both of the data context). 
 
 ### Warnings and Workarounds
-When output expressions are found inside dangerous (yet-to-be-supported) contexts, we echo warnings and gracefully fallback to apply the default Handlebars [`escapeExpression()`](http://handlebarsjs.com/#html-escaping). These warnings are indications of potential security exploits, and thus require closer inspections. Instead of simply abusing raw expressions to supress the warnings, here are some alternative suggestions to secure your applications.
+When output expressions are found inside dangerous (yet-to-be-supported) contexts, we echo warnings and gracefully fallback to apply the default Handlebars [`escapeExpression()`](http://handlebarsjs.com/#html-escaping). These warnings are indications of potential security exploits, and thus require closer inspections. Instead of simply abusing raw expressions to suppress the warnings, here are some alternative suggestions to secure your applications.
 - Output placeholder in the `<script>` tag:
 ```html
 <!-- Rewrite <script>var strJS = {{strJS}};</script> as: -->
