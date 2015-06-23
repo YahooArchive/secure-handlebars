@@ -7,7 +7,6 @@
     <title>Yahoo Bug Bounty Special Program 2.0 Rules</title>
     <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
-    <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
     <link rel="stylesheet" href="stylesheets/security.css" type="text/css" />
 
     <!-- Bootstrap -->
@@ -18,9 +17,6 @@
 
     <link href="stylesheets/blog.css" rel="stylesheet">
     <link href="stylesheets/carousel.css" rel="stylesheet">
-
-    <!-- jquery -->
-    <script src="javascripts/jquery.min.js"></script>
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9] >
@@ -38,7 +34,8 @@
         <div class="blog-masthead">
           <div class="container">
             <nav class="blog-nav">
-              <a class="blog-nav-item " href="./">Safe JS Templating</a>
+              <a class="blog-nav-item " href="./">Home</a>
+              <a class="blog-nav-item " href="./safejstemplating.html">Safe JS Templating</a>
               <a class="blog-nav-item " href="./gettingstart.html">Getting Started</a>
               <a class="blog-nav-item " href="./demosSecureHandlebars.html">Demos</a>
               <a class="blog-nav-item active" href="./bugBounty.html">Bug Bounty</a>
@@ -124,18 +121,6 @@
           </p>
 
           <p class="text-justify">In example 2, the blacklist URI protocol filter can be bypassed by splitting the malicious protocol such as javascript: into two.</p>
-
-          <!--h4>Supported browsers for XSS Filters</h4>
-          <p class="text-justify">In our design principle of XSS Filters, we mainly focus on the HTML5 specification and state transition for just sufficient encoding. However, browser implementation from different vendors may deviate from HTML5 specification and we have to address to make our XSS Filters pragmatic, we also consider non-HTML5 specification in our XSS Filter filtering rules and support the following browsers with minimum version based on the market share of each browser in Feb-2015 based on the statcounter data.</p>
-          <p class="text-justify">The minimum version of each browser qualified for this program is listed below, otherwise, it is not qualified.</p>
-          <table class="table table-bordered">
-            <tbody>
-            <tr><td><b>Browser</b></td><td>Chrome</td><td>Firefox</td><td>Internet Explorer</td><td>Safari</td></tr>
-            <tr><td><b>Minimum Version</b></td><td>31</td><td>27</td><td>7</td><td>5.1</td></tr>
-            </tbody>
-          </table>
-          <p class="text-justify">&nbsp;</p-->
-
         </div>
 
         <div class="col-md-12 blog-post">

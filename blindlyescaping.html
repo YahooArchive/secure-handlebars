@@ -7,7 +7,6 @@
     <title>Blindly-escaping is insufficient</title>
     <link rel="stylesheet" type="text/css" href="stylesheets/cssbase-min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/cssreset-min.css">
-    <link rel="stylesheet" type="text/css" href="stylesheets/cssfonts-min.css">
     <link rel="stylesheet" href="stylesheets/security.css" type="text/css" />
 
     <!-- Bootstrap -->
@@ -18,9 +17,6 @@
 
     <link href="stylesheets/blog.css" rel="stylesheet">
     <link href="stylesheets/carousel.css" rel="stylesheet">
-
-    <!-- jquery -->
-    <script src="javascripts/jquery.min.js"></script>
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9] >
@@ -38,7 +34,8 @@
         <div class="blog-masthead">
           <div class="container">
             <nav class="blog-nav">
-              <a class="blog-nav-item active" href="./">Safe JS Templating</a>
+              <a class="blog-nav-item " href="./">Home</a>
+              <a class="blog-nav-item active" href="./safejstemplating.html">Safe JS Templating</a>
               <a class="blog-nav-item " href="./gettingstart.html">Getting Started</a>
               <a class="blog-nav-item " href="./demosSecureHandlebars.html">Demos</a>
               <a class="blog-nav-item " href="./bugBounty.html">Bug Bounty</a>
@@ -81,7 +78,7 @@
               <h4>Example of Vulnerability</h4>
               <ul style="list-style:inherit;margin-left:20px">
                 <li>Visit the <a href="http://tryhandlebarsjs.com/">Handlebars demo page</a></li>
-                <li>Use <code>&lt;input value=undefined/&gt;</code> as template</li>
+                <li>Use <code>&lt;input value={{untrusted}}/&gt;</code> as template</li>
                 <li>Use <code>{&quot;untrusted&quot;: &quot;<span style="color:#F00">x</span> <span style="color:#F00"> onblur=alert(1)</span>&quot;}</code> as data input</li>
                 <li>Compile. The output is <code>&lt;input value=<span style="color:#F00">x onblur=alert(1)</span>/&gt;</code></li>
                 <li>When run at browsers, expect an alert when the input loses focus.</li>
@@ -129,7 +126,7 @@
                           <li><a href="./blindlyescaping.html">Blindly-escaping is Insufficient</a></li>
                           <li><a href="./safejstemplating.html">Automatic Contextual Escaping</a></li>
                           <li>&nbsp; - <a href="./contextparser.html">Context Parser</a></li>
-                          <li>&nbsp; - <a href="https://github.com/yahoo/xss-filters/blob/master/README.md">XSS Filters</a></li>
+                          <li>&nbsp; - <a href="/xssfilters.html">XSS Filters</a></li>
                         </ol>
             
                         <h4>Source Code</h4>
