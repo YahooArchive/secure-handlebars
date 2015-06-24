@@ -65,7 +65,7 @@
 
         <div class="col-md-12 blog-post">
           <h3>Qualified Vulnerability Reports</h3>
-          <p class="text-justify">We are generally interested in knowing how these products would fail in defending against XSS in UTF-8 documents:</p>
+          <p class="text-justify">We are interested in knowing how these products can fail in defending against XSS in UTF-8 documents:</p>
           <br>
           <div class="col-md-6">
             <h4>Secure XSS Filters</h4>
@@ -76,6 +76,7 @@
             <h4>Secure Handlebars</h4>
             <p class="text-justify">A qualified vulnerability report must include a malicious input and an Handlebars template, to which the filter(s) inserted for supported contexts can be bypassed by the input, resulting in JavaScript execution after compilation and data binding.</p>
             <p class="text-justify">More precisely, (1) secure-handlebars is correctly applied while throwing no errors nor warnings; and (2) it is vulnerable due to those automatically inserted filter(s), <i>that would otherwise be secured by the Handlebars default escaping filter</i>.</p>
+            <p class="text-justify">Same as Secure XSS Filters, the filters are designed to support the same version of browsers.</p>
           </div>
           <p>In addition to the <a href="https://hackerone.com/yahoo">common rules and terms</a>, click <a href="#unqualified" onclick="document.getElementById('unqualified').classList.remove('hide')">here</a> for the specific known issues of these products that are excluded from monetary rewards.</p>
         </div>
