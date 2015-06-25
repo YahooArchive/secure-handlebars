@@ -14,11 +14,11 @@ SecureHandlebars
 ## Introduction
 Security is of utmost importance! 
 
-Imagine a template is written like so: `<a href="{{url}}">{{url}}</a>`. When it is compiled with an untrusted user data like `{url: 'javascript:alert(666)'}`, secure-handlebars automatically applies contextual escaping and generates the HTML `<a href="x-javascript:alert(666)">javascript:alert(666)</a>` as a result. 
+Imagine a template is written like so: `<a href="{{url}}">{{url}}</a>`. When it is compiled with an untrusted user data like `{"url": "javascript:alert(666)"}`, secure-handlebars automatically applies contextual escaping and generates the HTML `<a href="x-javascript:alert(666)">javascript:alert(666)</a>` as a result. 
 
-Clearly, the same `{{url}}` is accurately escaped according to its output contexts to prevent malicious script executions, which otherwise is vulnerable if the original Handlebars is used alone.
+Clearly, the same `{{url}}` must be escaped according to different output contexts to prevent malicious script executions, which otherwise would be vulnerable if the original [Handlebars](http://handlebarsjs.com/) is used alone.
 
-This is archived by enhancing the original [Handlebars](http://handlebarsjs.com/) to perform the following major steps:
+This is archived by enhancing the original Handlebars to perform the following steps:
 
 ![alt Visualizing the architecture of secure-handlebars](https://yahoo.github.io/secure-handlebars/assets/images/secure-handlebars.png)
 
@@ -96,20 +96,20 @@ On the other hand, this utility also faciilates statistics collection. For insta
 npm test
 ```
 ## Known Limitations & Issues
-- Templates MUST be in UTF-8 encoding and using HTML 5 doctype (i.e., <!doctype html>).
+- Templates MUST be in UTF-8 encoding and using HTML 5 doctype (i.e., `<!doctype html>`).
 - There is no support to the JavaScript contexts and `<style>` tags yet. See the [section](#warnings-and-workarounds) below for details.
 - Our approach involves only static analysis on the template files, and thus data dynamically binded through raw output expressions that may alter the execution context on the rendered HTML CANNOT be taken into account.
-- We now assume that `{{>partial}}` and `{{{{rawblock}}}}` is always placed in the HTML Data context, and by itself will result in the same Data context after its binding (hence, in-state and out-state are both of the data context). 
+- We now assume that `{{>partial}}` and `{{{{rawblock}}}}` are always placed in the HTML Data context, and that they will result in the same Data context after data binding (hence, in-state and out-state are both of the data context). 
 
 ### Warnings and Workarounds
-When output expressions are found inside dangerous (yet-to-be-supported) contexts, we echo warnings and gracefully fallback to apply the default Handlebars [`escapeExpression()`](http://handlebarsjs.com/#html-escaping). These warnings are indications of potential security exploits, and thus require closer inspections. Instead of simply abusing raw expressions to suppress the warnings, here are some alternative suggestions to secure your applications.
-- Output placeholder in the `<script>` tag:
+When output expressions are found inside dangerous (yet-to-be-supported) contexts, we echo warnings and gracefully fallback to apply the default Handlebars [`escapeExpression()`](http://handlebarsjs.com/#html-escaping). These warnings are indications of potential security exploits, and thus require closer inspections. Instead of simply abusing `{{{raw_expression}}}` to suppress the warnings, here are some alternative suggestions to secure your applications.
+- Output expression in the `<script>` tag:
 ```html
 <!-- Rewrite <script>var strJS = {{strJS}};</script> as: -->
-<input id="strJS" value="{{strJS}}">
+<input type="hidden" id="strJS" value="{{strJS}}">
 <script>var strJS = document.getElementById('strJS').value;</script>
 ```
-- Output placeholder in an event attribute (e.g., `onclick=""`):
+- Output expression in an event attribute (e.g., `onclick=""`):
 ```html
 <!-- Rewrite <div onclick="hello({{name}})"> as: -->
 <div onclick="hello(this.getAttribute('data-name'))" data-name="{{name}}">
