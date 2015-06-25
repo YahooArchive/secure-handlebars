@@ -14,18 +14,17 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         testPatterns = require("../test-patterns.js"),
         cssParser = require("../../src/css-parser/css-parser.js"),
         cssParserUtils = require("../../src/css-utils.js"),
-        HtmlEntitiesDecoder = require("../../src/html-decoder/html-decoder.js"),
-        htmlDecoder = new HtmlEntitiesDecoder();
+        HtmlDecoder = require("html-decoder");
 
     describe("CSS Parser test suite", function() {
 
         it("CSS Style Value Attribute HTML entities decode test", function() {
             testPatterns.cssHtmlEntitiesPattern.forEach(function(testObj) {
-                var r = htmlDecoder.decode(testObj.html);
+                var r = HtmlDecoder.decode(testObj.html);
                 expect(testObj.result).to.equal(r);
             });
             testPatterns.cssStyleAttributeValuePatterns1.forEach(function(testObj) {
-                var r = htmlDecoder.decode(testObj.css);
+                var r = HtmlDecoder.decode(testObj.css);
                 expect(testObj.result).to.equal(r);
             });
         });
