@@ -25,13 +25,6 @@ HandlebarsUtils.UNHANDLED_EXPRESSION = -1;
 
 HandlebarsUtils.NOT_EXPRESSION = 0;
 
-/* '{{{{' '\s'* ('not \s, special-char'+) '\s'* non-greedy '}}}}' and not follow by '}' */
-HandlebarsUtils.RAW_BLOCK = 9; // {{{{block}}}}
-HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*?\}\}\}\}/;
-/* '{{{{' '/' ('not \s, special-char'+) non-greedy '}}}}' and not follow by '}' */
-HandlebarsUtils.RAW_END_BLOCK = 10; // {{{{/block}}}}
-HandlebarsUtils.rawEndBlockRegExp = /^\{\{\{\{\/([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)?\}\}\}\}(?!})/;
-
 /* '{{{' '~'? 'space'* '@'? 'space'* ('not {}~'+) 'space'* ('not {}~'+) '~'? non-greedy '}}}' and not follow by '}' */
 HandlebarsUtils.RAW_EXPRESSION = 1; // {{{expression}}}
 // HandlebarsUtils.rawExpressionRegExp = /^\{\{\{\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>\[\\\]\^`\{\|\}\~]+)\s*?\}\}\}(?!})/;
@@ -44,10 +37,6 @@ HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?\s*@?\s*([^\}\{~]+)~?\}\}(?!})/
 /* '{{' '~'? '>' '\s'* ('not \s, special-char'+) '\s'* 'not ~{}'* non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.PARTIAL_EXPRESSION = 3; // {{>.*}}
 HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^~\}\{]*~?\}\}(?!})/;
-
-/* '{{' '~'? '&' '\s'* ('not \s, special-char'+) '\s'* 'not ~{}'* non-greedy '}}' and not follow by '}' */
-HandlebarsUtils.REFERENCE_EXPRESSION = 11; // {{&.*}}
-HandlebarsUtils.referenceExpressionRegExp = /^\{\{~?&\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^~\}\{]*~?\}\}(?!})/;
 
 /* '{{' '~'? '# or ^' '\s'* ('not \s, special-char'+) '\s'* 'not {}~'* '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.BRANCH_EXPRESSION = 4; // {{#.*}}, {{^.*}}
@@ -69,9 +58,25 @@ HandlebarsUtils.commentLongFormExpressionRegExp = /^\{\{~?!--/;
 HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM = 8; // {{!.*}}
 HandlebarsUtils.commentShortFormExpressionRegExp = /^\{\{~?!/;
 
-HandlebarsUtils.SINGLE_ESCAPED_MUSTACHE = 9;
-HandlebarsUtils.DOUBLE_ESCAPED_MUSTACHE = 10;
-HandlebarsUtils.NOT_ESCAPED_MUSTACHE = 11;
+/* '{{{{' '\s'* ('not \s, special-char'+) '\s'* non-greedy '}}}}' and not follow by '}' */
+HandlebarsUtils.RAW_BLOCK = 9; // {{{{block}}}}
+HandlebarsUtils.rawBlockRegExp = /^\{\{\{\{\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*?\}\}\}\}/;
+/* '{{{{' '/' ('not \s, special-char'+) non-greedy '}}}}' and not follow by '}' */
+HandlebarsUtils.RAW_END_BLOCK = 10; // {{{{/block}}}}
+HandlebarsUtils.rawEndBlockRegExp = /^\{\{\{\{\/([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)?\}\}\}\}(?!})/;
+
+/* '{{' '~'? '&' '\s'* ('not \s, special-char'+) '\s'* 'not ~{}'* non-greedy '}}' and not follow by '}' */
+HandlebarsUtils.AMPERSAND_EXPRESSION = 11; // {{&.*}}
+HandlebarsUtils.referenceExpressionRegExp = /^\{\{~?&\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^~\}\{]*~?\}\}(?!})/;
+
+/* for escaped mustache handling */
+HandlebarsUtils.SINGLE_ESCAPED_MUSTACHE = 12;
+HandlebarsUtils.DOUBLE_ESCAPED_MUSTACHE = 13;
+HandlebarsUtils.NOT_ESCAPED_MUSTACHE = 14;
+
+/* the AST node type */
+HandlebarsUtils.AST_NODE = 15;
+HandlebarsUtils.AST_HTML = 16;
 
 // @function HandlebarsUtils.lookBackTest
 HandlebarsUtils.lookBackTest = function(input, i) {
@@ -111,7 +116,7 @@ HandlebarsUtils.lookAheadTest = function(input, i) {
             case '/':
                 return HandlebarsUtils.BRANCH_END_EXPRESSION;
             case '&':
-                return HandlebarsUtils.REFERENCE_EXPRESSION;
+                return HandlebarsUtils.AMPERSAND_EXPRESSION;
             case '!':
                 if (i+j+2<len && input[i+j+1] === '-' && input[i+j+2] === '-') {
                     return HandlebarsUtils.COMMENT_EXPRESSION_LONG_FORM;
@@ -182,7 +187,7 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
         case HandlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
             re = HandlebarsUtils.commentShortFormExpressionRegExp.exec(s);
             break;
-        case HandlebarsUtils.REFERENCE_EXPRESSION:
+        case HandlebarsUtils.AMPERSAND_EXPRESSION:
             re = HandlebarsUtils.referenceExpressionRegExp.exec(s);
             break;
         default:
