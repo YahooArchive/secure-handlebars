@@ -105,12 +105,14 @@ npm test
 When output expressions are found inside dangerous (yet-to-be-supported) contexts, we echo warnings and gracefully fallback to apply the default Handlebars [`escapeExpression()`](http://handlebarsjs.com/#html-escaping). These warnings are indications of potential security exploits, and thus require closer inspections. Instead of simply abusing `{{{raw_expression}}}` to suppress the warnings, here are some alternative suggestions to secure your applications.
 - Output expression in the `<script>` tag:
 ```html
+[WARNING] SecureHandlebars: Unsafe output expression found at scriptable <script> tag
 <!-- Rewrite <script>var strJS = {{strJS}};</script> as: -->
 <input type="hidden" id="strJS" value="{{strJS}}">
 <script>var strJS = document.getElementById('strJS').value;</script>
 ```
 - Output expression in an event attribute (e.g., `onclick=""`):
 ```html
+[WARNING] SecureHandlebars: Unsafe output expression found at onclick JavaScript event attribute
 <!-- Rewrite <div onclick="hello({{name}})"> as: -->
 <div onclick="hello(this.getAttribute('data-name'))" data-name="{{name}}">
 ```

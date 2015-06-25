@@ -668,6 +668,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             // they require either special parsers of their own context (e.g., CSS/script parsers) 
             //    or an application-specific whitelisted url check (e.g., <script src=""> with yubl-yavu-yufull is not enough)
             errorMessage += handlebarsUtils.isScriptableTag(tagName) ? 'scriptable <' + tagName + '> tag' : exception;
+            errorMessage += "\nPlease follow this URL to resolve - https://github.com/yahoo/secure-handlebars#warnings-and-workarounds";
 
             exceptionObj = new ContextParserHandlebarsException(errorMessage, this._lineNo, this._charNo);
             handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
