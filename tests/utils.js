@@ -17,7 +17,7 @@ exports.testArrMatch = function(data, arr) {
 var testBranch = function(ast, testObj) {
    ast.left.forEach(function(obj, i) {
        expect(obj.type).to.equal(testObj.left.rtype[i]);
-       if (obj.type !== 'node') {
+       if (obj.type !== handlebarsUtils.AST_NODE) {
            expect(obj.content).to.equal(testObj.left.rstr[i]);
        } else {
            testBranch(obj.content, testObj.left.rstr[i]);
@@ -25,7 +25,7 @@ var testBranch = function(ast, testObj) {
    });
    ast.right.forEach(function(obj, i) {
        expect(obj.type).to.equal(testObj.right.rtype[i]);
-       if (obj.type !== 'node') {
+       if (obj.type !== handlebarsUtils.AST_NODE) {
            expect(obj.content).to.equal(testObj.right.rstr[i]);
        } else {
            testBranch(obj.content, testObj.right.rstr[i]);

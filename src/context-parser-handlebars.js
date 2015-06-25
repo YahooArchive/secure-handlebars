@@ -214,26 +214,23 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
         endPos = 0;
 
     /* Handlebars expression type */
-    var handlebarsExpressionType, handlebarsExpressionTypeName = '';
+    var handlebarsExpressionType;
 
     try {
         for(j=i;j<len;++j) {
 
             /* distinguish the type */
             handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION; 
-            
 
             if (input[j] === '{' && input[j+1] === '{') {
                 if (input[j+2] === '{') { 
                     // 4 braces are encountered
                     if (input[j+3] === '{') {
                         handlebarsExpressionType = handlebarsUtils.RAW_BLOCK;
-                        handlebarsExpressionTypeName = 'rawblock';
                     } 
                     // 3 braces are encountered
                     else {
                         handlebarsExpressionType = handlebarsUtils.RAW_EXPRESSION;
-                        handlebarsExpressionTypeName = 'rawexpression';
                     }
                 }
                 // 2 braces are encountered
@@ -243,12 +240,6 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         escapedMustache === handlebarsUtils.DOUBLE_ESCAPED_MUSTACHE
                         ) {
                         handlebarsExpressionType = handlebarsUtils.lookAheadTest(input, j);
-                        // 'expression' is the default handlebarsExpressionTypeName
-                        handlebarsExpressionTypeName = handlebarsExpressionType === handlebarsUtils.ESCAPE_EXPRESSION ? 'escapeexpression'
-                            : handlebarsExpressionType === handlebarsUtils.BRANCH_EXPRESSION ? 'branchstart' 
-                            : handlebarsExpressionType === handlebarsUtils.ELSE_EXPRESSION ? 'branchelse' 
-                            : handlebarsExpressionType === handlebarsUtils.BRANCH_END_EXPRESSION ? 'branchend' 
-                            : 'expression';
                     } else if (escapedMustache === handlebarsUtils.SINGLE_ESCAPED_MUSTACHE) {
                         // mark it as non-expression and untouch it
                         handlebarsExpressionType = handlebarsUtils.NOT_EXPRESSION;
@@ -268,7 +259,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                 if (content !== '') {
                     startPos = endPos+1;
                     endPos = startPos+content.length-1;
-                    nodeObj = this.generateNodeObject('html', content, startPos);
+                    nodeObj = this.generateNodeObject(handlebarsUtils.AST_HTML, content, startPos);
                     inverse? ast.right.push(nodeObj) : ast.left.push(nodeObj);
                     content = '';
                 }
@@ -279,7 +270,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         startPos = j;
                         obj = this.handleRawBlock(input, j, false);
                         endPos = j = obj.index;
-                        nodeObj = this.generateNodeObject('rawblock', obj.str, startPos);
+                        nodeObj = this.generateNodeObject(handlebarsExpressionType, obj.str, startPos);
                         inverse? ast.right.push(nodeObj) : ast.left.push(nodeObj);
                  
                         break;
@@ -291,7 +282,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         startPos = j;
                         obj = this.consumeExpression(input, j, handlebarsExpressionType, false);
                         endPos = j = obj.index;
-                        nodeObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
+                        nodeObj = this.generateNodeObject(handlebarsExpressionType, obj.str, startPos);
                         inverse? ast.right.push(nodeObj) : ast.left.push(nodeObj);
 
                         break;
@@ -302,14 +293,14 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                             startPos = j;
                             obj = this.buildAst(input, j, [re.tag]);
                             endPos = j = obj.index;
-                            nodeObj = this.generateNodeObject('node', obj, startPos);
+                            nodeObj = this.generateNodeObject(handlebarsUtils.AST_NODE, obj, startPos);
                             inverse? ast.right.push(nodeObj) : ast.left.push(nodeObj);
                         } else {
                             /* consumeExpression */
                             startPos = j;
                             obj = this.consumeExpression(input, j, handlebarsExpressionType, false);
                             endPos = j = obj.index;
-                            nodeObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
+                            nodeObj = this.generateNodeObject(handlebarsExpressionType, obj.str, startPos);
                             inverse? ast.right.push(nodeObj) : ast.left.push(nodeObj);
                             buildNode = true;
                         }
@@ -318,7 +309,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                     case handlebarsUtils.RAW_EXPRESSION:
                     case handlebarsUtils.ESCAPE_EXPRESSION:
                     case handlebarsUtils.PARTIAL_EXPRESSION:
-                    case handlebarsUtils.REFERENCE_EXPRESSION:
+                    case handlebarsUtils.AMPERSAND_EXPRESSION:
                     case handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM:
                     case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
                     case handlebarsUtils.BRANCH_END_EXPRESSION:
@@ -334,7 +325,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
                         startPos = j;
                         obj = this.consumeExpression(input, j, handlebarsExpressionType, false);
                         endPos = j = obj.index;
-                        nodeObj = this.generateNodeObject(handlebarsExpressionTypeName, obj.str, startPos);
+                        nodeObj = this.generateNodeObject(handlebarsExpressionType, obj.str, startPos);
                         inverse? ast.right.push(nodeObj) : ast.left.push(nodeObj);
 
                         break;
@@ -372,7 +363,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
     if (content !== '') {
         startPos = endPos+1;
         endPos = startPos+content.length-1;
-        nodeObj = this.generateNodeObject('html', content, startPos);
+        nodeObj = this.generateNodeObject(handlebarsUtils.AST_HTML, content, startPos);
         inverse === true? ast.right.push(nodeObj) : ast.left.push(nodeObj);
     }
 
@@ -414,32 +405,43 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
         for (var j = 0, len = tree.length, node; j < len; j++) {
             node = tree[j];
 
-            if (node.type === 'html') {
+            if (node.type === handlebarsUtils.AST_HTML) {
                 
                 output += parser.contextualize(node.content);
 
-            } else if (node.type === 'escapeexpression' ||
-                node.type === 'rawexpression') {
+            } else if (node.type === handlebarsUtils.ESCAPE_EXPRESSION ||
+                node.type === handlebarsUtils.RAW_EXPRESSION) {
 
                 // lookupStateForHandlebarsOpenBraceChar from current state before handle it
                 parser.setCurrentState(ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[parser.state]);
                 this.clearBuffer();
-                this.handleTemplate(node.content, 0, parser);
+                this.handleEscapeAndRawTemplate(node.content, 0, parser);
                 output += this.getOutput();
 
-            } else if (node.type === 'node') {
+            } else if (node.type === handlebarsUtils.AST_NODE) {
                 
                 t = this.analyzeAst(node.content, parser, node.startPos);
                 parser.cloneStates(t.parser);
 
                 output += t.output;
 
-            } else if (node.type === 'rawblock' ||
-                node.type === 'expression' || 
-                node.type === 'branchstart' ||
-                node.type === 'branchelse' ||
-                node.type === 'branchend') {
+            } else if (node.type === handlebarsUtils.RAW_BLOCK ||
+                node.type === handlebarsUtils.PARTIAL_EXPRESSION ||
+                node.type === handlebarsUtils.AMPERSAND_EXPRESSION) {
 
+                // if the 'rawblock', 'partial expression' and 'ampersand expression' are not in Data State, 
+                // we should warn the developers or throw exception in strict mode
+                if (parser.getCurrentState() !== stateMachine.State.STATE_DATA) {
+                    msg = (this._config._strictMode? '[ERROR]' : '[WARNING]') + " SecureHandlebars: " + node.content + ' is in non-DATA State!';
+                    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                    handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
+                }
+                output += node.content;
+            } else if (node.type === handlebarsUtils.BRANCH_EXPRESSION ||
+                node.type === handlebarsUtils.BRANCH_END_EXPRESSION ||
+                node.type === handlebarsUtils.ELSE_EXPRESSION ||
+                node.type === handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM ||
+                node.type === handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM) {
                 output += node.content;
             }
 
@@ -716,7 +718,7 @@ ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, s
             case handlebarsUtils.BRANCH_EXPRESSION:
             case handlebarsUtils.BRANCH_END_EXPRESSION:
             case handlebarsUtils.ELSE_EXPRESSION:
-            case handlebarsUtils.REFERENCE_EXPRESSION:
+            case handlebarsUtils.AMPERSAND_EXPRESSION:
             case handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM:
                 if (input[j] === '}' && j+1<len && input[j+1] === '}') {
                     saveToBuffer ? this.saveToBuffer('}}') : obj.str += '}}';
@@ -731,12 +733,12 @@ ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, s
 };
 
 /**
-* @function ContextParserHandlebars.handleTemplate
+* @function ContextParserHandlebars.handleEscapeAndRawTemplate
 *
 * @description
 * Handle the Handlebars template. (Handlebars Template Context)
 */
-ContextParserHandlebars.prototype.handleTemplate = function(input, i, stateObj) {
+ContextParserHandlebars.prototype.handleEscapeAndRawTemplate = function(input, i, stateObj) {
 
     /* the max length of the input string */
     var len = input.length;

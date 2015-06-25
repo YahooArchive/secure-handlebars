@@ -300,29 +300,29 @@ exports.escapeExpressionTestPatterns = escapeExpressionTestPatterns;
 
 var referenceExpressionTestPatterns = [
     // valid syntax
-    { syntax: '{{&expression}}          ', type: handlebarsUtils.REFERENCE_EXPRESSION, rstr: 'expression', result: [ 'MustacheStatement', true, 14 ]},
+    { syntax: '{{&expression}}          ', type: handlebarsUtils.AMPERSAND_EXPRESSION, rstr: 'expression', result: [ 'MustacheStatement', true, 14 ]},
     // it is fine to have space in the reference.
-    { syntax: '{{&   expression     }}  ', type: handlebarsUtils.REFERENCE_EXPRESSION, rstr: 'expression', result: [ 'MustacheStatement', true, 22 ]},
+    { syntax: '{{&   expression     }}  ', type: handlebarsUtils.AMPERSAND_EXPRESSION, rstr: 'expression', result: [ 'MustacheStatement', true, 22 ]},
     // it is fine to have whitespace control in the reference.
-    { syntax: '{{~&expression~}}        ', type: handlebarsUtils.REFERENCE_EXPRESSION, rstr: 'expression', result: [ 'MustacheStatement', true, 16 ]},
+    { syntax: '{{~&expression~}}        ', type: handlebarsUtils.AMPERSAND_EXPRESSION, rstr: 'expression', result: [ 'MustacheStatement', true, 16 ]},
     // it is fine to have space at the end of whitespace control in the reference.
-    { syntax: '{{~&expression    ~}}    ', type: handlebarsUtils.REFERENCE_EXPRESSION, rstr: 'expression', result: [ 'MustacheStatement', true, 20 ]},
+    { syntax: '{{~&expression    ~}}    ', type: handlebarsUtils.AMPERSAND_EXPRESSION, rstr: 'expression', result: [ 'MustacheStatement', true, 20 ]},
     // for non-greedy match
-    { syntax: '{{&expression}} {{&expression}}', type: handlebarsUtils.REFERENCE_EXPRESSION, rstr: 'expression', result: [ 'MustacheStatement', true, 14 ]},
+    { syntax: '{{&expression}} {{&expression}}', type: handlebarsUtils.AMPERSAND_EXPRESSION, rstr: 'expression', result: [ 'MustacheStatement', true, 14 ]},
     // new line char test
-    { syntax: '{{&exp\rression}}     ', type:handlebarsUtils.REFERENCE_EXPRESSION, rstr:'exp', result: [ 'MustacheStatement', true, 15 ]},
-    { syntax: '{{&exp\nression}}     ', type:handlebarsUtils.REFERENCE_EXPRESSION, rstr:'exp', result: [ 'MustacheStatement', true, 15 ]},
+    { syntax: '{{&exp\rression}}     ', type:handlebarsUtils.AMPERSAND_EXPRESSION, rstr:'exp', result: [ 'MustacheStatement', true, 15 ]},
+    { syntax: '{{&exp\nression}}     ', type:handlebarsUtils.AMPERSAND_EXPRESSION, rstr:'exp', result: [ 'MustacheStatement', true, 15 ]},
 
     // invalid syntax
     // the cph test can pass as there is no isValidExpression to guard against
-    { syntax: '{{ &expression}}      ', type:handlebarsUtils.REFERENCE_EXPRESSION, rstr:false, result: [ false, false, 15 ]},
-    { syntax: '{{ & expression}}     ', type:handlebarsUtils.REFERENCE_EXPRESSION, rstr:false, result: [ false, false, 16 ]},
-    { syntax: '{{~ &expression}}     ', type:handlebarsUtils.REFERENCE_EXPRESSION, rstr:false, result: [ false, false, 16 ]},
-    { syntax: '{{&expression}}}      ', type:handlebarsUtils.REFERENCE_EXPRESSION, rstr:false, result: [ false, false, 14 ]},
+    { syntax: '{{ &expression}}      ', type:handlebarsUtils.AMPERSAND_EXPRESSION, rstr:false, result: [ false, false, 15 ]},
+    { syntax: '{{ & expression}}     ', type:handlebarsUtils.AMPERSAND_EXPRESSION, rstr:false, result: [ false, false, 16 ]},
+    { syntax: '{{~ &expression}}     ', type:handlebarsUtils.AMPERSAND_EXPRESSION, rstr:false, result: [ false, false, 16 ]},
+    { syntax: '{{&expression}}}      ', type:handlebarsUtils.AMPERSAND_EXPRESSION, rstr:false, result: [ false, false, 14 ]},
     // '~' must be next to '}}'
-    { syntax: '{{&expression  ~ }}   ', type:handlebarsUtils.REFERENCE_EXPRESSION, rstr:false, result: [ false, false, 18 ]},
+    { syntax: '{{&expression  ~ }}   ', type:handlebarsUtils.AMPERSAND_EXPRESSION, rstr:false, result: [ false, false, 18 ]},
     // with one brace less 
-    { syntax: '{{&expression}        ', type:handlebarsUtils.REFERENCE_EXPRESSION, rstr:false, result: [ false, false, false ]},
+    { syntax: '{{&expression}        ', type:handlebarsUtils.AMPERSAND_EXPRESSION, rstr:false, result: [ false, false, false ]},
 ];
 exports.referenceExpressionTestPatterns = referenceExpressionTestPatterns;
 
@@ -558,22 +558,22 @@ var buildAstPatterns = [
     { syntax: 'xxxx{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}xxxx', 
       output: 'xxxx{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}xxxx', 
       rstr: [ 'xxxx', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', 'xxxx' ], 
-      rtype: [ 'html', 'rawblock', 'html' ],
+      rtype: [ handlebarsUtils.AST_HTML, handlebarsUtils.RAW_BLOCK, handlebarsUtils.AST_HTML ],
     },
     { syntax: 'xxxx{{{rawexpression}}} {{{rawexpression}}} xxxx', 
       output: 'xxxx{{{rawexpression}}} {{{rawexpression}}} xxxx', 
       rstr: [ 'xxxx', '{{{rawexpression}}}', ' ', '{{{rawexpression}}}', ' xxxx' ],
-      rtype: [ 'html', 'rawexpression', 'html', 'rawexpression', 'html' ],
+      rtype: [ handlebarsUtils.AST_HTML, handlebarsUtils.RAW_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.RAW_EXPRESSION, handlebarsUtils.AST_HTML ],
     },
     { syntax: 'xxxx{{escapeexpression}} {{>partial}} {{&reference}} xxxx', 
       output: 'xxxx{{{yd escapeexpression}}} {{>partial}} {{&reference}} xxxx', 
       rstr: [ 'xxxx', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' xxxx' ],
-      rtype: [ 'html', 'escapeexpression', 'html', 'expression', 'html', 'expression', 'html' ],
+      rtype: [ handlebarsUtils.AST_HTML, handlebarsUtils.ESCAPE_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.PARTIAL_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.AMPERSAND_EXPRESSION, handlebarsUtils.AST_HTML ],
     },
     { syntax: 'xxxx{{! comment }} {{!-- }} --}} xxxx',
       output: 'xxxx{{! comment }} {{!-- }} --}} xxxx',
       rstr: [ 'xxxx', '{{! comment }}', ' ', '{{!-- }} --}}', ' xxxx' ],
-      rtype: [ 'html', 'expression', 'html', 'expression', 'html' ],
+      rtype: [ handlebarsUtils.AST_HTML, handlebarsUtils.COMMENT_EXPRESSION_SHORT_FORM, handlebarsUtils.AST_HTML, handlebarsUtils.COMMENT_EXPRESSION_LONG_FORM, handlebarsUtils.AST_HTML ],
     },
 
     // branching
@@ -581,14 +581,14 @@ var buildAstPatterns = [
       output: 'xxxx{{#if abc}} yyyy {{else}} zzzz {{/if}} xxxx',
       rstr: [ 'xxxx', { left:  { 
                                  rstr: [ '{{#if abc}}', ' yyyy ' ],
-                                 rtype: [ 'branchstart', 'html' ],
+                                 rtype: [ handlebarsUtils.BRANCH_EXPRESSION, handlebarsUtils.AST_HTML ],
                                }, 
                         right: {
                                  rstr: [ '{{else}}', ' zzzz ', '{{/if}}' ],
-                                 rtype: [ 'branchelse', 'html', 'branchend' ],
+                                 rtype: [ handlebarsUtils.ELSE_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.BRANCH_END_EXPRESSION ],
                                } 
                       }, ' xxxx' ],
-      rtype: [ 'html', 'node', 'html' ],
+      rtype: [ handlebarsUtils.AST_HTML, handlebarsUtils.AST_NODE, handlebarsUtils.AST_HTML ],
     },
 
     // branching with different types
@@ -596,12 +596,12 @@ var buildAstPatterns = [
       output: 'xxxx{{#if abc}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{{yd escapeexpression}}} {{>partial}} {{&reference}} yyyy {{else}} {{{{rawblock}}}} {{expression}} {{{{/rawblock}}}} {{{rawexpression}}} {{{yd escapeexpression}}} {{>partial}} {{&reference}} zzzz {{/if}} xxxx',
       rstr: [ 'xxxx', { left:  { 
                                  rstr: [ '{{#if abc}}', ' ', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', ' ', '{{{rawexpression}}}', ' ', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' yyyy ' ],
-                                 rtype: [ 'branchstart', 'html', 'rawblock', 'html', 'rawexpression', 'html', 'escapeexpression', 'html', 'expression', 'html', 'expression', 'html' ], }, 
+                                 rtype: [ handlebarsUtils.BRANCH_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.RAW_BLOCK, handlebarsUtils.AST_HTML, handlebarsUtils.RAW_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.ESCAPE_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.PARTIAL_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.AMPERSAND_EXPRESSION, handlebarsUtils.AST_HTML ], }, 
                         right: {
                                  rstr: [ '{{else}}', ' ', '{{{{rawblock}}}} {{expression}} {{{{/rawblock}}}}', ' ', '{{{rawexpression}}}', ' ', '{{escapeexpression}}', ' ', '{{>partial}}', ' ', '{{&reference}}', ' zzzz ', '{{/if}}' ],
-                                 rtype: [ 'branchelse', 'html', 'rawblock', 'html', 'rawexpression', 'html', 'escapeexpression', 'html', 'expression', 'html', 'expression', 'html', 'branchend' ], }, 
+                                 rtype: [ handlebarsUtils.ELSE_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.RAW_BLOCK, handlebarsUtils.AST_HTML, handlebarsUtils.RAW_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.ESCAPE_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.PARTIAL_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.AMPERSAND_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.BRANCH_END_EXPRESSION ], }, 
                       }, ' xxxx' ],
-      rtype: [ 'html', 'node', 'html' ],
+      rtype: [ handlebarsUtils.AST_HTML, handlebarsUtils.AST_NODE, handlebarsUtils.AST_HTML ],
     },
     // branching (nested)
     { syntax: 'xxxx{{#if abc}} yyyy {{#msg def}} 123 {{else}} 456 {{/msg}} {{else}} zzzz {{/if}} xxxx',
@@ -609,21 +609,21 @@ var buildAstPatterns = [
       rstr: [ 'xxxx', { left:  { 
                                  rstr: [ '{{#if abc}}', ' yyyy ', { left:  {
                                                                              rstr: [ '{{#msg def}}', ' 123 ' ],
-                                                                             rtype: [ 'branchstart', 'html' ],
+                                                                             rtype: [ handlebarsUtils.BRANCH_EXPRESSION, handlebarsUtils.AST_HTML ],
                                                                            },
                                                                     right: {
                                                                              rstr: [ '{{else}}', ' 456 ', '{{/msg}}' ],
-                                                                             rtype: [ 'branchelse', 'html', 'branchend' ],
+                                                                             rtype: [ handlebarsUtils.ELSE_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.BRANCH_END_EXPRESSION ],
                                                                            },
                                                                   }, ' ' ],
-                                 rtype: [ 'branchstart', 'html', 'node', 'html' ],
+                                 rtype: [ handlebarsUtils.BRANCH_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.AST_NODE, handlebarsUtils.AST_HTML ],
                                }, 
                         right: {
                                  rstr: [ '{{else}}', ' zzzz ', '{{/if}}' ],
-                                 rtype: [ 'branchelse', 'html', 'branchend' ],
+                                 rtype: [ handlebarsUtils.ELSE_EXPRESSION, handlebarsUtils.AST_HTML, handlebarsUtils.BRANCH_END_EXPRESSION ],
                                } 
                       }, ' xxxx' ],
-      rtype: [ 'html', 'node', 'html' ],
+      rtype: [ handlebarsUtils.AST_HTML, handlebarsUtils.AST_NODE, handlebarsUtils.AST_HTML ],
     },
 ];
 exports.buildAstPatterns = buildAstPatterns;
@@ -1158,6 +1158,24 @@ var exceptionPatterns = [
         strictMode: false,
         result: [ /lineNo:8,charNo:223/ ],
     },
+    {
+        title: './bin/handlebarspp expression in non-data state test',
+        file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_001.hbs',
+        strictMode: true,
+        result: [ /non-DATA State/ ],
+    },
+    {
+        title: './bin/handlebarspp expression in non-data state test',
+        file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_002.hbs',
+        strictMode: true,
+        result: [ /non-DATA State/ ],
+    },
+    {
+        title: './bin/handlebarspp expression in non-data state test',
+        file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_003.hbs',
+        strictMode: true,
+        result: [ /non-DATA State/ ],
+    },
     /* remove this test as we don't test for tagNameIdx in deepCompare
     {
         title: 'state (missing close tag) in branching template test',
@@ -1213,7 +1231,7 @@ var exceptionPatterns = [
         file: './tests/samples/files/handlebarsjs_template_strict_mode_008.hbs',
         strictMode: true,
         result: [ /ERROR/, /unsupported/ ],
-    },
+    }
 ];
 exports.exceptionPatterns = exceptionPatterns;
 
