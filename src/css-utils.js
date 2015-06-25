@@ -13,9 +13,6 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 require('../src/polyfills/minimal.js');
 var cssParser = require("./css-parser/css-parser.js");
 
-var HtmlEntitiesDecoder = require("./html-decoder/html-decoder.js"),
-    htmlDecoder = new HtmlEntitiesDecoder(); 
-
 /////////////////////////////////////////////////////
 //
 // @module CSSParserUtils

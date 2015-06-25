@@ -19,8 +19,7 @@ var handlebarsUtils = require('./handlebars-utils.js'),
 var stateMachine = parserUtils.StateMachine,
     ContextParser = parserUtils.Parser;
 
-var HtmlEntitiesDecoder = require("./html-decoder/html-decoder.js"),
-    htmlDecoder = new HtmlEntitiesDecoder();
+var HtmlDecoder = require("html-decoder");
 
 /////////////////////////////////////////////////////
 //
@@ -545,7 +544,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                 } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_CSS) { // CSS
                     var r;
                     try {
-                        attributeValue = htmlDecoder.decode(attributeValue);
+                        attributeValue = HtmlDecoder.decode(attributeValue);
                         r = cssParserUtils.parseStyleAttributeValue(attributeValue);
                     } catch (e) {
                         throw 'Unsafe output expression @ attribute style CSS context (Parsing error OR expression position not supported!)';
