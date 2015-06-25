@@ -17,22 +17,6 @@ var hbsCreate = Handlebars.create,
     baseContexts = ['HTMLData', 'HTMLComment', 'SingleQuotedAttr', 'DoubleQuotedAttr', 'UnQuotedAttr'],
     contextPrefixes = ['in', 'uriIn', 'uriPathIn', 'uriQueryIn', 'uriComponentIn', 'uriFragmentIn'];
 
-function preprocess(template, strictMode) {
-    try {
-        if (template) {
-            var parser = new ContextParserHandlebars({printCharEnable: false, strictMode: strictMode});
-            return parser.analyzeContext(template);
-        }
-    } catch (err) {
-        handlebarsUtils.warn('[WARNING] SecureHandlebars: falling back to the original template');
-        for (var k in err) {
-            handlebarsUtils.warn(k.toUpperCase() + ': ' + err[k]);
-        }
-        handlebarsUtils.warn(template);
-    }
-    return template;
-}
-
 function overrideHbsCreate() {
     var h = hbsCreate(),
         c = h.compile, 
@@ -40,17 +24,40 @@ function overrideHbsCreate() {
         privFilters = xssFilters._privFilters,
         i, j, filterName, prefix, baseContext;
 
+
+    // expose preprocess function
+    h.preprocess = function (template, options) {
+        options = options || {};
+        var k, parser;
+
+        try {
+            if (template) {
+                parser = new ContextParserHandlebars({printCharEnable: false, strictMode: options.strictMode});
+                return parser.analyzeContext(template);
+            }
+        } catch (err) {
+            handlebarsUtils.warn('[WARNING] SecureHandlebars: falling back to the original template');
+            for (k in err) {
+                handlebarsUtils.warn(k.toUpperCase() + ': ' + err[k]);
+            }
+            handlebarsUtils.warn(template);
+        }
+
+        return template;
+    };
+
     // override precompile function to preprocess the template first
     h.precompile = function (template, options) {
-        options = options || {};
-        return pc.call(this, preprocess(template, options.strictMode), options);
+        return pc.call(this, h.preprocess(template, options), options);
     };
 
     // override compile function to preprocess the template first
     h.compile = function (template, options) {
-        options = options || {};
-        return c.call(this, preprocess(template, options.strictMode), options);
+        return c.call(this, h.preprocess(template, options), options);
     };
+
+    // expose the original compile
+    h.compilePreprocessed = c;
 
     // make y refer to the default escape function
     h.registerHelper('y', Handlebars.escapeExpression);
@@ -86,5 +93,5 @@ function overrideHbsCreate() {
 module.exports = overrideHbsCreate();
 module.exports.create = overrideHbsCreate;
 
-// the following is in addition to the original Handlbars prototype
+// @deprecated - the following is in addition to the original Handlbars prototype
 module.exports.ContextParserHandlebars = ContextParserHandlebars;

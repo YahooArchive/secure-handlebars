@@ -39,6 +39,14 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             expect(t1(data)).to.be.equal(t2(data));
         });
 
+        it("SafeString test", function() {
+            var template = '<a href="{{url}}">hello</a>';
+            var templateSpec1 = secureHandlebars.compile(template);
+            var data = {url: new handlebars.SafeString('javascript:alert(1)')};
+
+            expect(templateSpec1(data)).to.be.equal('<a href="javascript:alert(1)">hello</a>');
+        });
+
         it("precompile() test", function() {
             var template = '<a href="{{url}}">hello</a>';
             var templateSpec1 = secureHandlebars.precompile(template);
@@ -55,6 +63,14 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             // must not be the same as vanilla handlebars
             var t2 = handlebars.compile(template);
             expect(t1(data)).not.to.be.equal(t2(data));
+        });
+
+        it("preprocess() and compilePreprocessed() test", function() {
+            var template = '<a href="{{url}}">hello</a>';
+            var templatePreProcessed = secureHandlebars.preprocess(template);
+            var t1 = secureHandlebars.compilePreprocessed(templatePreProcessed);
+
+            expect(t1(data)).to.be.equal('<a href="x-javascript:alert(1)">hello</a>');
         });
 
         it("create() test", function() {
