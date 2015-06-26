@@ -115,6 +115,12 @@ When output expressions are found inside dangerous (yet-to-be-supported) context
 <div onclick="hello(this.getAttribute('data-name'))" data-name="{{name}}">
 ```
 
+Or if you know the exact output context (e.g., applying to URI), you can suppress the secure-handlebars by {{{rawexpression}}} and apply the manual <a href="https://github.com/yahoo/xss-filters#the-api">xss-filters</a> directly. 
+```html
+<!-- Rewrite <div onclick="hello({{name}})"> as: -->
+<div onclick="hello(this.getAttribute('data-name'))" data-name="/urlpath/{{{uriPathInDoubleQuotedAttr name}}}">
+```
+- For other warning and error messages being generated during the pre-compliation process of secure-handlebars that require further explanation, please open an <a href="https://github.com/yahoo/secure-handlebars/issues">issue</a> to us and we will response.
 
 ## License
 
