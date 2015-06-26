@@ -1,0 +1,10 @@
+{{! testing for the friend filters to handle static / dynamic context placeholder }}
+
+{{uriInHTMLData}}
+{{uriInHTMLData exp1}}
+
+<div data-ctx="{{uriInDoubleQuotedAttr}}">link</a>
+<div data-ctx="{{uriInDoubleQuotedAttr url1}}">link</a>
+
+<div data-ctx='{{uriInDoubleQuotedAttr}}'>link</a>
+<div data-ctx='{{uriInDoubleQuotedAttr url2}}'>link</a>

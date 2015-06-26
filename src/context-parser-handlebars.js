@@ -32,6 +32,7 @@ var filter = {
     FILTER_NOT_HANDLE: 'y',
     FILTER_DATA: 'yd',
     FILTER_COMMENT: 'yc',
+    FILTER_AMPERSAND: 'ya',
     FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED: 'yavd',
     FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED: 'yavs',
     FILTER_ATTRIBUTE_VALUE_UNQUOTED: 'yavu',
@@ -738,7 +739,7 @@ ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, s
 * @description
 * Handle the Handlebars template. (Handlebars Template Context)
 */
-ContextParserHandlebars.prototype.handleEscapeAndRawTemplate = function(input, i, stateObj) {
+ContextParserHandlebars.prototype.handleEscapeAndRawTemplate = function(input, i, parser) {
 
     /* the max length of the input string */
     var len = input.length;
@@ -761,7 +762,7 @@ ContextParserHandlebars.prototype.handleEscapeAndRawTemplate = function(input, i
             switch (handlebarsExpressionType) {
                 case handlebarsUtils.ESCAPE_EXPRESSION:
                     /* handleEscapeExpression and no validation need, it is safe guard in buildAst function */
-                    obj = this.handleEscapeExpression(input, i, len, stateObj, true);
+                    obj = this.handleEscapeExpression(input, i, len, parser, true);
                     return;
                 default:
                     throw "Parsing error! unexpected Handlebars markup.";
@@ -788,7 +789,7 @@ ContextParserHandlebars.prototype.handleEscapeAndRawTemplate = function(input, i
 * @description
 * Handle the escape expression.
 */
-ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, len, stateObj, saveToBuffer) {
+ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, len, parser, saveToBuffer) {
     var msg, exceptionObj,
         obj = {};
 
@@ -803,7 +804,20 @@ ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, le
         filters = [];
 
     /* get the customized filter based on the current HTML5 state before the Handlebars template expression. */
-    filters = this.addFilters(stateObj, input);
+    filters = this.addFilters(parser, input);
+
+    /* static/dynamic context handling logic */
+    if (re.isSingleID === false && re[1] &&
+       (parser.getCurrentState() === stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED ||
+        parser.getCurrentState() === stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED)
+    ) {
+        var friendsFilters = handlebarsUtils.getRegisteredFriendFilters(),
+            ll = friendsFilters.length;
+        for(var m=0; m<ll; ++m) {
+            friendsFilters[m] === re[1]? filters = [filter.FILTER_AMPERSAND].concat(filters): '';
+        }
+    }
+
     for(var k=filters.length-1;k>=0;--k) {
         //
         // NOTE: the isSingleID is being used for making the following judgement.

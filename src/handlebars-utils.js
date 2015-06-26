@@ -18,7 +18,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 var HandlebarsUtils = {};
 
 /* filter */
-var filter = require('xss-filters')._privFilters;
+var filter = require('xss-filters')._privFilters,
+    privateFilters = ['yd', 'yc', 'yavd', 'yavs', 'yavu', 'yu', 'yuc', 'yubl', 'yufull', 'yceu', 'yced', 'yces', 'yceuu', 'yceud', 'yceus', 'ya'],
+    baseContexts = ['HTMLData', 'HTMLComment', 'SingleQuotedAttr', 'DoubleQuotedAttr', 'UnQuotedAttr'],
+    contextPrefixes = ['in', 'uriIn', 'uriPathIn', 'uriQueryIn', 'uriComponentIn', 'uriFragmentIn'],
+    manualFilters = [];
 
 /* type of expression */
 HandlebarsUtils.UNHANDLED_EXPRESSION = -1;
@@ -282,6 +286,22 @@ HandlebarsUtils.scriptableTags = {
     scriptlet:1                  // IE-specific
 };
 
+// @function HandlebarsUtils.getRegisteredPrivateFilters
+HandlebarsUtils.getRegisteredPrivateFilters = function() {
+    return privateFilters;
+};
+
+// @function HandlebarsUtils.getRegisteredManualFilters
+HandlebarsUtils.getRegisteredManualFilters = function() {
+    return manualFilters;
+};
+
+// @function HandlebarsUtils.getRegisteredFriendFilters
+HandlebarsUtils.getRegisteredFriendFilters = function() {
+    // we assume they are the same now.
+    return manualFilters;
+};
+
 /**
  * @function HandlebarsUtils#isScriptableTag
  *
@@ -294,6 +314,14 @@ HandlebarsUtils.scriptableTags = {
 HandlebarsUtils.isScriptableTag = function(tag) {
     return HandlebarsUtils.scriptableTags[tag] === 1;
 };
+
+// generate once here
+var prefix, baseContext;
+for (var i=0; (prefix = contextPrefixes[i]); i++) {
+    for (var j = 0; (baseContext = baseContexts[j]); j++) {
+        manualFilters.push(prefix + baseContext);
+    }
+}
 
 module.exports = HandlebarsUtils;
 
