@@ -18,11 +18,44 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 var HandlebarsUtils = {};
 
 /* filter */
-var filter = require('xss-filters')._privFilters,
-    privateFilters = ['yd', 'yc', 'yavd', 'yavs', 'yavu', 'yu', 'yuc', 'yubl', 'yufull', 'yceu', 'yced', 'yces', 'yceuu', 'yceud', 'yceus', 'ya'],
-    baseContexts = ['HTMLData', 'HTMLComment', 'SingleQuotedAttr', 'DoubleQuotedAttr', 'UnQuotedAttr'],
-    contextPrefixes = ['in', 'uriIn', 'uriPathIn', 'uriQueryIn', 'uriComponentIn', 'uriFragmentIn'],
-    manualFilters = [];
+var filter = require('xss-filters')._privFilters;
+
+HandlebarsUtils.pFilterList = ['y', 'ya', 'yd', 'yc', 'yavd', 'yavs', 'yavu', 'yu', 'yuc', 'yubl', 'yufull', 'yceu', 'yced', 'yces', 'yceuu', 'yceud', 'yceus'];
+HandlebarsUtils.mFilterList = (function(){
+    // the handlebars-specific uriData and uriComponent are excluded here since it's safe for them to skip any further process relying on mFilterList
+    var baseContexts = ['HTMLData', 'HTMLComment', 'SingleQuotedAttr', 'DoubleQuotedAttr', 'UnQuotedAttr'],
+        contextPrefixes = ['in', 'uriIn', 'uriPathIn', 'uriQueryIn', 'uriComponentIn', 'uriFragmentIn'],
+        filters = [], prefix, baseContext, i, j;
+
+    // register below the filters that might be manually applied by developers
+    for (i = 0; (prefix = contextPrefixes[i]); i++) {
+        for (j = 0; (baseContext = baseContexts[j]); j++) {
+            filters.push(prefix + baseContext);
+        }
+    }
+    return filters;
+}());
+
+HandlebarsUtils.filterMap = {
+    NOT_HANDLE: 'y',
+    DATA: 'yd',
+    COMMENT: 'yc',
+    AMPERSAND: 'ya',
+    ATTRIBUTE_VALUE_DOUBLE_QUOTED: 'yavd',
+    ATTRIBUTE_VALUE_SINGLE_QUOTED: 'yavs',
+    ATTRIBUTE_VALUE_UNQUOTED: 'yavu',
+    ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED: 'yced',
+    ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED: 'yces',
+    ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED: 'yceu',
+    ATTRIBUTE_VALUE_STYLE_EXPR_URL_UNQUOTED: 'yceuu',
+    ATTRIBUTE_VALUE_STYLE_EXPR_URL_DOUBLE_QUOTED: 'yceud',
+    ATTRIBUTE_VALUE_STYLE_EXPR_URL_SINGLE_QUOTED: 'yceus',
+    ENCODE_URI: 'yu',
+    ENCODE_URI_COMPONENT: 'yuc',
+    URI_SCHEME_BLACKLIST: 'yubl',
+    FULL_URI: 'yufull'
+};
+
 
 /* type of expression */
 HandlebarsUtils.UNHANDLED_EXPRESSION = -1;
@@ -286,22 +319,6 @@ HandlebarsUtils.scriptableTags = {
     scriptlet:1                  // IE-specific
 };
 
-// @function HandlebarsUtils.getRegisteredPrivateFilters
-HandlebarsUtils.getRegisteredPrivateFilters = function() {
-    return privateFilters;
-};
-
-// @function HandlebarsUtils.getRegisteredManualFilters
-HandlebarsUtils.getRegisteredManualFilters = function() {
-    return manualFilters;
-};
-
-// @function HandlebarsUtils.getRegisteredFriendFilters
-HandlebarsUtils.getRegisteredFriendFilters = function() {
-    // we assume they are the same now.
-    return manualFilters;
-};
-
 /**
  * @function HandlebarsUtils#isScriptableTag
  *
@@ -315,13 +332,6 @@ HandlebarsUtils.isScriptableTag = function(tag) {
     return HandlebarsUtils.scriptableTags[tag] === 1;
 };
 
-// generate once here
-var prefix, baseContext;
-for (var i=0; (prefix = contextPrefixes[i]); i++) {
-    for (var j = 0; (baseContext = baseContexts[j]); j++) {
-        manualFilters.push(prefix + baseContext);
-    }
-}
 
 module.exports = HandlebarsUtils;
 

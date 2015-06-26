@@ -44,7 +44,7 @@
     "context-parser": "^2.0.0",
     "handlebars": "^3.0.3",
     "html-decoder": "^1.0.2",
-    "xss-filters": "^1.2.0"
+    "xss-filters": "^1.2.2"
   },
   "devDependencies": {
     "bluebird": "^2.9.30",

@@ -10,19 +10,27 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 var Handlebars = require('handlebars'),
     ContextParserHandlebars = require("./context-parser-handlebars"),
     xssFilters = require('xss-filters'),
-    handlebarsUtils = require('./handlebars-utils.js');
+    handlebarsUtils = require('./handlebars-utils.js'),
+    privateFilterList = handlebarsUtils.pFilterList,
+    manualFilterList = handlebarsUtils.mFilterList,
+    hbsCreate = Handlebars.create;
 
-var hbsCreate = Handlebars.create,
-    privateFilters = handlebarsUtils.getRegisteredPrivateFilters(),
-    manualFilters = handlebarsUtils.getRegisteredManualFilters();
+// don't escape SafeStrings, since they're already safe according to Handlebars
+// Reference: https://github.com/wycats/handlebars.js/blob/master/lib/handlebars/utils.js#L63-L82
+function safeStringCompatibleFilter (filterName) {
+    return function (s) {
+        // Unlike escapeExpression(), return s instead of s.toHTML() since downstream
+        //  filters of the same chain has to be disabled too.
+        //  Handlebars will invoke SafeString.toString() at last during data binding
+        return (s && s.toHTML) ? s : xssFilters._privFilters[filterName](s);
+    };
+}
 
 function overrideHbsCreate() {
     var h = hbsCreate(),
         c = h.compile, 
         pc = h.precompile,
-        privFilters = xssFilters._privFilters,
-        i, j, filterName, prefix, baseContext;
-
+        i, filterName;
 
     // expose preprocess function
     h.preprocess = function (template, options) {
@@ -58,29 +66,20 @@ function overrideHbsCreate() {
     // expose the original compile
     h.compilePreprocessed = c;
 
-    // make y refer to the default escape function
-    h.registerHelper('y', Handlebars.escapeExpression);
-
-    // don't escape SafeStrings, since they're already safe according to Handlebars
-    // Reference: https://github.com/wycats/handlebars.js/blob/master/lib/handlebars/utils.js#L63-L82
-    function safeStringCompatibleFilter (filterName) {
-        return function (s) {
-            // Unlike escapeExpression(), return s instead of s.toHTML() since downstream
-            //  filters of the same chain has to be disabled too.
-            //  Handlebars will invoke SafeString.toString() at last during data binding
-            return (s && s.toHTML) ? s : privFilters[filterName](s);
-        };
-    }
-
-    /*jshint -W083 */
     // register below the filters that are automatically applied by context parser 
-    for (i = 0; (filterName = privateFilters[i]); i++) {
+    for (i = 0; (filterName = privateFilterList[i]); i++) {
         h.registerHelper(filterName, safeStringCompatibleFilter(filterName));
     }
 
-    for (i = 0; (filterName = manualFilters[i]); i++) {
+    // override the default y to refer to the Handlebars escape function
+    h.registerHelper('y', Handlebars.escapeExpression);
+
+    // register below the filters that are designed for manual application 
+    for (i = 0; (filterName = manualFilterList[i]); i++) {
         h.registerHelper(filterName, xssFilters[filterName]);
     }
+    h.registerHelper('uriComponentData', xssFilters._privFilters.yuc);
+    h.registerHelper('uriData', xssFilters._privFilters.yublf);
 
     return h;
 }
