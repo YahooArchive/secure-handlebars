@@ -21,32 +21,7 @@ var stateMachine = parserUtils.StateMachine,
 
 var HtmlDecoder = require("html-decoder");
 
-/////////////////////////////////////////////////////
-//
-// TODO: need to move this code back to filter module
-// the main concern is the update of the xss-filters 
-// does not reflect the change below.
-// 
-/////////////////////////////////////////////////////
-var filter = {
-    FILTER_NOT_HANDLE: 'y',
-    FILTER_DATA: 'yd',
-    FILTER_COMMENT: 'yc',
-    FILTER_AMPERSAND: 'ya',
-    FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED: 'yavd',
-    FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED: 'yavs',
-    FILTER_ATTRIBUTE_VALUE_UNQUOTED: 'yavu',
-    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED: 'yced',
-    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED: 'yces',
-    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED: 'yceu',
-    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_UNQUOTED: 'yceuu',
-    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_DOUBLE_QUOTED: 'yceud',
-    FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_SINGLE_QUOTED: 'yceus',
-    FILTER_ENCODE_URI: 'yu',
-    FILTER_ENCODE_URI_COMPONENT: 'yuc',
-    FILTER_URI_SCHEME_BLACKLIST: 'yubl',
-    FILTER_FULL_URI: 'yufull'
-};
+var filterMap = handlebarsUtils.filterMap;
 
 // extracted from xss-filters
 /*
@@ -512,13 +487,13 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
         switch(state) {
             case stateMachine.State.STATE_DATA: // 1
             case stateMachine.State.STATE_RCDATA: // 3
-                return [filter.FILTER_DATA];
+                return [filterMap.DATA];
 
             case stateMachine.State.STATE_RAWTEXT:  // 5
                 // inside raw text state, HTML parser ignores any state change that looks like tag/attribute
                 // hence we apply the context-insensitive NOT_HANDLE filter that escapes '"`&<> without a warning/error
                 if (tagName === 'xmp' || tagName === 'noembed' || tagName === 'noframes') {
-                    return [filter.FILTER_NOT_HANDLE];
+                    return [filterMap.NOT_HANDLE];
                 }
                 
                 // style, iframe, or other unknown/future ones are considered scriptable
@@ -538,9 +513,9 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     /* add the correct uri filter */
                     if (attributeValue.replace(reURIContextStartWhitespaces, '') === "") {
                         isFullUri = true;
-                        f = filter.FILTER_FULL_URI;
+                        f = filterMap.FULL_URI;
                     } else {
-                        f = reEqualSign.test(attributeValue) ? filter.FILTER_ENCODE_URI_COMPONENT : filter.FILTER_ENCODE_URI;
+                        f = reEqualSign.test(attributeValue) ? filterMap.ENCODE_URI_COMPONENT : filterMap.ENCODE_URI;
                     }
                     filters.push(f);                    
                     
@@ -554,25 +529,25 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     }
                     switch(r.code) {
                         case cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED:
-                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_UNQUOTED);
+                            filters.push(filterMap.ATTRIBUTE_VALUE_STYLE_EXPR_URL_UNQUOTED);
                             isFullUri = true;
                             break;
                         case cssParserUtils.STYLE_ATTRIBUTE_URL_SINGLE_QUOTED:
-                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_SINGLE_QUOTED);
+                            filters.push(filterMap.ATTRIBUTE_VALUE_STYLE_EXPR_URL_SINGLE_QUOTED);
                             isFullUri = true;
                             break;
                         case cssParserUtils.STYLE_ATTRIBUTE_URL_DOUBLE_QUOTED:
-                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_URL_DOUBLE_QUOTED);
+                            filters.push(filterMap.ATTRIBUTE_VALUE_STYLE_EXPR_URL_DOUBLE_QUOTED);
                             isFullUri = true;
                             break;
                         case cssParserUtils.STYLE_ATTRIBUTE_UNQUOTED:
-                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED);
+                            filters.push(filterMap.ATTRIBUTE_VALUE_STYLE_EXPR_UNQUOTED);
                             break;
                         case cssParserUtils.STYLE_ATTRIBUTE_SINGLE_QUOTED:
-                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED);
+                            filters.push(filterMap.ATTRIBUTE_VALUE_STYLE_EXPR_SINGLE_QUOTED);
                             break;
                         case cssParserUtils.STYLE_ATTRIBUTE_DOUBLE_QUOTED:
-                            filters.push(filter.FILTER_ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED);
+                            filters.push(filterMap.ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED);
                             break;
                         case cssParserUtils.STYLE_ATTRIBUTE_ERROR:
                             throw 'Unsafe output expression @ attribute style CSS context (Parsing error OR expression position not supported!)';
@@ -581,13 +556,13 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     /* add the attribute value filter */
                     switch(state) {
                         case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
-                            f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
+                            f = filterMap.ATTRIBUTE_VALUE_DOUBLE_QUOTED;
                             break;
                         case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
-                            f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
+                            f = filterMap.ATTRIBUTE_VALUE_SINGLE_QUOTED;
                             break;
                         default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
-                            f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
+                            f = filterMap.ATTRIBUTE_VALUE_UNQUOTED;
                             break;
                     }
                     filters.push(f);
@@ -595,13 +570,13 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                     /* add blacklist filters at the end of filtering chain */
                     if (isFullUri) {
                         /* blacklist the URI scheme for full uri */
-                        filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
+                        filters.push(filterMap.URI_SCHEME_BLACKLIST);
                     }
                     return filters;
 
                 } else if (parser.getAttributeNameType() === ContextParser.ATTRTYPE_SCRIPTABLE) { // JS
                     /* we don't support js parser yet
-                    * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
+                    * we use filterMap.NOT_HANDLE to warn the developers for unsafe output expression,
                     * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
                     */
                     throw attributeName + ' JavaScript event attribute';
@@ -611,30 +586,30 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                 /* add the attribute value filter */
                 switch(state) {
                     case stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED:
-                        f = filter.FILTER_ATTRIBUTE_VALUE_DOUBLE_QUOTED;
+                        f = filterMap.ATTRIBUTE_VALUE_DOUBLE_QUOTED;
                         break;
                     case stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED:
-                        f = filter.FILTER_ATTRIBUTE_VALUE_SINGLE_QUOTED;
+                        f = filterMap.ATTRIBUTE_VALUE_SINGLE_QUOTED;
                         break;
                     default: // stateMachine.State.STATE_ATTRIBUTE_VALUE_UNQUOTED:
-                        f = filter.FILTER_ATTRIBUTE_VALUE_UNQUOTED;
+                        f = filterMap.ATTRIBUTE_VALUE_UNQUOTED;
                 }
                 filters.push(f);
 
                 /* add blacklist filters at the end of filtering chain */
                 if (isFullUri) {
                     /* blacklist the URI scheme for full uri */
-                    filters.push(filter.FILTER_URI_SCHEME_BLACKLIST);
+                    filters.push(filterMap.URI_SCHEME_BLACKLIST);
                 }
                 return filters;
             
 
             case stateMachine.State.STATE_COMMENT: // 48
-                return [filter.FILTER_COMMENT];
+                return [filterMap.COMMENT];
 
 
             /* the following are those unsafe contexts that we have no plans to support (yet?)
-             * we use filter.FILTER_NOT_HANDLE to warn the developers for unsafe output expression,
+             * we use filterMap.NOT_HANDLE to warn the developers for unsafe output expression,
              * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
              */
             case stateMachine.State.STATE_TAG_NAME: // 10
@@ -677,7 +652,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
         } else {
             handlebarsUtils.handleError(exception, this._config._strictMode);
         }
-        return [filter.FILTER_NOT_HANDLE];
+        return [filterMap.NOT_HANDLE];
     }
 };
 
@@ -791,7 +766,7 @@ ContextParserHandlebars.prototype.handleEscapeAndRawTemplate = function(input, i
 */
 ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, len, parser, saveToBuffer) {
     var msg, exceptionObj,
-        obj = {};
+        obj = {}, filters, re;
 
     obj.str = '';
 
@@ -800,21 +775,27 @@ ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, le
     saveToBuffer ? this.saveToBuffer('{') : obj.str += '{';
 
     /* parse expression */
-    var re = handlebarsUtils.isValidExpression(input, i, handlebarsUtils.ESCAPE_EXPRESSION),
-        filters = [];
+    re = handlebarsUtils.isValidExpression(input, i, handlebarsUtils.ESCAPE_EXPRESSION);
 
-    /* get the customized filter based on the current HTML5 state before the Handlebars template expression. */
+    /* add the private filters according to the contextual analysis. 
+     * no existing filters customized by developers will be found here */
     filters = this.addFilters(parser, input);
 
-    /* static/dynamic context handling logic */
+    /* if any of the provided manual filters is used as the last helper of an output expression,
+     *    and it is residing in a dbl/sgl-quoted attr
+     * then, insert the ampersand filter (ya) to 'html encode' the value 
+     */
     if (re.isSingleID === false && re[1] &&
        (parser.getCurrentState() === stateMachine.State.STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED ||
         parser.getCurrentState() === stateMachine.State.STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED)
     ) {
-        var friendsFilters = handlebarsUtils.getRegisteredFriendFilters(),
-            ll = friendsFilters.length;
-        for(var m=0; m<ll; ++m) {
-            friendsFilters[m] === re[1]? filters = [filter.FILTER_AMPERSAND].concat(filters): '';
+        var friendsFilters = handlebarsUtils.mFilterList,
+            m, ll = friendsFilters.length;
+        for(m=0; m<ll; ++m) {
+            if (friendsFilters[m] === re[1]) {
+                filters.unshift(filterMap.AMPERSAND);
+                break;
+            }
         }
     }
 

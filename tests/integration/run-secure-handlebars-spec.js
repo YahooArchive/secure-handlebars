@@ -33,12 +33,13 @@ describe("SecureHandlebars: helpers tests", function() {
             'uriQueryInSingleQuotedAttr', 'uriQueryInDoubleQuotedAttr', 'uriQueryInUnQuotedAttr', 'uriQueryInHTMLData', 'uriQueryInHTMLComment',
             'uriComponentInSingleQuotedAttr', 'uriComponentInDoubleQuotedAttr', 'uriComponentInUnQuotedAttr', 'uriComponentInHTMLData', 'uriComponentInHTMLComment',
             'uriFragmentInSingleQuotedAttr', 'uriFragmentInDoubleQuotedAttr', 'uriFragmentInUnQuotedAttr', 'uriFragmentInHTMLData', 'uriFragmentInHTMLComment',
-            'y',
+            'y', 'ya',
             'yd', 'yc',
             'yavd', 'yavs', 'yavu',
             'yu', 'yuc',
             'yubl', 'yufull',
-            'yceu', 'yced', 'yces', 'yceuu', 'yceud', 'yceus'
+            'yceu', 'yced', 'yces', 'yceuu', 'yceud', 'yceus',
+            'uriData', 'uriComponentData'
 
         ].forEach(function (filterName) {
             expect(typeof Handlebars.helpers[filterName]).to.be.equal('function');
