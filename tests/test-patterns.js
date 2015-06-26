@@ -762,6 +762,14 @@ var templatePatterns = [
         result: [ /{{{yd expression1}}}/, /{{expression2}}/, /{{{yd expression3}}}/,
                   /{{{rawexpression1}}}/, /{{{rawexpression2}}}/, /{{{rawexpression3}}}/,
         ],
+    },
+    {
+        title: './bin/handlebarspp friend filters test',
+        file: 'tests/samples/files/handlebarsjs_template_friend_filters.hbs',
+        result: [ /{{{yd uriInHTMLData}}}/, /{{{yd \(uriInHTMLData exp1\)}}}/,
+                  /{{{yavd uriInDoubleQuotedAttr}}}/, /{{{yavd \(ya \(uriInDoubleQuotedAttr url1\)\)}}}/,
+                  /{{{yavs uriInDoubleQuotedAttr}}}/, /{{{yavs \(ya \(uriInDoubleQuotedAttr url2\)\)}}}/,
+        ],
     }
 ];
 exports.templatePatterns = templatePatterns;

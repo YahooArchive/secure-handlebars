@@ -13,9 +13,8 @@ var Handlebars = require('handlebars'),
     handlebarsUtils = require('./handlebars-utils.js');
 
 var hbsCreate = Handlebars.create,
-    privateFilters = ['yd', 'yc', 'yavd', 'yavs', 'yavu', 'yu', 'yuc', 'yubl', 'yufull', 'yceu', 'yced', 'yces', 'yceuu', 'yceud', 'yceus'],
-    baseContexts = ['HTMLData', 'HTMLComment', 'SingleQuotedAttr', 'DoubleQuotedAttr', 'UnQuotedAttr'],
-    contextPrefixes = ['in', 'uriIn', 'uriPathIn', 'uriQueryIn', 'uriComponentIn', 'uriFragmentIn'];
+    privateFilters = handlebarsUtils.getRegisteredPrivateFilters(),
+    manualFilters = handlebarsUtils.getRegisteredManualFilters();
 
 function overrideHbsCreate() {
     var h = hbsCreate(),
@@ -79,12 +78,8 @@ function overrideHbsCreate() {
         h.registerHelper(filterName, safeStringCompatibleFilter(filterName));
     }
 
-    // register below the filters that might be manually applied by developers
-    for (i = 0; (prefix = contextPrefixes[i]); i++) {
-        for (j = 0; (baseContext = baseContexts[j]); j++) {
-            filterName = prefix + baseContext;
-            h.registerHelper(filterName, xssFilters[filterName]);
-        }
+    for (i = 0; (filterName = manualFilters[i]); i++) {
+        h.registerHelper(filterName, xssFilters[filterName]);
     }
 
     return h;
