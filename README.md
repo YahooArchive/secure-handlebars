@@ -103,17 +103,50 @@ npm test
 
 ### Warnings and Workarounds
 When output expressions are found inside dangerous (yet-to-be-supported) contexts, we echo warnings and gracefully fallback to apply the default Handlebars [`escapeExpression()`](http://handlebarsjs.com/#html-escaping). These warnings are indications of potential security exploits, and thus require closer inspections. Instead of simply abusing `{{{raw_expression}}}` to suppress the warnings, here are some alternative suggestions to secure your applications.
-- Output expression in the `<script>` tag: <br/>`[WARNING] SecureHandlebars: Unsafe output expression found at scriptable <script> tag`
-```html
+- [WARNING] SecureHandlebars: Unsafe output expression found at scriptable `<script>` tag
+
+ ```html
 <!-- Rewrite <script>var strJS = {{strJS}};</script> as: -->
 <input type="hidden" id="strJS" value="{{strJS}}">
 <script>var strJS = document.getElementById('strJS').value;</script>
 ```
-- Output expression in an event attribute (e.g., `onclick=""`): <br/>`[WARNING] SecureHandlebars: Unsafe output expression found at onclick JavaScript event attribute`
-```html
+- [WARNING] SecureHandlebars: Unsafe output expression found at onclick JavaScript event attribute
+ 
+ - *Case 1.* the data is trusted, or will not be used as URI/HTML output
+
+   ```html
 <!-- Rewrite <div onclick="hello({{name}})"> as: -->
 <div onclick="hello(this.getAttribute('data-name'))" data-name="{{name}}">
 ```
+
+ - *Case 2A.* the data will be used as URI/HTML output<br/>The contextual analyzer does not (cannot) evaluate your JavaScript code, and thus lacks the information on which contexts the data will be ultimately used. Therefore, you must manually apply the escaping filters including `uriData` (a patched `encodeURI()`), `uriComponentData` (alias of `encodeURIComponent()`), and the [xss-filters](https://github.com/yahoo/xss-filters#client-side-browser) that are already registered as Handlebars helpers.
+   ```html
+<script>
+function search(url, keyword) {
+          var xhr = new XMLHttpRequest(); xhr.open('GET', url, true); // ...
+          document.getElementById('status').innerHTML = 'Searching for ' + keyword;
+}
+</script>
+<!-- Rewrite <div onclick="search('/query?q={{keyword}}&lang=us', '{{keyword}}')"> as: -->
+<div onclick="search(this.getAttribute('data-url'), this.getAttribute('data-keyword'))"
+             data-url="/query?q={{uriComponentData keyword}}&lang=us"
+             data-keyword="{{inHTMLData keyword}}">
+```
+   The manually-applied filters here are to pre-escape `{{keyword}}` depending on the ultimate output contexts, while the `{{` `}}` is still needed (**NOT** `{{{ }}}`) to let `secure-handlebars` automatically applies the escaping filter for the immediate attribute value context.
+   
+ - *Case 2B.* Alternatively, just in case the output pre-escaping is what you want to avoid, please embed the [xss-filters](https://github.com/yahoo/xss-filters/#client-side-browser) on the client-side for filtering.
+   ```html
+<script src="dist/xss-filters.min.js"></script>
+<script>
+function search(keyword) {
+          // ...
+          document.getElementById('status').innerHTML = 'Searching for ' + xssFilters.inHTMLData(keyword);
+}
+</script>
+<div onclick="search(this.getAttribute('data-keyword'))" data-keyword="{{keyword}}">
+```
+
+   
 
 
 ## License
