@@ -119,7 +119,7 @@ When output expressions are found inside dangerous (yet-to-be-supported) context
 <div onclick="hello(this.getAttribute('data-name'))" data-name="{{name}}">
 ```
 
- - *Case 2A.* the data will be used as URI/HTML output<br/>The contextual analyzer does not (cannot) evaluate your JavaScript code, and thus lacks the information on which contexts the data will be ultimately used. Therefore, you must manually apply the escaping filters including `uriData` (a patched `encodeURI()`), `uriComponentData` (alias of `encodeURIComponent()`), and the [xss-filters](https://github.com/yahoo/xss-filters#client-side-browser) that are already registered as Handlebars helpers.
+ - *Case 2A.* the data will be used as URI/HTML output<br/>The contextual analyzer does not (cannot) evaluate your JavaScript code, and thus lacks the information on which contexts the data will be ultimately used. Therefore, you must manually apply the escaping filters including `uriData` (a patched `encodeURI()`), `uriComponentData` (alias of `encodeURIComponent()`), and the [xss-filters](https://github.com/yahoo/xss-filters#the-api) that are already registered as Handlebars helpers.
    ```html
 <script>
 function search(url, keyword) {
