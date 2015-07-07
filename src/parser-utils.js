@@ -56,7 +56,7 @@ Parser.attributeNamesType = {
     'xlink:href' :Parser.ATTRTYPE_URI,     // for xml-related
 
     // srcdoc is the STRING type, not URI
-    'srcdoc'     :Parser.ATTRTYPE_URI,     // for iframe
+    'srcdoc'     :Parser.ATTRTYPE_SCRIPTABLE,     // for iframe
 
     'style'      :Parser.ATTRTYPE_CSS,     // for global attributes list
 
@@ -111,7 +111,6 @@ Parser.prototype.cloneStates = function(parser) {
     this.attrName = parser.getAttributeName();
     this.attributeValue = parser.getAttributeValue();
 };
-
 
 /**
  * @function ContextParser#getParser
