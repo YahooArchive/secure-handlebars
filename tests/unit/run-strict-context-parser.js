@@ -57,7 +57,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 [ '<link rel=""          ',   ' ><link>',       ContextParser.ATTRTYPE_URI ],
                 [ '<XXX rel=""        ',      ' ></XXX>',       ContextParser.ATTRTYPE_GENERAL ],
 
-                [ '<iframe srcdoc=""       ', ' ></iframe>',    ContextParser.ATTRTYPE_URI ],
+                [ '<iframe srcdoc=""       ', ' ></iframe>',    ContextParser.ATTRTYPE_SCRIPTABLE ],
                 
                 // Uppercases
                 [ '<a ONCLICK=""           ', ' ></a>',         ContextParser.ATTRTYPE_SCRIPTABLE ],
