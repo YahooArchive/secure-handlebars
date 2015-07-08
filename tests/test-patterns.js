@@ -1170,19 +1170,19 @@ var exceptionPatterns = [
         title: './bin/handlebarspp expression in non-data state test',
         file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_001.hbs',
         strictMode: true,
-        result: [ /non-DATA State/ ],
+        result: [ /{{>partial}} is in non-HTML Context!/ ],
     },
     {
         title: './bin/handlebarspp expression in non-data state test',
         file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_002.hbs',
         strictMode: true,
-        result: [ /non-DATA State/ ],
+        result: [ /{{{{rawblock}}}}html{{{{\/rawblock}}}} is in non-HTML Context!/ ],
     },
     {
         title: './bin/handlebarspp expression in non-data state test',
         file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_003.hbs',
         strictMode: true,
-        result: [ /non-DATA State/ ],
+        result: [ /{{&rawexpression}} is in non-HTML Context!/ ],
     },
     /* remove this test as we don't test for tagNameIdx in deepCompare
     {
@@ -1196,49 +1196,49 @@ var exceptionPatterns = [
         title: './bin/handlebarspp STATE_SCRIPT_DATA strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_001.hbs',
         strictMode: true,
-        result: [ /ERROR/, /scriptable/, ],
+        result: [ /ERROR/, /Unsafe output expression {{data}} found at scriptable <script> tag/, ],
     },
     {
         title: './bin/handlebarspp STATE_ATTRIBUTE_NAME strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_002.hbs',
         strictMode: true,
-        result: [ /ERROR/, /attribute name/ ],
+        result: [ /ERROR/, /Unsafe output expression {{data}} found at being an attribute name \(state #: 35\)/ ],
     },
     {
         title: './bin/handlebarspp STATE_RAWTEXT strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_003.hbs',
         strictMode: true,
-        result: [ /ERROR/, /scriptable <style> tag/ ],
+        result: [ /ERROR/, /Unsafe output expression {{data_style}} found at scriptable <style> tag/ ],
     },
     {
         title: './bin/handlebarspp STATE_TAG_NAME strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_004.hbs',
         strictMode: true,
-        result: [ /ERROR/, /TAG_NAME/ ],
+        result: [ /ERROR/, /Unsafe output expression {{data}} found at being a tag name \(i.e., TAG_NAME state\)/ ],
     },
     {
         title: './bin/handlebarspp attribute URI Javascript context strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_005.hbs',
         strictMode: true,
-        result: [ /ERROR/, /scriptable URI/ ],
+        result: [ /ERROR/, /Unsafe output expression {{data}} found at scriptable URI attribute \(e.g., after <a href="javascript: \)/ ],
     },
     {
         title: './bin/handlebarspp attribute style CSS context strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_006.hbs',
         strictMode: true,
-        result: [ /ERROR/, /attribute style CSS context/ ],
+        result: [ /ERROR/, /Unsafe output expression {{data}} found at unsupported position of style attribute \(e.g., <div style="{{output}}:red;", being as the key instead of value. \)/ ],
     },
     {
         title: './bin/handlebarspp attribute on* Javascript context strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_007.hbs',
         strictMode: true,
-        result: [ /ERROR/, /JavaScript event attribute/ ],
+        result: [ /ERROR/, /Unsafe output expression {{data}} found at onclick JavaScript event attribute/ ],
     },
     {
         title: './bin/handlebarspp NOT HANDLE state strict mode test',
         file: './tests/samples/files/handlebarsjs_template_strict_mode_008.hbs',
         strictMode: true,
-        result: [ /ERROR/, /unsupported/ ],
+        result: [ /ERROR/, /Unsafe output expression {{data}} found at unsupported position \(i.e., state #: 13\)/ ],
     }
 ];
 exports.exceptionPatterns = exceptionPatterns;

@@ -408,7 +408,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
                 // if the 'rawblock', 'partial expression' and 'ampersand expression' are not in Data State, 
                 // we should warn the developers or throw exception in strict mode
                 if (parser.getCurrentState() !== stateMachine.State.STATE_DATA) {
-                    msg = (this._config._strictMode? '[ERROR]' : '[WARNING]') + " SecureHandlebars: " + node.content + ' is in non-DATA State!';
+                    msg = (this._config._strictMode? '[ERROR]' : '[WARNING]') + " SecureHandlebars: " + node.content + ' is in non-HTML Context!';
                     exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
                     handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
                 }
@@ -525,7 +525,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                         attributeValue = HtmlDecoder.decode(attributeValue);
                         r = cssParserUtils.parseStyleAttributeValue(attributeValue);
                     } catch (e) {
-                        throw 'Unsafe output expression @ attribute style CSS context (Parsing error OR expression position not supported!)';
+                        throw 'unsupported position of style attribute (e.g., <div style="{{output}}:red;", being as the key instead of value. )';
                     }
                     switch(r.code) {
                         case cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED:
@@ -550,7 +550,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                             filters.push(filterMap.ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED);
                             break;
                         case cssParserUtils.STYLE_ATTRIBUTE_ERROR:
-                            throw 'Unsafe output expression @ attribute style CSS context (Parsing error OR expression position not supported!)';
+                            throw 'unsupported position of style attribute (e.g., <div style="{{output}}:red;", being as the key instead of value. )';
                     }
 
                     /* add the attribute value filter */
@@ -613,20 +613,19 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
              * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
              */
             case stateMachine.State.STATE_TAG_NAME: // 10
-                throw 'being an tag name (i.e., TAG_NAME state)';
+                throw 'being a tag name (i.e., TAG_NAME state)';
             case stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME: // 34
             case stateMachine.State.STATE_ATTRIBUTE_NAME: // 35
             case stateMachine.State.STATE_AFTER_ATTRIBUTE_NAME: // 36
             case stateMachine.State.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED: // 42
                 throw 'being an attribute name (state #: ' + state + ')';
 
-
             // TODO: need tagname tracing in Context Parser such that we can have 
             // ability to capture the case of putting output expression within dangerous tag.
             // like svg etc.
             // the following will be caught by handlebarsUtils.isScriptableTag(tagName) anyway
             case stateMachine.State.STATE_SCRIPT_DATA: // 6
-                throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
+                throw 'SCRIPT_DATA state';
             
             // should not fall into the following states
             case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
@@ -639,7 +638,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
 
         if (typeof exception === 'string') {
 
-            errorMessage = (this._config._strictMode? '[ERROR]' : '[WARNING]') + ' SecureHandlebars: Unsafe output expression found at ';
+            errorMessage = (this._config._strictMode? '[ERROR]' : '[WARNING]') + ' SecureHandlebars: Unsafe output expression ' + input + ' found at ';
 
             // To be secure, scriptable tags when encountered will anyway throw an error/warning
             // they require either special parsers of their own context (e.g., CSS/script parsers) 
