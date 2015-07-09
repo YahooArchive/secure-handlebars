@@ -18,8 +18,7 @@ describe("SecureHandlebars: inclusion tests", function() {
 
 function HandlebarsGetOutput(html, json) {
     var template = Handlebars.compile(html);
-    var output = template(json);
-    return output;
+    return template(json);
 }
 
 describe("SecureHandlebars: helpers tests", function() {
@@ -55,6 +54,22 @@ describe("SecureHandlebars: helpers tests", function() {
         var template = '<a href="{{safeUrl}}">SafeURL</a><a href="{{url}}">FilteredUrl</a>';
 
         expect(HandlebarsGetOutput(template, data)).to.be.equal('<a href="javascript:alert(1)">SafeURL</a><a href="x-javascript:alert(1)">FilteredUrl</a>');
+    });
+
+    it("null and undefined treatment test", function() {
+        var data = {
+            undefined1: undefined,
+            null1: null
+        };
+
+        // yavu is special and cannot return '' but \uFFFD
+        var template = '<a href={{undefined1}}>undefined</a><a class={{null1}}>null</a>';
+        expect(HandlebarsGetOutput(template, data)).to.be.equal('<a href=\uFFFD>undefined</a><a class=\uFFFD>null</a>');
+
+        // other filters are okay to turn null/undefined into ''
+        var template = '<a href="{{undefined1}}" class=\'{{undefined1}}\'>undefined</a><a href="{{null1}}" style="background:url({{null1}})">null</a>';
+        expect(HandlebarsGetOutput(template, data)).to.be.equal('<a href="" class=\'\'>undefined</a><a href="" style="background:url()">null</a>');
+
     });
 
     // given no definition of script in data, expects to output empty string by Handlebars.escapeExpression()
