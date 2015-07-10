@@ -80,7 +80,7 @@ function ContextParserHandlebars(config) {
     /* save the char/line no being processed */
     this._charNo = 0;
     this._lineNo = 1;
-    this._fileName = config.fileName? config.fileName: '';
+    this._fileName = config.processingFile? config.processingFile: '';
 
     /* context parser for HTML5 parsing */
     this.contextParser = parserUtils.getParser();
@@ -484,6 +484,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
         tagName = parser.getStartTagName(),
         attributeName = parser.getAttributeName(),
         attributeValue = parser.getAttributeValue();
+    attributeValue === null && (attributeValue = '');
 
     try {
 
