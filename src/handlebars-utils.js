@@ -294,7 +294,7 @@ HandlebarsUtils.warn = (function(){
 
 // @function HandlebarsUtils.handleError
 HandlebarsUtils.handleError = function(exceptionObj, throwErr) {
-    HandlebarsUtils.warn(exceptionObj.msg + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
+    HandlebarsUtils.warn(exceptionObj.msg + (exceptionObj.fileName !== ''? '\n'+exceptionObj.fileName:'') + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
     if (throwErr) {
         throw exceptionObj;
     }
