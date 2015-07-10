@@ -39,7 +39,9 @@ function overrideHbsCreate() {
 
         try {
             if (template) {
-                parser = new ContextParserHandlebars({printCharEnable: false, strictMode: options.strictMode});
+                parser = new ContextParserHandlebars({printCharEnable: false, 
+                                                      fileName: options.fileName,
+                                                      strictMode: options.strictMode});
                 return parser.analyzeContext(template);
             }
         } catch (err) {
