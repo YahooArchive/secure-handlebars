@@ -483,7 +483,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
         state = parser.state,
         tagName = parser.getStartTagName(),
         attributeName = parser.getAttributeName(),
-        attributeValue = parser.getAttributeValue();
+        attributeValue = parser.getAttributeValue() === null? '': parser.getAttributeValue();
 
     try {
 
