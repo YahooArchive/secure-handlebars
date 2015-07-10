@@ -17,12 +17,15 @@ var Handlebars = require('handlebars'),
 
 // don't escape SafeStrings, since they're already safe according to Handlebars
 // Reference: https://github.com/wycats/handlebars.js/blob/master/lib/handlebars/utils.js#L63-L82
-function safeStringCompatibleFilter (filterName) {
-    return function (s) {
-        // Unlike escapeExpression(), return s instead of s.toHTML() since downstream
-        //  filters of the same chain has to be disabled too.
-        //  Handlebars will invoke SafeString.toString() at last during data binding
-        return (s && s.toHTML) ? s : xssFilters._privFilters[filterName](s);
+function getHbsCompatibleFilter (filterName) {
+    var specialReturnValue = filterName === 'yavu' ? '\uFFFD' : '';
+    return function filter (s) {
+        // align with Handlebars preference to return '' when s is null/undefined, except in unquoted attr, '\uFFFD' is returned to avoid context breaking
+        return s === null || s === undefined ? specialReturnValue : 
+            // Unlike escapeExpression(), return s instead of s.toHTML() since downstream
+            //  filters of the same chain has to be disabled too.
+            //  Handlebars will invoke SafeString.toString() at last during data binding
+            s.toHTML ? s : xssFilters._privFilters[filterName](s);
     };
 }
 
@@ -68,7 +71,7 @@ function overrideHbsCreate() {
 
     // register below the filters that are automatically applied by context parser 
     for (i = 0; (filterName = privateFilterList[i]); i++) {
-        h.registerHelper(filterName, safeStringCompatibleFilter(filterName));
+        h.registerHelper(filterName, getHbsCompatibleFilter(filterName));
     }
 
     // override the default y to refer to the Handlebars escape function
