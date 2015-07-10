@@ -13,24 +13,51 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 "use strict";
 
 var stateMachine = require('./html5-state-machine.js'),
-    htmlState = stateMachine.State;
+    htmlState = stateMachine.State,
+    reInputPreProcessing = /(?:\r\n?|[\x01-\x08\x0B\x0E-\x1F\x7F-\x9F\uFDD0-\uFDEF\uFFFE\uFFFF]|[\uD83F\uD87F\uD8BF\uD8FF\uD93F\uD97F\uD9BF\uD9FF\uDA3F\uDA3F\uDA7F\uDABF\uDAFF\uDB3F\uDB7F\uDBBF\uDBFF][\uDFFE\uDFFF])/g;
 
 /**
  * @class FastParser
  * @constructor FastParser
  */
-function FastParser() {
+function FastParser(config) {
+    var self = this, k;
 
-    this.listeners = {};
+    // deep copy config to this.config
+    self.config = {};
+    if (config) {
+        for (k in config) {
+            self.config[k] = config[k];
+        }
+    }
+    config = self.config;   
 
-    this.state = stateMachine.State.STATE_DATA;  /* Save the current status */
-    this.tags = ['', '']; /* Save the current tag name */
-    this.tagIdx = 0;
-    this.attrName = ''; /* Save the current attribute name */
-    this.attributeValue = ''; /* Save the current attribute value */
-    this.input = '';
-    this.inputLen = 0;
+    // config enabled by default - no conversion needed
+    // config.enableInputPreProcessing = (config.enableInputPreProcessing !== false);
+
+    self.listeners = {};
+    self.reset();
 }
+
+/**
+ * @function FastParser#reset
+ *
+ * @description
+ * Reset all internal states, as if being created with the new operator
+ */
+ FastParser.prototype.reset = function () {
+    var self = this;
+
+    self.state = stateMachine.State.STATE_DATA;  /* Save the current status */
+    self.tags = ['', '']; /* Save the current tag name */
+    self.tagIdx = 0;
+    self.attrName = ''; /* Save the current attribute name */
+    self.attributeValue = null; /* Save the current attribute value */
+    self.input = '';
+    self.inputLen = 0;
+
+    return self;
+ };
 
 /**
  * @function FastParser#on
@@ -252,7 +279,7 @@ FastParser.prototype.processTagName = function (ch) {
 
 FastParser.prototype.createAttributeNameAndValueTag = function (ch) {
     /* new attribute name and value token */
-    this.attributeValue = '';
+    this.attributeValue = null;
     this.attrName = ch;
 };
 
@@ -262,7 +289,7 @@ FastParser.prototype.appendAttributeNameTag = function (ch) {
 };
 
 FastParser.prototype.appendAttributeValueTag = function(ch) {
-    this.attributeValue += ch;   
+    this.attributeValue = this.attributeValue === null ? ch : this.attributeValue + ch;
 };
 
 /**
@@ -284,12 +311,16 @@ FastParser.prototype.lookupChar = function(ch) {
 
 /**
  * @function FastParser#contextualize
+ *
+ * @param {string} input - the input stream
  */
 FastParser.prototype.contextualize = function(input, endsWithEOF) {
     var self = this, listeners = self.listeners, i = -1, lastState;
 
-    self.input = input;
-    self.inputLen = input.length;
+    // Perform input stream preprocessing
+    // Reference: https://html.spec.whatwg.org/multipage/syntax.html#preprocessing-the-input-stream
+    self.input = self.config.enableInputPreProcessing ? input.replace(reInputPreProcessing, function(m){return m[0] === '\r' ? '\n' : '\uFFFD';}) : input;
+    self.inputLen = self.input.length;
 
     while (++i < self.inputLen) {
         lastState = self.state;
@@ -397,27 +428,17 @@ FastParser.prototype.getAttributeValue = function(htmlDecoded) {
 function Parser (config, listeners) {
     var self = this, k;
 
-    // super constructor
-    FastParser.call(self);
-
-
-    // deep copy config to this.config
-    self.config = {};
-    if (config) {
-        for (k in config) {
-            self.config[k] = config[k];
-        }
-    }
-    config = self.config;    
+    config = config || {};
 
     // config defaulted to false
-    config.enableInputPreProcessing = (config.enableInputPreProcessing === true);
     config.enableCanonicalization = (config.enableCanonicalization === true);
     config.enableVoidingIEConditionalComments = (config.enableVoidingIEConditionalComments === true);
 
     // config defaulted to true
     config.enableStateTracking = (config.enableStateTracking !== false);
 
+    // super constructor, reset() is called here
+    FastParser.call(self, config);
 
     // deep copy the provided listeners, if any
     if (typeof listeners === 'object') {
@@ -428,12 +449,10 @@ function Parser (config, listeners) {
     }
 
     // ### DO NOT CHANGE THE ORDER OF THE FOLLOWING COMPONENTS ###
-    // run through the input stream with input pre-processing
-    config.enableInputPreProcessing && this.on('preWalk', InputPreProcessing);
     // fix parse errors before they're encountered in walk()
-    config.enableCanonicalization && this.on('preWalk', Canonicalize).on('reWalk', Canonicalize);
+    config.enableCanonicalization && self.on('preWalk', Canonicalize).on('reWalk', Canonicalize);
     // enable IE conditional comments
-    config.enableVoidingIEConditionalComments && this.on('preWalk', DisableIEConditionalComments);
+    config.enableVoidingIEConditionalComments && self.on('preWalk', DisableIEConditionalComments);
     // TODO: rewrite IE <comment> tags
     // TODO: When a start tag token is emitted with its self-closing flag set, if the flag is not acknowledged when it is processed by the tree construction stage, that is a parse error.
     // TODO: When an end tag token is emitted with attributes, that is a parse error.
@@ -441,20 +460,43 @@ function Parser (config, listeners) {
 
     // for bookkeeping the processed inputs and states
     if (config.enableStateTracking) {
-        this.states = [this.state];
-        this.buffer = [];
-        this.symbol = [];
-        this.on('postWalk', function (lastState, state, i, endsWithEOF) {
+        self.on('postWalk', function (lastState, state, i, endsWithEOF) {
             this.buffer.push(this.input[i]);
             this.states.push(state);
             this.symbol.push(this._getSymbol(i));
-        }).on('reWalk', this.setCurrentState);
+        }).on('reWalk', self.setCurrentState);
     }
 }
 
 // as in https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/prototype 
 Parser.prototype = Object.create(FastParser.prototype);
 Parser.prototype.constructor = Parser;
+
+
+
+/**
+ * @function Parser#reset
+ *
+ * @description
+ * Reset all internal states, as if being created with the new operator
+ */
+Parser.prototype.reset = function () {
+    var self = this;
+
+    FastParser.prototype.reset.call(self);
+
+    if (self.config.enableStateTracking) {
+        self.states = [this.state];
+        self.buffer = [];
+        self.symbol = [];
+    }
+
+    // delete any pending corrections (e.g., to close bogus comment)
+    delete self.listeners.preCanonicalize;
+
+    return self;
+};
+
 
 /**
 * @function Parser._getSymbol
@@ -624,58 +666,12 @@ Parser.prototype.getLastState = function() {
 /**
 * The implementation of Strict Context Parser functions
 * 
-* - InputPreProcessing
 * - ConvertBogusCommentToComment
 * - PreCanonicalizeConvertBogusCommentEndTag
 * - Canonicalize
 * - DisableIEConditionalComments
 *
 */
-
-// Perform input stream preprocessing
-// Reference: https://html.spec.whatwg.org/multipage/syntax.html#preprocessing-the-input-stream
-function InputPreProcessing (state, i) {
-    var chr = this.input[i],
-        nextChr = this.input[i+1];
-
-    // equivalent to inputStr.replace(/\r\n?/g, '\n')
-    if (chr === '\r') {
-        // for lazy conversion
-        this._convertString2Array();
-        if (nextChr === '\n') {
-            this.input.splice(i, 1);
-            this.inputLen--;
-        } else {
-            this.input[i] = '\n';
-        }
-    }
-    // the following are control characters or permanently undefined Unicode characters (noncharacters), resulting in parse errors
-    // \uFFFD replacement is not required by the specification, we consider \uFFFD character as an inert character
-    else if ((chr >= '\x01'   && chr <= '\x08') ||
-             (chr >= '\x0E'   && chr <= '\x1F') ||
-             (chr >= '\x7F'   && chr <= '\x9F') ||
-             (chr >= '\uFDD0' && chr <= '\uFDEF') ||
-             chr === '\x0B' || chr === '\uFFFE' || chr === '\uFFFF') {
-        // for lazy conversion
-        this._convertString2Array();
-        this.input[i] = '\uFFFD';
-    }
-    // U+1FFFE, U+1FFFF, U+2FFFE, U+2FFFF, U+3FFFE, U+3FFFF,
-    // U+4FFFE, U+4FFFF, U+5FFFE, U+5FFFF, U+6FFFE, U+6FFFF,
-    // U+7FFFE, U+7FFFF, U+8FFFE, U+8FFFF, U+9FFFE, U+9FFFF,
-    // U+AFFFE, U+AFFFF, U+BFFFE, U+BFFFF, U+CFFFE, U+CFFFF,
-    // U+DFFFE, U+DFFFF, U+EFFFE, U+EFFFF, U+FFFFE, U+FFFFF,
-    // U+10FFFE, and U+10FFFF
-    else if ((nextChr === '\uDFFE' || nextChr === '\uDFFF') &&
-             (  chr === '\uD83F' || chr === '\uD87F' || chr === '\uD8BF' || chr === '\uD8FF' ||
-                chr === '\uD93F' || chr === '\uD97F' || chr === '\uD9BF' || chr === '\uD9FF' ||
-                chr === '\uDA3F' || chr === '\uDA7F' || chr === '\uDABF' || chr === '\uDAFF' ||
-                chr === '\uDB3F' || chr === '\uDB7F' || chr === '\uDBBF' || chr === '\uDBFF')) {
-        // for lazy conversion
-        this._convertString2Array();
-        this.input[i] = this.input[i+1] = '\uFFFD';
-    }
-}
 
 function ConvertBogusCommentToComment(i) {
     // for lazy conversion
@@ -8408,7 +8404,7 @@ exports._getPrivFilters = function () {
         SQUOT  = /'/g,
         AMP    = /&/g,
         NULL   = /\x00/g,
-        SPECIAL_ATTR_VALUE_UNQUOTED_CHARS = /(?:^(?:["'`]|\x00+$|$)|[\x09-\x0D >])/g,
+        SPECIAL_ATTR_VALUE_UNQUOTED_CHARS = /(?:^$|[\x00\x09-\x0D "'`=<>])/g,
         SPECIAL_HTML_CHARS = /[&<>"'`]/g, 
         SPECIAL_COMMENT_CHARS = /(?:\x00|^-*!?>|--!?>|--?!?$|\]>|\]$)/g;
 
@@ -8443,7 +8439,11 @@ exports._getPrivFilters = function () {
         URI_PROTOCOL_NAMED_REF_MAP = {Tab: '\t', NewLine: '\n'};
 
     var x, 
-        strReplace = String.prototype.replace, 
+        strReplace = function (s, regexp, callback) {
+            return s === undefined ? 'undefined'
+                    : s === null            ? 'null'
+                    : s.toString().replace(regexp, callback);
+        },
         fromCodePoint = String.fromCodePoint || function(codePoint) {
             if (arguments.length === 0) {
                 return '';
@@ -8464,89 +8464,83 @@ exports._getPrivFilters = function () {
         return (s.length === 2 && s[0]) ? s[0] : null;
     }
 
-    function stringify(s, callback) {
-        return typeof s === 'undefined' ? 'undefined'
-             : s === null               ? 'null'
-             : callback.apply(s.toString(), [].splice.call(arguments, 2));
-    }
-
-
-    function htmlDecode(s, namedRefMap, reNamedRef, callback) {
+    function htmlDecode(s, namedRefMap, reNamedRef, skipReplacement) {
+        
         namedRefMap = namedRefMap || SENSITIVE_NAMED_REF_MAP;
         reNamedRef = reNamedRef || SENSITIVE_HTML_ENTITIES;
 
-        var decodedStr, args = [].splice.call(arguments, 4);
+        function regExpFunction(m, num, named, named1) {
+            if (num) {
+                num = Number(num[0] <= '9' ? num : '0' + num);
+                // switch(num) {
+                //     case 0x80: return '\u20AC';  // EURO SIGN (€)
+                //     case 0x82: return '\u201A';  // SINGLE LOW-9 QUOTATION MARK (‚)
+                //     case 0x83: return '\u0192';  // LATIN SMALL LETTER F WITH HOOK (ƒ)
+                //     case 0x84: return '\u201E';  // DOUBLE LOW-9 QUOTATION MARK („)
+                //     case 0x85: return '\u2026';  // HORIZONTAL ELLIPSIS (…)
+                //     case 0x86: return '\u2020';  // DAGGER (†)
+                //     case 0x87: return '\u2021';  // DOUBLE DAGGER (‡)
+                //     case 0x88: return '\u02C6';  // MODIFIER LETTER CIRCUMFLEX ACCENT (ˆ)
+                //     case 0x89: return '\u2030';  // PER MILLE SIGN (‰)
+                //     case 0x8A: return '\u0160';  // LATIN CAPITAL LETTER S WITH CARON (Š)
+                //     case 0x8B: return '\u2039';  // SINGLE LEFT-POINTING ANGLE QUOTATION MARK (‹)
+                //     case 0x8C: return '\u0152';  // LATIN CAPITAL LIGATURE OE (Œ)
+                //     case 0x8E: return '\u017D';  // LATIN CAPITAL LETTER Z WITH CARON (Ž)
+                //     case 0x91: return '\u2018';  // LEFT SINGLE QUOTATION MARK (‘)
+                //     case 0x92: return '\u2019';  // RIGHT SINGLE QUOTATION MARK (’)
+                //     case 0x93: return '\u201C';  // LEFT DOUBLE QUOTATION MARK (“)
+                //     case 0x94: return '\u201D';  // RIGHT DOUBLE QUOTATION MARK (”)
+                //     case 0x95: return '\u2022';  // BULLET (•)
+                //     case 0x96: return '\u2013';  // EN DASH (–)
+                //     case 0x97: return '\u2014';  // EM DASH (—)
+                //     case 0x98: return '\u02DC';  // SMALL TILDE (˜)
+                //     case 0x99: return '\u2122';  // TRADE MARK SIGN (™)
+                //     case 0x9A: return '\u0161';  // LATIN SMALL LETTER S WITH CARON (š)
+                //     case 0x9B: return '\u203A';  // SINGLE RIGHT-POINTING ANGLE QUOTATION MARK (›)
+                //     case 0x9C: return '\u0153';  // LATIN SMALL LIGATURE OE (œ)
+                //     case 0x9E: return '\u017E';  // LATIN SMALL LETTER Z WITH CARON (ž)
+                //     case 0x9F: return '\u0178';  // LATIN CAPITAL LETTER Y WITH DIAERESIS (Ÿ)
+                // }
+                // // num >= 0xD800 && num <= 0xDFFF, and 0x0D is separately handled, as it doesn't fall into the range of x.pec()
+                // return (num >= 0xD800 && num <= 0xDFFF) || num === 0x0D ? '\uFFFD' : x.frCoPt(num);
 
-        return stringify(s, function() {
-            decodedStr = this.replace(NULL, '\uFFFD').replace(reNamedRef, function(m, num, named, named1) {
-                if (num) {
-                    num = Number(num[0] <= '9' ? num : '0' + num);
-                    // switch(num) {
-                    //     case 0x80: return '\u20AC';  // EURO SIGN (€)
-                    //     case 0x82: return '\u201A';  // SINGLE LOW-9 QUOTATION MARK (‚)
-                    //     case 0x83: return '\u0192';  // LATIN SMALL LETTER F WITH HOOK (ƒ)
-                    //     case 0x84: return '\u201E';  // DOUBLE LOW-9 QUOTATION MARK („)
-                    //     case 0x85: return '\u2026';  // HORIZONTAL ELLIPSIS (…)
-                    //     case 0x86: return '\u2020';  // DAGGER (†)
-                    //     case 0x87: return '\u2021';  // DOUBLE DAGGER (‡)
-                    //     case 0x88: return '\u02C6';  // MODIFIER LETTER CIRCUMFLEX ACCENT (ˆ)
-                    //     case 0x89: return '\u2030';  // PER MILLE SIGN (‰)
-                    //     case 0x8A: return '\u0160';  // LATIN CAPITAL LETTER S WITH CARON (Š)
-                    //     case 0x8B: return '\u2039';  // SINGLE LEFT-POINTING ANGLE QUOTATION MARK (‹)
-                    //     case 0x8C: return '\u0152';  // LATIN CAPITAL LIGATURE OE (Œ)
-                    //     case 0x8E: return '\u017D';  // LATIN CAPITAL LETTER Z WITH CARON (Ž)
-                    //     case 0x91: return '\u2018';  // LEFT SINGLE QUOTATION MARK (‘)
-                    //     case 0x92: return '\u2019';  // RIGHT SINGLE QUOTATION MARK (’)
-                    //     case 0x93: return '\u201C';  // LEFT DOUBLE QUOTATION MARK (“)
-                    //     case 0x94: return '\u201D';  // RIGHT DOUBLE QUOTATION MARK (”)
-                    //     case 0x95: return '\u2022';  // BULLET (•)
-                    //     case 0x96: return '\u2013';  // EN DASH (–)
-                    //     case 0x97: return '\u2014';  // EM DASH (—)
-                    //     case 0x98: return '\u02DC';  // SMALL TILDE (˜)
-                    //     case 0x99: return '\u2122';  // TRADE MARK SIGN (™)
-                    //     case 0x9A: return '\u0161';  // LATIN SMALL LETTER S WITH CARON (š)
-                    //     case 0x9B: return '\u203A';  // SINGLE RIGHT-POINTING ANGLE QUOTATION MARK (›)
-                    //     case 0x9C: return '\u0153';  // LATIN SMALL LIGATURE OE (œ)
-                    //     case 0x9E: return '\u017E';  // LATIN SMALL LETTER Z WITH CARON (ž)
-                    //     case 0x9F: return '\u0178';  // LATIN CAPITAL LETTER Y WITH DIAERESIS (Ÿ)
-                    // }
-                    // // num >= 0xD800 && num <= 0xDFFF, and 0x0D is separately handled, as it doesn't fall into the range of x.pec()
-                    // return (num >= 0xD800 && num <= 0xDFFF) || num === 0x0D ? '\uFFFD' : x.frCoPt(num);
+                return skipReplacement ? fromCodePoint(num)
+                        : num === 0x80 ? '\u20AC'  // EURO SIGN (€)
+                        : num === 0x82 ? '\u201A'  // SINGLE LOW-9 QUOTATION MARK (‚)
+                        : num === 0x83 ? '\u0192'  // LATIN SMALL LETTER F WITH HOOK (ƒ)
+                        : num === 0x84 ? '\u201E'  // DOUBLE LOW-9 QUOTATION MARK („)
+                        : num === 0x85 ? '\u2026'  // HORIZONTAL ELLIPSIS (…)
+                        : num === 0x86 ? '\u2020'  // DAGGER (†)
+                        : num === 0x87 ? '\u2021'  // DOUBLE DAGGER (‡)
+                        : num === 0x88 ? '\u02C6'  // MODIFIER LETTER CIRCUMFLEX ACCENT (ˆ)
+                        : num === 0x89 ? '\u2030'  // PER MILLE SIGN (‰)
+                        : num === 0x8A ? '\u0160'  // LATIN CAPITAL LETTER S WITH CARON (Š)
+                        : num === 0x8B ? '\u2039'  // SINGLE LEFT-POINTING ANGLE QUOTATION MARK (‹)
+                        : num === 0x8C ? '\u0152'  // LATIN CAPITAL LIGATURE OE (Œ)
+                        : num === 0x8E ? '\u017D'  // LATIN CAPITAL LETTER Z WITH CARON (Ž)
+                        : num === 0x91 ? '\u2018'  // LEFT SINGLE QUOTATION MARK (‘)
+                        : num === 0x92 ? '\u2019'  // RIGHT SINGLE QUOTATION MARK (’)
+                        : num === 0x93 ? '\u201C'  // LEFT DOUBLE QUOTATION MARK (“)
+                        : num === 0x94 ? '\u201D'  // RIGHT DOUBLE QUOTATION MARK (”)
+                        : num === 0x95 ? '\u2022'  // BULLET (•)
+                        : num === 0x96 ? '\u2013'  // EN DASH (–)
+                        : num === 0x97 ? '\u2014'  // EM DASH (—)
+                        : num === 0x98 ? '\u02DC'  // SMALL TILDE (˜)
+                        : num === 0x99 ? '\u2122'  // TRADE MARK SIGN (™)
+                        : num === 0x9A ? '\u0161'  // LATIN SMALL LETTER S WITH CARON (š)
+                        : num === 0x9B ? '\u203A'  // SINGLE RIGHT-POINTING ANGLE QUOTATION MARK (›)
+                        : num === 0x9C ? '\u0153'  // LATIN SMALL LIGATURE OE (œ)
+                        : num === 0x9E ? '\u017E'  // LATIN SMALL LETTER Z WITH CARON (ž)
+                        : num === 0x9F ? '\u0178'  // LATIN CAPITAL LETTER Y WITH DIAERESIS (Ÿ)
+                        : (num >= 0xD800 && num <= 0xDFFF) || num === 0x0D ? '\uFFFD'
+                        : x.frCoPt(num);
+            }
+            return namedRefMap[named || named1] || m;
+        }
 
-                    return num === 0x80 ? '\u20AC'  // EURO SIGN (€)
-                            : num === 0x82 ? '\u201A'  // SINGLE LOW-9 QUOTATION MARK (‚)
-                            : num === 0x83 ? '\u0192'  // LATIN SMALL LETTER F WITH HOOK (ƒ)
-                            : num === 0x84 ? '\u201E'  // DOUBLE LOW-9 QUOTATION MARK („)
-                            : num === 0x85 ? '\u2026'  // HORIZONTAL ELLIPSIS (…)
-                            : num === 0x86 ? '\u2020'  // DAGGER (†)
-                            : num === 0x87 ? '\u2021'  // DOUBLE DAGGER (‡)
-                            : num === 0x88 ? '\u02C6'  // MODIFIER LETTER CIRCUMFLEX ACCENT (ˆ)
-                            : num === 0x89 ? '\u2030'  // PER MILLE SIGN (‰)
-                            : num === 0x8A ? '\u0160'  // LATIN CAPITAL LETTER S WITH CARON (Š)
-                            : num === 0x8B ? '\u2039'  // SINGLE LEFT-POINTING ANGLE QUOTATION MARK (‹)
-                            : num === 0x8C ? '\u0152'  // LATIN CAPITAL LIGATURE OE (Œ)
-                            : num === 0x8E ? '\u017D'  // LATIN CAPITAL LETTER Z WITH CARON (Ž)
-                            : num === 0x91 ? '\u2018'  // LEFT SINGLE QUOTATION MARK (‘)
-                            : num === 0x92 ? '\u2019'  // RIGHT SINGLE QUOTATION MARK (’)
-                            : num === 0x93 ? '\u201C'  // LEFT DOUBLE QUOTATION MARK (“)
-                            : num === 0x94 ? '\u201D'  // RIGHT DOUBLE QUOTATION MARK (”)
-                            : num === 0x95 ? '\u2022'  // BULLET (•)
-                            : num === 0x96 ? '\u2013'  // EN DASH (–)
-                            : num === 0x97 ? '\u2014'  // EM DASH (—)
-                            : num === 0x98 ? '\u02DC'  // SMALL TILDE (˜)
-                            : num === 0x99 ? '\u2122'  // TRADE MARK SIGN (™)
-                            : num === 0x9A ? '\u0161'  // LATIN SMALL LETTER S WITH CARON (š)
-                            : num === 0x9B ? '\u203A'  // SINGLE RIGHT-POINTING ANGLE QUOTATION MARK (›)
-                            : num === 0x9C ? '\u0153'  // LATIN SMALL LIGATURE OE (œ)
-                            : num === 0x9E ? '\u017E'  // LATIN SMALL LETTER Z WITH CARON (ž)
-                            : num === 0x9F ? '\u0178'  // LATIN CAPITAL LETTER Y WITH DIAERESIS (Ÿ)
-                            : (num >= 0xD800 && num <= 0xDFFF) || num === 0x0D ? '\uFFFD'
-                            : x.frCoPt(num);
-                }
-                return namedRefMap[named || named1] || m;
-            });
-            return callback ? callback.apply(decodedStr, args) : decodedStr;
-        });
+        return s === undefined  ? 'undefined'
+            : s === null        ? 'null'
+            : s.toString().replace(NULL, '\uFFFD').replace(reNamedRef, regExpFunction);
     }
 
     function cssEncode(chr) {
@@ -8554,19 +8548,19 @@ exports._getPrivFilters = function () {
         return '\\' + chr.charCodeAt(0).toString(16).toLowerCase() + ' ';
     }
     function css(s, reSensitiveChars) {
-        return htmlDecode(s, null, null, function() {
-            return this.replace(reSensitiveChars, cssEncode);
-        });
+        return htmlDecode(s).replace(reSensitiveChars, cssEncode);
     }
     function cssUrl(s, reSensitiveChars) {
-        return htmlDecode(s, null, null, function() {
-            // encodeURI() will throw error for use of the CSS_UNSUPPORTED_CODE_POINT (i.e., [\uD800-\uDFFF])
-            var s = x.yufull(this), protocol = getProtocol(s);
-            // prefix ## for blacklisted protocols
-            s = protocol && URI_BLACKLIST_PROTOCOLS[protocol.toLowerCase()] ? '##' + s : s;
+        // encodeURI() in yufull() will throw error for use of the CSS_UNSUPPORTED_CODE_POINT (i.e., [\uD800-\uDFFF])
+        s = x.yufull(htmlDecode(s));
+        var protocol = getProtocol(s);
 
-            return reSensitiveChars ? s.replace(reSensitiveChars, cssEncode) : s;
-        });
+        // prefix ## for blacklisted protocols
+        if (protocol && URI_BLACKLIST_PROTOCOLS[protocol.toLowerCase()]) {
+            s = '##' + s;
+        }
+
+        return reSensitiveChars ? s.replace(reSensitiveChars, cssEncode) : s;
     }
 
     return (x = {
@@ -8595,9 +8589,7 @@ exports._getPrivFilters = function () {
         yup: function(s) {
             s = getProtocol(s.replace(NULL, ''));
             // URI_PROTOCOL_WHITESPACES is required for left trim and remove interim whitespaces
-            return s ? htmlDecode(s, URI_PROTOCOL_NAMED_REF_MAP, null, function() {
-                return this.replace(URI_PROTOCOL_WHITESPACES, '').toLowerCase();
-            }): null;
+            return s ? htmlDecode(s, URI_PROTOCOL_NAMED_REF_MAP, null, true).replace(URI_PROTOCOL_WHITESPACES, '').toLowerCase() : null;
         },
 
         /*
@@ -8607,7 +8599,7 @@ exports._getPrivFilters = function () {
          *
          */
         y: function(s) {
-            return stringify(s, strReplace, SPECIAL_HTML_CHARS, function (m) {
+            return strReplace(s, SPECIAL_HTML_CHARS, function (m) {
                 return m === '&' ? '&amp;'
                     :  m === '<' ? '&lt;'
                     :  m === '>' ? '&gt;'
@@ -8619,13 +8611,13 @@ exports._getPrivFilters = function () {
 
         // This filter is meant to introduce double-encoding, and should be used with extra care.
         ya: function(s) {
-            return stringify(s, strReplace, AMP, '&amp;');
+            return strReplace(s, AMP, '&amp;');
         },
 
         // FOR DETAILS, refer to inHTMLData()
         // Reference: https://html.spec.whatwg.org/multipage/syntax.html#data-state
         yd: function (s) {
-            return stringify(s, strReplace, LT, '&lt;');
+            return strReplace(s, LT, '&lt;');
         },
 
         // FOR DETAILS, refer to inHTMLComment()
@@ -8641,7 +8633,7 @@ exports._getPrivFilters = function () {
         // We do not care --\s>, which can possibly be intepreted as a valid close comment tag in very old browsers (e.g., firefox 3.6), as specified in the html4 spec
         // Reference: http://www.w3.org/TR/html401/intro/sgmltut.html#h-3.2.4
         yc: function (s) {
-            return stringify(s, strReplace, SPECIAL_COMMENT_CHARS, function(m){
+            return strReplace(s, SPECIAL_COMMENT_CHARS, function(m){
                 return m === '\x00' ? '\uFFFD'
                     : m === '--!' || m === '--' || m === '-' || m === ']' ? m + ' '
                     :/*
@@ -8655,13 +8647,13 @@ exports._getPrivFilters = function () {
         // FOR DETAILS, refer to inDoubleQuotedAttr()
         // Reference: https://html.spec.whatwg.org/multipage/syntax.html#attribute-value-(double-quoted)-state
         yavd: function (s) {
-            return stringify(s, strReplace, QUOT, '&quot;');
+            return strReplace(s, QUOT, '&quot;');
         },
 
         // FOR DETAILS, refer to inSingleQuotedAttr()
         // Reference: https://html.spec.whatwg.org/multipage/syntax.html#attribute-value-(single-quoted)-state
         yavs: function (s) {
-            return stringify(s, strReplace, SQUOT, '&#39;');
+            return strReplace(s, SQUOT, '&#39;');
         },
 
         // FOR DETAILS, refer to inUnQuotedAttr()
@@ -8694,18 +8686,20 @@ exports._getPrivFilters = function () {
         // Example:
         // <input value={{{yavu s}}} name="passwd"/>
         yavu: function (s) {
-            return stringify(s, strReplace, SPECIAL_ATTR_VALUE_UNQUOTED_CHARS, function (m) {
+            return strReplace(s, SPECIAL_ATTR_VALUE_UNQUOTED_CHARS, function (m) {
                 return m === '\t'   ? '&#9;'  // in hex: 09
                     :  m === '\n'   ? '&#10;' // in hex: 0A
                     :  m === '\x0B' ? '&#11;' // in hex: 0B  for IE. IE<9 \v equals v, so use \x0B instead
                     :  m === '\f'   ? '&#12;' // in hex: 0C
                     :  m === '\r'   ? '&#13;' // in hex: 0D
                     :  m === ' '    ? '&#32;' // in hex: 20
+                    :  m === '='    ? '&#61;' // in hex: 3D
+                    :  m === '<'    ? '&lt;'
                     :  m === '>'    ? '&gt;'
                     :  m === '"'    ? '&quot;'
                     :  m === "'"    ? '&#39;'
                     :  m === '`'    ? '&#96;'
-                    : /*empty or all null*/ '\uFFFD';
+                    : /*empty or null*/ '\uFFFD';
             });
         },
 
@@ -8721,10 +8715,9 @@ exports._getPrivFilters = function () {
         // This is NOT a security-critical filter.
         // Reference: https://tools.ietf.org/html/rfc3986
         yufull: function (s) {
-            return x.yu(s)
-                    .replace(URL_IPV6, function(m, p) {
-                        return '//[' + p + ']';
-                    });
+            return x.yu(s).replace(URL_IPV6, function(m, p) {
+                return '//[' + p + ']';
+            });
         },
 
         // chain yufull() with yubl()
@@ -8903,7 +8896,7 @@ exports.inDoubleQuotedAttr = privFilters.yavd;
 * @function module:xss-filters#inUnQuotedAttr
 *
 * @param {string} s - An untrusted user input
-* @returns {string} If s contains any state breaking chars (\t, \n, \v, \f, \r, space, and >), they are escaped and encoded into their equivalent HTML entity representations. If s starts with ', " or `, they are escaped to enforce the attr value (unquoted) state. If the whole string is empty or all null, inject a \uFFFD character.
+* @returns {string} If s contains any state breaking chars (\t, \n, \v, \f, \r, space, null, ', ", `, <, >, and =), they are escaped and encoded into their equivalent HTML entity representations. If the string is empty, inject a \uFFFD character.
 *
 * @description
 * <p class="warning">Warning: This is NOT designed for any onX (e.g., onclick) attributes!</p>
@@ -9534,8 +9527,9 @@ var reEqualSign = /(?:=|&#0*61;?|&#[xX]0*3[dD];?|&equals;)/;
 /** 
 * @module ContextParserHandlebarsException
 */
-function ContextParserHandlebarsException(msg, lineNo, charNo) {
+function ContextParserHandlebarsException(msg, fileName, lineNo, charNo) {
     this.msg = msg;
+    this.fileName = fileName;
     this.lineNo = lineNo;
     this.charNo = charNo;
 }
@@ -9567,6 +9561,7 @@ function ContextParserHandlebars(config) {
     /* save the char/line no being processed */
     this._charNo = 0;
     this._lineNo = 1;
+    this._fileName = config.processingFile? config.processingFile: '';
 
     /* context parser for HTML5 parsing */
     this.contextParser = parserUtils.getParser();
@@ -9816,6 +9811,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
         if (typeof exception === 'string') {
             exceptionObj = new ContextParserHandlebarsException(
                 '[ERROR] SecureHandlebars: ' + exception,
+                this._fileName,
                 this.countNewLineChar(input.slice(0, j)), j);
             handlebarsUtils.handleError(exceptionObj, true);
         } else {
@@ -9896,8 +9892,8 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
                 // if the 'rawblock', 'partial expression' and 'ampersand expression' are not in Data State, 
                 // we should warn the developers or throw exception in strict mode
                 if (parser.getCurrentState() !== stateMachine.State.STATE_DATA) {
-                    msg = (this._config._strictMode? '[ERROR]' : '[WARNING]') + " SecureHandlebars: " + node.content + ' is in non-DATA State!';
-                    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                    msg = (this._config._strictMode? '[ERROR]' : '[WARNING]') + " SecureHandlebars: " + node.content + ' is in non-HTML Context!';
+                    exceptionObj = new ContextParserHandlebarsException(msg, this._fileName, this._lineNo, this._charNo);
                     handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
                 }
                 output += node.content;
@@ -9937,7 +9933,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
         msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
         msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
         msg += "attributeNameType:("+leftParser.getAttributeNameType()+"/"+rightParser.getAttributeNameType()+")";
-        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+        exceptionObj = new ContextParserHandlebarsException(msg, this._fileName, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
 
@@ -9969,6 +9965,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
         tagName = parser.getStartTagName(),
         attributeName = parser.getAttributeName(),
         attributeValue = parser.getAttributeValue();
+    attributeValue === null && (attributeValue = '');
 
     try {
 
@@ -10013,7 +10010,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                         attributeValue = HtmlDecoder.decode(attributeValue);
                         r = cssParserUtils.parseStyleAttributeValue(attributeValue);
                     } catch (e) {
-                        throw 'Unsafe output expression @ attribute style CSS context (Parsing error OR expression position not supported!)';
+                        throw 'unsupported position of style attribute (e.g., <div style="{{output}}:red;", being as the key instead of value. )';
                     }
                     switch(r.code) {
                         case cssParserUtils.STYLE_ATTRIBUTE_URL_UNQUOTED:
@@ -10038,7 +10035,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
                             filters.push(filterMap.ATTRIBUTE_VALUE_STYLE_EXPR_DOUBLE_QUOTED);
                             break;
                         case cssParserUtils.STYLE_ATTRIBUTE_ERROR:
-                            throw 'Unsafe output expression @ attribute style CSS context (Parsing error OR expression position not supported!)';
+                            throw 'unsupported position of style attribute (e.g., <div style="{{output}}:red;", being as the key instead of value. )';
                     }
 
                     /* add the attribute value filter */
@@ -10101,20 +10098,19 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
              * and we fall back to default Handlebars escaping filter. IT IS UNSAFE.
              */
             case stateMachine.State.STATE_TAG_NAME: // 10
-                throw 'being an tag name (i.e., TAG_NAME state)';
+                throw 'being a tag name (i.e., TAG_NAME state)';
             case stateMachine.State.STATE_BEFORE_ATTRIBUTE_NAME: // 34
             case stateMachine.State.STATE_ATTRIBUTE_NAME: // 35
             case stateMachine.State.STATE_AFTER_ATTRIBUTE_NAME: // 36
             case stateMachine.State.STATE_AFTER_ATTRIBUTE_VALUE_QUOTED: // 42
                 throw 'being an attribute name (state #: ' + state + ')';
 
-
             // TODO: need tagname tracing in Context Parser such that we can have 
             // ability to capture the case of putting output expression within dangerous tag.
             // like svg etc.
             // the following will be caught by handlebarsUtils.isScriptableTag(tagName) anyway
             case stateMachine.State.STATE_SCRIPT_DATA: // 6
-                throw 'inside <script> tag (i.e., SCRIPT_DATA state)';
+                throw 'SCRIPT_DATA state';
             
             // should not fall into the following states
             case stateMachine.State.STATE_BEFORE_ATTRIBUTE_VALUE: // 37
@@ -10127,7 +10123,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
 
         if (typeof exception === 'string') {
 
-            errorMessage = (this._config._strictMode? '[ERROR]' : '[WARNING]') + ' SecureHandlebars: Unsafe output expression found at ';
+            errorMessage = (this._config._strictMode? '[ERROR]' : '[WARNING]') + ' SecureHandlebars: Unsafe output expression ' + input + ' found at ';
 
             // To be secure, scriptable tags when encountered will anyway throw an error/warning
             // they require either special parsers of their own context (e.g., CSS/script parsers) 
@@ -10135,7 +10131,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             errorMessage += handlebarsUtils.isScriptableTag(tagName) ? 'scriptable <' + tagName + '> tag' : exception;
             errorMessage += "\nPlease follow this URL to resolve - https://github.com/yahoo/secure-handlebars#warnings-and-workarounds";
 
-            exceptionObj = new ContextParserHandlebarsException(errorMessage, this._lineNo, this._charNo);
+            exceptionObj = new ContextParserHandlebarsException(errorMessage, this._fileName, this._lineNo, this._charNo);
             handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
         } else {
             handlebarsUtils.handleError(exception, this._config._strictMode);
@@ -10193,7 +10189,7 @@ ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, s
         }
         saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
     }
-    throw "[ERROR] SecureHandlebars: Parsing error! Cannot encounter close brace of expression.";
+    throw "Parsing error! Cannot encounter close brace of expression.";
 };
 
 /**
@@ -10237,6 +10233,7 @@ ContextParserHandlebars.prototype.handleEscapeAndRawTemplate = function(input, i
         if (typeof exception === 'string') {
             exceptionObj = new ContextParserHandlebarsException(
                 '[ERROR] SecureHandlebars: ' + exception,
+                this._fileName,
                 this._lineNo, 
                 this._charNo);
             handlebarsUtils.handleError(exceptionObj, true);
@@ -10329,7 +10326,7 @@ ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, le
         }
     }
     msg = "[ERROR] SecureHandlebars: Parsing error! Cannot encounter '}}' close brace of escape expression.";
-    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+    exceptionObj = new ContextParserHandlebarsException(msg, this._fileName, this._lineNo, this._charNo);
     handlebarsUtils.handleError(exceptionObj, true);
 };
 
@@ -10356,10 +10353,10 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
         } else if (!isStartExpression && input[j] === '{' && j+4<len && input[j+1] === '{' && input[j+2] === '{' && input[j+3] === '{' && input[j+4] === '/') {
             re = handlebarsUtils.isValidExpression(input, j, handlebarsUtils.RAW_END_BLOCK);
             if (re.result === false) {
-                throw "[ERROR] SecureHandlebars: Parsing error! Invalid raw end block expression.";
+                throw "Parsing error! Invalid raw end block expression.";
             }
             if (re.tag !== tag) {
-                throw "[ERROR] SecureHandlebars: Parsing error! start/end raw block name mismatch.";
+                throw "Parsing error! start/end raw block name mismatch.";
             }
             for(var k=j;k<len;++k) {
                 if (input[k] === '}' && k+3<len && input[k+1] === '}' && input[k+2] === '}' && input[k+3] === '}') {
@@ -10375,7 +10372,7 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
             saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
-    throw "[ERROR] SecureHandlebars: Parsing error! Cannot encounter '}}}}' close brace of raw block.";
+    throw "Parsing error! Cannot encounter '}}}}' close brace of raw block.";
 };
 
 /* exposing it */
@@ -11581,7 +11578,7 @@ HandlebarsUtils.warn = (function(){
 
 // @function HandlebarsUtils.handleError
 HandlebarsUtils.handleError = function(exceptionObj, throwErr) {
-    HandlebarsUtils.warn(exceptionObj.msg + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
+    HandlebarsUtils.warn(exceptionObj.msg + (exceptionObj.fileName !== ''? '\n'+exceptionObj.fileName:'') + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
     if (throwErr) {
         throw exceptionObj;
     }
@@ -11683,7 +11680,7 @@ Parser.attributeNamesType = {
     'xlink:href' :Parser.ATTRTYPE_URI,     // for xml-related
 
     // srcdoc is the STRING type, not URI
-    'srcdoc'     :Parser.ATTRTYPE_URI,     // for iframe
+    'srcdoc'     :Parser.ATTRTYPE_SCRIPTABLE,     // for iframe
 
     'style'      :Parser.ATTRTYPE_CSS,     // for global attributes list
 
@@ -11738,7 +11735,6 @@ Parser.prototype.cloneStates = function(parser) {
     this.attrName = parser.getAttributeName();
     this.attributeValue = parser.getAttributeValue();
 };
-
 
 /**
  * @function ContextParser#getParser
@@ -11890,12 +11886,15 @@ var Handlebars = require('handlebars'),
 
 // don't escape SafeStrings, since they're already safe according to Handlebars
 // Reference: https://github.com/wycats/handlebars.js/blob/master/lib/handlebars/utils.js#L63-L82
-function safeStringCompatibleFilter (filterName) {
-    return function (s) {
-        // Unlike escapeExpression(), return s instead of s.toHTML() since downstream
-        //  filters of the same chain has to be disabled too.
-        //  Handlebars will invoke SafeString.toString() at last during data binding
-        return (s && s.toHTML) ? s : xssFilters._privFilters[filterName](s);
+function getHbsCompatibleFilter (filterName) {
+    var specialReturnValue = filterName === 'yavu' ? '\uFFFD' : '';
+    return function filter (s) {
+        // align with Handlebars preference to return '' when s is null/undefined, except in unquoted attr, '\uFFFD' is returned to avoid context breaking
+        return s === null || s === undefined ? specialReturnValue : 
+            // Unlike escapeExpression(), return s instead of s.toHTML() since downstream
+            //  filters of the same chain has to be disabled too.
+            //  Handlebars will invoke SafeString.toString() at last during data binding
+            s.toHTML ? s : xssFilters._privFilters[filterName](s);
     };
 }
 
@@ -11912,7 +11911,9 @@ function overrideHbsCreate() {
 
         try {
             if (template) {
-                parser = new ContextParserHandlebars({printCharEnable: false, strictMode: options.strictMode});
+                parser = new ContextParserHandlebars({ printCharEnable: false, 
+                                                       processingFile: options.processingFile,
+                                                       strictMode: options.strictMode});
                 return parser.analyzeContext(template);
             }
         } catch (err) {
@@ -11941,7 +11942,7 @@ function overrideHbsCreate() {
 
     // register below the filters that are automatically applied by context parser 
     for (i = 0; (filterName = privateFilterList[i]); i++) {
-        h.registerHelper(filterName, safeStringCompatibleFilter(filterName));
+        h.registerHelper(filterName, getHbsCompatibleFilter(filterName));
     }
 
     // override the default y to refer to the Handlebars escape function
