@@ -46,8 +46,9 @@ var reEqualSign = /(?:=|&#0*61;?|&#[xX]0*3[dD];?|&equals;)/;
 /** 
 * @module ContextParserHandlebarsException
 */
-function ContextParserHandlebarsException(msg, lineNo, charNo) {
+function ContextParserHandlebarsException(msg, fileName, lineNo, charNo) {
     this.msg = msg;
+    this.fileName = fileName;
     this.lineNo = lineNo;
     this.charNo = charNo;
 }
@@ -79,6 +80,7 @@ function ContextParserHandlebars(config) {
     /* save the char/line no being processed */
     this._charNo = 0;
     this._lineNo = 1;
+    this._fileName = config.fileName? config.fileName: '';
 
     /* context parser for HTML5 parsing */
     this.contextParser = parserUtils.getParser();
@@ -328,6 +330,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
         if (typeof exception === 'string') {
             exceptionObj = new ContextParserHandlebarsException(
                 '[ERROR] SecureHandlebars: ' + exception,
+                this._fileName,
                 this.countNewLineChar(input.slice(0, j)), j);
             handlebarsUtils.handleError(exceptionObj, true);
         } else {
@@ -409,7 +412,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
                 // we should warn the developers or throw exception in strict mode
                 if (parser.getCurrentState() !== stateMachine.State.STATE_DATA) {
                     msg = (this._config._strictMode? '[ERROR]' : '[WARNING]') + " SecureHandlebars: " + node.content + ' is in non-HTML Context!';
-                    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+                    exceptionObj = new ContextParserHandlebarsException(msg, this._fileName, this._lineNo, this._charNo);
                     handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
                 }
                 output += node.content;
@@ -449,7 +452,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
         msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
         msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
         msg += "attributeNameType:("+leftParser.getAttributeNameType()+"/"+rightParser.getAttributeNameType()+")";
-        exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+        exceptionObj = new ContextParserHandlebarsException(msg, this._fileName, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
 
@@ -646,7 +649,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             errorMessage += handlebarsUtils.isScriptableTag(tagName) ? 'scriptable <' + tagName + '> tag' : exception;
             errorMessage += "\nPlease follow this URL to resolve - https://github.com/yahoo/secure-handlebars#warnings-and-workarounds";
 
-            exceptionObj = new ContextParserHandlebarsException(errorMessage, this._lineNo, this._charNo);
+            exceptionObj = new ContextParserHandlebarsException(errorMessage, this._fileName, this._lineNo, this._charNo);
             handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
         } else {
             handlebarsUtils.handleError(exception, this._config._strictMode);
@@ -704,7 +707,7 @@ ContextParserHandlebars.prototype.consumeExpression = function(input, i, type, s
         }
         saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
     }
-    throw "[ERROR] SecureHandlebars: Parsing error! Cannot encounter close brace of expression.";
+    throw "Parsing error! Cannot encounter close brace of expression.";
 };
 
 /**
@@ -748,6 +751,7 @@ ContextParserHandlebars.prototype.handleEscapeAndRawTemplate = function(input, i
         if (typeof exception === 'string') {
             exceptionObj = new ContextParserHandlebarsException(
                 '[ERROR] SecureHandlebars: ' + exception,
+                this._fileName,
                 this._lineNo, 
                 this._charNo);
             handlebarsUtils.handleError(exceptionObj, true);
@@ -840,7 +844,7 @@ ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, le
         }
     }
     msg = "[ERROR] SecureHandlebars: Parsing error! Cannot encounter '}}' close brace of escape expression.";
-    exceptionObj = new ContextParserHandlebarsException(msg, this._lineNo, this._charNo);
+    exceptionObj = new ContextParserHandlebarsException(msg, this._fileName, this._lineNo, this._charNo);
     handlebarsUtils.handleError(exceptionObj, true);
 };
 
@@ -867,10 +871,10 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
         } else if (!isStartExpression && input[j] === '{' && j+4<len && input[j+1] === '{' && input[j+2] === '{' && input[j+3] === '{' && input[j+4] === '/') {
             re = handlebarsUtils.isValidExpression(input, j, handlebarsUtils.RAW_END_BLOCK);
             if (re.result === false) {
-                throw "[ERROR] SecureHandlebars: Parsing error! Invalid raw end block expression.";
+                throw "Parsing error! Invalid raw end block expression.";
             }
             if (re.tag !== tag) {
-                throw "[ERROR] SecureHandlebars: Parsing error! start/end raw block name mismatch.";
+                throw "Parsing error! start/end raw block name mismatch.";
             }
             for(var k=j;k<len;++k) {
                 if (input[k] === '}' && k+3<len && input[k+1] === '}' && input[k+2] === '}' && input[k+3] === '}') {
@@ -886,7 +890,7 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
             saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
-    throw "[ERROR] SecureHandlebars: Parsing error! Cannot encounter '}}}}' close brace of raw block.";
+    throw "Parsing error! Cannot encounter '}}}}' close brace of raw block.";
 };
 
 /* exposing it */
