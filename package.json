@@ -41,10 +41,10 @@
     "test": "grunt test"
   },
   "dependencies": {
-    "context-parser": "^2.0.0",
+    "context-parser": "^2.0.1",
     "handlebars": "^3.0.3",
     "html-decoder": "^1.0.2",
-    "xss-filters": "^1.2.3"
+    "xss-filters": "^1.2.4"
   },
   "devDependencies": {
     "bluebird": "^2.9.30",
