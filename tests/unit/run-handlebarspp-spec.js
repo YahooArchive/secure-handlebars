@@ -17,7 +17,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         expect = require('chai').expect,
         ContextParserHandlebars = require("../../src/context-parser-handlebars");
 
-    var config = {};
+    // TODO: need to improve the processing time of the unit test.
+    var config = {}, t = 400;
     config.printCharEnable = false;
 
     var genTemplateFileWithSpecialChars = function() {
@@ -40,7 +41,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
                 exec('./bin/handlebarspp '+testObj.file)
-                .timeout(300)
+                .timeout(t)
                 .done(function(e){
                     testObj.result.forEach(function(r) {
                         expect(e.toString()).to.match(r);
@@ -54,8 +55,23 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         testPatterns.filterTemplatePatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
-                exec('./bin/handlebarspp '+testObj.file)
-                .timeout(300)
+                exec('./bin/handlebarspp '+testObj.file+' -e .hbs -p tests/samples/files/partials -c false')
+                .timeout(t)
+                .done(function(e){
+                    testObj.result.forEach(function(r) {
+                        expect(e.toString()).to.match(r);
+                    });
+                    done();
+                });
+            });
+        });
+
+        /* partial tests */
+        testPatterns.partialPatterns.forEach(function(testObj) {
+            it(testObj.title, function(done) {
+                var exec = promise.promisify(require("child_process").exec);
+                exec('./bin/handlebarspp '+testObj.file+' -e .hbs -p tests/samples/files/partials -c '+testObj.combine)
+                .timeout(t)
                 .done(function(e){
                     testObj.result.forEach(function(r) {
                         expect(e.toString()).to.match(r);
@@ -69,8 +85,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         testPatterns.exceptionPatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
-                exec('./bin/handlebarspp '+testObj.file+' '+testObj.strictMode)
-                .timeout(300)
+                exec('./bin/handlebarspp '+testObj.file+' -e .hbs -p tests/samples/files/partials -s '+testObj.strictMode)
+                .timeout(t)
                 .catch(function(e){
                     testObj.result.forEach(function(r) {
                         expect(e.toString()).to.match(r);
@@ -85,7 +101,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
                 exec('./bin/handlebarspp '+testObj.file)
-                .timeout(300)
+                .timeout(t)
                 .done(function(e){
                     testObj.result.forEach(function(r) {
                         expect(e.toString()).to.match(r);
