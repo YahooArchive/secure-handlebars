@@ -92,9 +92,27 @@ module.exports = function(grunt) {
         }
       }
     },
+    bump: {
+      options: {
+        files: [ 'package.json', 'bower.json'],
+        updateConfigs: ['pkg'],
+        commit: true,
+        commitMessage: 'Release v%VERSION%',
+        commitFiles: ['package.json', 'bower.json', 'dist/.'],
+        createTag: true,
+        tagName: 'v%VERSION%',
+        tagMessage: 'Version %VERSION%',
+        push: true,
+        pushTo: 'origin',
+        gitDescribeOptions: '--tags --always --abbrev=1 --dirty=-d',
+        globalReplace: false,
+        prereleaseName: false,
+        regExp: false
+      }
+    },
     clean: {
-      all: ['xunit.xml', 'artifacts', 'coverage', 'node_modules'],
-      buildResidues: ['xunit.xml', 'artifacts', 'coverage']
+      all: ['artifacts', 'coverage', 'node_modules'],
+      buildResidues: ['artifacts', 'coverage']
     }
   });
 
@@ -105,9 +123,11 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-clean');
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-execute');
+  grunt.loadNpmTasks('grunt-bump');
 
   grunt.registerTask('test', ['clean:buildResidues', 'jshint', 'execute', 'dist', 'karma', 'mocha_istanbul']);
   grunt.registerTask('dist', ['browserify', 'uglify']);
   grunt.registerTask('default', ['test']);
+  grunt.registerTask('release', ['bump-only', 'dist', 'bump-commit'])
 
 };
