@@ -51,6 +51,10 @@ module.exports = function(grunt) {
       buildMin: {
         src: ['src/polyfills/*.js', 'dist/<%= pkg.name %>.js'],
         dest: 'dist/<%= pkg.name %>.min.js'
+      },
+      buildMinWithVersion: {
+        src: ['src/polyfills/*.js', 'dist/<%= pkg.name %>.js'],
+        dest: 'dist/<%= pkg.name %>.<%= pkg.version %>.min.js'
       }
     },
     karma: {
