@@ -36,12 +36,14 @@
   },
   "dependencies": {
     "context-parser": "^2.0.1",
+    "glob": "^5.0.13",
+    "minimist": "^1.1.1",
+    "bluebird": "^2.9.30",
     "handlebars": "^3.0.3",
     "html-decoder": "^1.0.2",
     "xss-filters": "^1.2.4"
   },
   "devDependencies": {
-    "bluebird": "^2.9.30",
     "chai": "^2.3.0",
     "grunt-bower-task": "^0.4.0",
     "grunt-browserify": "^3.3.0",

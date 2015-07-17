@@ -33,18 +33,25 @@ function overrideHbsCreate() {
     var h = hbsCreate(),
         c = h.compile, 
         pc = h.precompile,
-        i, filterName;
+        i, filterName, parser;
 
     // expose preprocess function
     h.preprocess = function (template, options) {
         options = options || {};
-        var k, parser;
+        var k;
 
         try {
             if (template) {
-                parser = new ContextParserHandlebars({ printCharEnable: false, 
-                                                       processingFile: options.processingFile,
-                                                       strictMode: options.strictMode});
+                parser = new ContextParserHandlebars({ 
+                             printCharEnable: false, 
+                             processingFile: options.processingFile,
+                             strictMode: options.strictMode,
+                             // partial support for non-HTML context
+                             namespace: options.namespace,
+                             rawPartialsCache: options.rawPartialsCache,
+                             processedPartialsCache: options.processedPartialsCache,
+                             enablePartialCombine: options.enablePartialCombine,
+                         });
                 return parser.analyzeContext(template);
             }
         } catch (err) {
@@ -60,12 +67,16 @@ function overrideHbsCreate() {
 
     // override precompile function to preprocess the template first
     h.precompile = function (template, options) {
-        return pc.call(this, h.preprocess(template, options), options);
+        options = options || {};
+        options.cph = options.cph || {};
+        return pc.call(this, h.preprocess(template, options.cph), options);
     };
 
     // override compile function to preprocess the template first
     h.compile = function (template, options) {
-        return c.call(this, h.preprocess(template, options), options);
+        options = options || {};
+        options.cph = options.cph || {};
+        return c.call(this, h.preprocess(template, options.cph), options);
     };
 
     // expose the original compile

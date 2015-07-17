@@ -13,29 +13,99 @@ This utility parses the handlebars template file and adds the context-sensitive 
 */
 (function() {
 
-    var fs = require('fs'),
-        ContextParserHandlebars = require("../src/context-parser-handlebars.js"),
-        noOfArgs = process.argv.length, 
-        file;
-        
-    if (noOfArgs >= 3 && noOfArgs <= 4) {
-        file = process.argv[2];
-        if (fs.existsSync(file)) {
-            var parser = new ContextParserHandlebars({
-                printCharEnable: true,
-                strictMode: process.argv[3] === 'true',
-                processingFile: file
-            });
-            var template = fs.readFileSync(file, 'utf-8');
-            parser.analyzeContext(template);
-            process.exit(0);
-        } else {
-            console.log("[ERROR] "+file+" does not exist");
-            process.exit(1);
-        }
-    } else {
-        console.log("Usage: handlebarspp <Handlebars template file> [strictMode true|false]");
+    function printUsage() {
+        console.log("Usage: handlebarspp template...\n\n\
+Options:\n\
+\t-D\tDisable Partial Parsing. The Secure Handlebars assumes the in-state and out-state are both of the partials are HTML (aka data) context if disabled.\n\n\
+\t-p\tPartial Directory. The Secure Handlebars preloads the partials into the memory for partial parsing.\n\n\
+\t-e\tPartial File Extension. The partial files extension. (default: .handlebars)\n\n\
+\t-c\tMelting Partial into template. The Secure Handlebars combines the partial content into the input template. (default:false) [true|false]\n\n\
+\t-d\tDumping the Generated Partial into Partial Directory\n\n\
+\t-s\tStrict Mode. The Secure Handlebars throws exception if warnings are encountered. (default:false) [true|false]\n\n\
+");
+    }
+
+    var Promise = require('bluebird'),
+        fs = Promise.promisifyAll(require("fs")),
+        glob = Promise.promisify(require('glob')),
+        argv = require('minimist')(process.argv.slice(2)),
+        ContextParserHandlebars = require("../src/context-parser-handlebars.js");
+
+    var file = argv['_'][0], partialsDir, extname;
+
+    // TODO: update the README with version bump up
+    if (!file) {
+        printUsage();
         process.exit(1);
     }
+
+    // this function will read all the templates into a memory cache
+    function getTemplates (dirPath, extname) {
+        var cache = {},
+            extRegex = new RegExp(extname + '$'),
+            dirPathRegex = new RegExp('^' + dirPath);
+
+        return !dirPath ? Promise.resolve(cache) : glob(dirPath + '*' + extname, {follow: true}).map(function (file) {
+            return Promise.join(fs.readFileAsync(file, 'utf8'), function(content) {
+                var key = file.replace(dirPathRegex, '').replace(extRegex, '');
+                cache[key] = content;
+            });
+        }).then(function(){
+            return cache;
+        }).catch(function(e) {
+            console.log("[ERROR] fail to read! ", e);
+        });
+    }
+
+    // this funciton preprocess a template
+    function preProcessTemplate (templateContent, rawPartialsCache, processedPartialsCache) {
+        return new ContextParserHandlebars({
+            printCharEnable: true,
+            processingFile: file,
+            strictMode: argv['s'] === 'true',
+
+            // support partial parsing
+            disablePartialParsing: argv['D'] === 'true',
+            rawPartialsCache: rawPartialsCache,
+            processedPartialsCache: processedPartialsCache,
+            enablePartialCombine: argv['c'] === 'true'
+        }).analyzeContext(templateContent);
+    }
+
+    // append trailing slash if not exists
+    partialsDir = argv['p'] || '';
+    partialsDir += partialsDir.slice(-1) === '/' ? '' : '/';
+
+    // prefix a dot if not exists
+    extname = argv['e'] || '.handlebars';
+    extname = (extname.charAt(0) === '.' ? '' : '.') + extname;
+
+    dump = argv['d'];
+
+    var processedPartialsCache = {};
+    // the partial parsing will be supported if the partial can be loaded from memory
+    // otherwise this partial parsing will be disabled by default.
+    getTemplates(partialsDir, extname).then(function(partialsCache){
+        // TODO: use getTemplates() to iterate over all templates for preProcessing
+        return Promise.join(fs.readFileAsync(file, 'utf-8'), function(templateContent){
+            return preProcessTemplate(templateContent, partialsCache, processedPartialsCache);
+        });
+    }).then(function(){
+        if (dump && partialsDir !== '') {
+            var files = Object.keys(processedPartialsCache);
+            Promise.all(files.map(function(partialName) {
+                var file = partialsDir + partialName + extname;
+                return fs.writeFileAsync(file, processedPartialsCache[partialName], 'utf8')
+                    .catch(function(e) {
+                        console.log('[ERROR] Fail to write '+e);
+                    });
+            })).then(function() {
+                process.exit(0);
+            });
+        }
+    }).catch(function(err) {
+        console.log("[ERROR] "+err);
+        process.exit(1);
+    });
 
 }).call(this);
