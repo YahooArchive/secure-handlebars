@@ -18,7 +18,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         ContextParserHandlebars = require("../../src/context-parser-handlebars");
 
     // TODO: need to improve the processing time of the unit test.
-    var config = {}, t = 400;
+    var config = {}, t = 500;
     config.printCharEnable = false;
 
     var genTemplateFileWithSpecialChars = function() {
@@ -55,7 +55,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         testPatterns.filterTemplatePatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
-                exec('./bin/handlebarspp '+testObj.file+' -e .hbs -p tests/samples/files/partials -c false')
+                exec('./bin/handlebarspp '+testObj.file+' -e .hbs -p tests/samples/files/partials')
                 .timeout(t)
                 .done(function(e){
                     testObj.result.forEach(function(r) {
@@ -70,7 +70,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         testPatterns.partialPatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
-                exec('./bin/handlebarspp '+testObj.file+' -e .hbs -p tests/samples/files/partials -c '+testObj.combine)
+                exec('./bin/handlebarspp '+testObj.file+' -e .hbs -p tests/samples/files/partials' + (testObj.combine ? ' -c' : ''))
                 .timeout(t)
                 .done(function(e){
                     testObj.result.forEach(function(r) {
@@ -85,7 +85,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         testPatterns.exceptionPatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
                 var exec = promise.promisify(require("child_process").exec);
-                exec('./bin/handlebarspp '+testObj.file+' -e .hbs -p tests/samples/files/partials -s '+testObj.strictMode)
+                exec('./bin/handlebarspp '+testObj.file+' -e .hbs -p tests/samples/files/partials' + (testObj.strictMode ? ' -s' : ''))
                 .timeout(t)
                 .catch(function(e){
                     testObj.result.forEach(function(r) {

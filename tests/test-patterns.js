@@ -795,13 +795,13 @@ var partialPatterns = [
         title: './bin/handlebarspp partial handling with template generation test',
         file: 'tests/samples/files/handlebarsjs_template_include_partials.hbs',
         combine: false,
-        result: [ /{{> SJST6_handlebarsjs_template_partial}}/ ]
+        result: [ /{{> SJST\/6\/handlebarsjs_template_partial}}/ ]
     },
     {
-        title: './bin/handlebarspp partial handling with miss cache test',
+        title: './bin/handlebarspp partial handling with missing partial test',
         file: 'tests/samples/files/handlebarsjs_template_include_partial_miss_cache.hbs',
         combine: false,
-        result: [ /WARNING/, /SecureHandlebars: Fail to load the partial {{> miss_cache}} content/ ]
+        result: [ /{{> SJST\/SKIP\/miss_cache}}/, /WARNING/, /Failed to load the partial content of {{> miss_cache}}/ ]
     }
 ];
 exports.partialPatterns = partialPatterns;
@@ -1203,20 +1203,20 @@ var exceptionPatterns = [
         title: './bin/handlebarspp expression in non-data state test',
         file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_001.hbs',
         strictMode: true,
-        result: [ /{{>partial}} is in non-HTML Context!/ ],
+        result: [ /{{>partial}} is in a non-text context!/ ],
     },
 */
     {
         title: './bin/handlebarspp expression in non-data state test',
         file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_002.hbs',
         strictMode: true,
-        result: [ /{{{{rawblock}}}}html{{{{\/rawblock}}}} is in non-HTML Context!/ ],
+        result: [ /{{{{rawblock}}}}html{{{{\/rawblock}}}} is in a non-text context/ ],
     },
     {
         title: './bin/handlebarspp expression in non-data state test',
         file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_003.hbs',
         strictMode: true,
-        result: [ /{{&rawexpression}} is in non-HTML Context!/ ],
+        result: [ /{{&rawexpression}} is in a non-text context/ ],
     },
     /* remove this test as we don't test for tagNameIdx in deepCompare
     {
@@ -1278,13 +1278,13 @@ var exceptionPatterns = [
         title: './bin/handlebarspp partial handling with miss cache test',
         file: 'tests/samples/files/handlebarsjs_template_include_partial_miss_cache.hbs',
         strictMode: true,
-        result: [ /ERROR/, /SecureHandlebars: Fail to load the partial {{> miss_cache}} content/ ]
+        result: [ /ERROR/, /Failed to load the partial content of {{> miss_cache}}/ ]
     },
     {
         title: './bin/handlebarspp infinite loop of partial test',
         file: 'tests/samples/files/handlebarsjs_template_include_partials_loop.hbs',
         strictMode: true,
-        result: [ /ERROR/, /SecureHandlebars: The partial inclusion chain \({{> l1 }} > {{> l2.hbs }} > {{> l1.hbs }} > {{> l2.hbs }} > {{> l1.hbs }} > {{> l2.hbs }} > {{> l1.hbs }} > {{> l2.hbs }} > {{> l1.hbs }} > {{> l2.hbs }}\) has exceeded the maximum number of depths allowed \(maxPartialDepth: 10\)./ ]
+        result: [ /ERROR/, /The partial inclusion chain \({{> l1 }} > {{> l2.hbs }} > {{> l1.hbs }} > {{> l2.hbs }} > {{> l1.hbs }} > {{> l2.hbs }} > {{> l1.hbs }} > {{> l2.hbs }} > {{> l1.hbs }} > {{> l2.hbs }}\) has exceeded the maximum number of allowed depths \(maxPartialDepth: 10\)./ ]
     },
 ];
 exports.exceptionPatterns = exceptionPatterns;

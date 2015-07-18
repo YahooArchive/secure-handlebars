@@ -33,25 +33,18 @@ function overrideHbsCreate() {
     var h = hbsCreate(),
         c = h.compile, 
         pc = h.precompile,
-        i, filterName, parser;
+        i, filterName;
 
     // expose preprocess function
     h.preprocess = function (template, options) {
         options = options || {};
-        var k;
+        options.printCharEnable = false;
+
+        var k, parser;
 
         try {
             if (template) {
-                parser = new ContextParserHandlebars({ 
-                             printCharEnable: false, 
-                             processingFile: options.processingFile,
-                             strictMode: options.strictMode,
-                             // partial support for non-HTML context
-                             namespace: options.namespace,
-                             rawPartialsCache: options.rawPartialsCache,
-                             processedPartialsCache: options.processedPartialsCache,
-                             enablePartialCombine: options.enablePartialCombine,
-                         });
+                parser = new ContextParserHandlebars(options);
                 return parser.analyzeContext(template);
             }
         } catch (err) {
@@ -67,19 +60,16 @@ function overrideHbsCreate() {
 
     // override precompile function to preprocess the template first
     h.precompile = function (template, options) {
-        options = options || {};
-        options.cph = options.cph || {};
-        return pc.call(this, h.preprocess(template, options.cph), options);
+        return pc.call(this, h.preprocess(template, options), options);
     };
 
     // override compile function to preprocess the template first
     h.compile = function (template, options) {
-        options = options || {};
-        options.cph = options.cph || {};
-        return c.call(this, h.preprocess(template, options.cph), options);
+        return c.call(this, h.preprocess(template, options), options);
     };
 
-    // expose the original compile
+    // expose the original (pre-)/compile
+    h.precompilePreprocessed = pc;
     h.compilePreprocessed = c;
 
     // register below the filters that are automatically applied by context parser 

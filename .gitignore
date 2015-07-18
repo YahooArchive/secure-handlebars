@@ -9,3 +9,5 @@ coverage
 
 # build
 docs
+
+tests/samples/files/partials/SJST/
