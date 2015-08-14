@@ -106,7 +106,7 @@ module.exports = function(grunt) {
         createTag: true,
         tagName: 'v%VERSION%',
         tagMessage: 'Version %VERSION%',
-        push: true,
+        push: false,
         pushTo: 'origin',
         gitDescribeOptions: '--tags --always --abbrev=1 --dirty=-d',
         globalReplace: false,
@@ -132,6 +132,6 @@ module.exports = function(grunt) {
   grunt.registerTask('test', ['clean:buildResidues', 'jshint', 'execute', 'dist', 'karma', 'mocha_istanbul']);
   grunt.registerTask('dist', ['browserify', 'uglify']);
   grunt.registerTask('default', ['test']);
-  grunt.registerTask('release', ['bump-only', 'dist', 'bump-commit'])
+  grunt.registerTask('release', ['bump-only', 'dist'])
 
 };
