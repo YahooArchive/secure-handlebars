@@ -8,6 +8,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
          Adonis Fung <adon@yahoo-inc.com>
 */
 /*jshint -W030 */
+/*jshint -W083 */
 (function () {
 "use strict";
 
@@ -22,6 +23,12 @@ var stateMachine = parserUtils.StateMachine,
 var HtmlDecoder = require("html-decoder");
 
 var filterMap = handlebarsUtils.filterMap;
+
+// https://github.com/yahoo/secure-handlebars/blob/master/src/handlebars-utils.js#L76
+// TODO: double check the case of allowing \/
+var rePartialPattern = /^(\{\{~?>\s*)([^\s!"#%&'\(\)\*\+,\.;<=>@\[\\\]\^`\{\|\}\~]+)(.*)/,
+    // reSJSTPartialSignature = /^SJST\/(?:\d+|SKIP)\//;
+    reSJSTPartialSignature = /^SJST\/\d+\//;
 
 // extracted from xss-filters
 /*
@@ -46,9 +53,9 @@ var reEqualSign = /(?:=|&#0*61;?|&#[xX]0*3[dD];?|&equals;)/;
 /** 
 * @module ContextParserHandlebarsException
 */
-function ContextParserHandlebarsException(msg, fileName, lineNo, charNo) {
+function ContextParserHandlebarsException(msg, filePath, lineNo, charNo) {
     this.msg = msg;
-    this.fileName = fileName;
+    this.filePath = filePath;
     this.lineNo = lineNo;
     this.charNo = charNo;
 }
@@ -63,10 +70,12 @@ function ContextParserHandlebarsException(msg, fileName, lineNo, charNo) {
 * @module ContextParserHandlebars
 */
 function ContextParserHandlebars(config) {
-    config || (config = {});
 
-    /* save the processed char */
-    this._buffer = [];
+    config || (config = {});
+    config.shbsPartialsCache || (config.shbsPartialsCache = {});
+
+    /* reset the internal */
+    this.reset(config.processingFile);
 
     /* the configuration of ContextParserHandlebars */
     this._config = {};
@@ -77,14 +86,43 @@ function ContextParserHandlebars(config) {
     /* the flag is used to strict mode of handling un-handled state, defaulted to false */
     this._config._strictMode = (config.strictMode === true);
 
+    /* the flags are used to set to dis/enable partial processing, defaulted to false */
+    this._config._enablePartialProcessing = config.shbsPartialsCache.raw !== undefined;
+
+    /* the flags is used for setting the partial handling */
+    this._config._enablePartialCombine = (config.enablePartialCombine === true);
+
+    /* this flag is used for preventing infinite lookup of partials */
+    this._config._maxPartialDepth = parseInt(config.maxPartialDepth) || 10;
+
+    /* internal file cache */
+    this._config._rawPartialsCache = config.shbsPartialsCache.raw || {};
+
+    /* expose the processed partial cache */
+    this._config._processedPartialsCache = config.shbsPartialsCache.preprocessed || {};
+}
+
+
+/**
+* @function ContextParserHandlebars.reset
+*
+* @description
+* All non-config internal variables are needed to reset!
+*/
+ContextParserHandlebars.prototype.reset = function(filePath) {
+    /* save the processed char */
+    this._buffer = [];
+
+    this._partials = [];
+
     /* save the char/line no being processed */
     this._charNo = 0;
     this._lineNo = 1;
-    this._fileName = config.processingFile? config.processingFile: '';
+    this._filePath = filePath || '';
 
     /* context parser for HTML5 parsing */
     this.contextParser = parserUtils.getParser();
-}
+};
 
 /**
 * @constant ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar
@@ -155,11 +193,17 @@ ContextParserHandlebars.prototype.saveToBuffer = function(str) {
 * @description
 * Analyze the context of the Handlebars template input string.
 */
-ContextParserHandlebars.prototype.analyzeContext = function(input) {
+ContextParserHandlebars.prototype.analyzeContext = function(input, options) {
+    options || (options = {});
+
     // the last parameter is the hack till we move to LR parser
-    var ast = this.buildAst(input, 0, []);
-    var r = this.analyzeAst(ast, this.contextParser, 0);
-    (this._config._printCharEnable && typeof process === 'object')? process.stdout.write(r.output) : '';
+    var ast = this.buildAst(input, 0, []),
+        r = this.analyzeAst(ast, options.contextParser || this.contextParser, 0);
+    
+    if (this._config._printCharEnable && typeof process === 'object') {
+        options.disablePrintChar || process.stdout.write(r.output);
+    }
+
     return r.output;
 };
 
@@ -330,7 +374,7 @@ ContextParserHandlebars.prototype.buildAst = function(input, i, sp) {
         if (typeof exception === 'string') {
             exceptionObj = new ContextParserHandlebarsException(
                 '[ERROR] SecureHandlebars: ' + exception,
-                this._fileName,
+                this._filePath,
                 this.countNewLineChar(input.slice(0, j)), j);
             handlebarsUtils.handleError(exceptionObj, true);
         } else {
@@ -380,8 +424,10 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
 
     function consumeAstNode (tree, parser) {
         /*jshint validthis: true */
+        var j = 0, len = tree.length, node, 
+            re, partialName, enterState, partialContent;
 
-        for (var j = 0, len = tree.length, node; j < len; j++) {
+        for (; j < len; j++) {
             node = tree[j];
 
             if (node.type === handlebarsUtils.AST_HTML) {
@@ -404,17 +450,101 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
 
                 output += t.output;
 
+            // TODO: we support basic partial only, need to enhance it.
+            // http://handlebarsjs.com/partials.html
+            } else if (node.type === handlebarsUtils.PARTIAL_EXPRESSION && 
+                (re = handlebarsUtils.isValidExpression(node.content, 0, node.type)) && 
+                (partialName = re.tag)) {
+
+                // if the partialName is generated by us, there is no need to reprocess it again,
+                // just put back the partial expression is fine
+                if (reSJSTPartialSignature.test(partialName)) {
+                    output += node.content;
+                    continue;
+                }
+
+                partialContent = this._config._rawPartialsCache[partialName];
+
+                if (this._config._enablePartialProcessing && typeof partialContent === 'string') {
+
+                    this._partials.push(node.content);
+
+                    if (this._partials.length >= this._config._maxPartialDepth) {
+                        msg = "[ERROR] SecureHandlebars: The partial inclusion chain (";
+                        msg += this._partials.join(' > ') + ") has exceeded the maximum number of allowed depths (maxPartialDepth: "+this._config._maxPartialDepth+").";
+                        msg += "\nPlease follow this URL to resolve - https://github.com/yahoo/secure-handlebars#warnings-and-workarounds";
+                        exceptionObj = new ContextParserHandlebarsException(msg, this._filePath, this._lineNo, this._charNo);
+                        handlebarsUtils.handleError(exceptionObj, true);
+                    }
+
+                    // get the html state number right the parital is called, and analyzed
+                    enterState = parser.getCurrentState();
+
+                    // TODO: this._filePath now does not reflect an error that occurs inside a partial, need to enhance it later
+                    // while analyzing the partial, use the current parser (possibly forked) and disable printChar
+                    partialContent = this.analyzeContext(partialContent, {
+                        contextParser: parser,
+                        disablePrintChar: true
+                    });
+
+                    if (this._config._enablePartialCombine) {
+                        output += partialContent;
+                    } else {
+                        partialName = 'SJST/' + enterState + '/' + partialName;
+                
+                        // rewrite the partial name, that is prefixed with the in-state
+                        output += node.content.replace(rePartialPattern, function(m, p1, p2, p3) {
+                            return p1 + partialName + p3;
+                        });
+
+                        this._config._processedPartialsCache[partialName] = partialContent;
+                    }
+
+                    this._partials.pop();
+                    
+                } else {
+
+                    output += node.content; // this._config._strictMode=true will throw
+
+                    msg = (this._config._strictMode? '[ERROR]' : '[WARNING]') + " SecureHandlebars: ";
+
+                    if (this._config._enablePartialProcessing) {
+                        
+                        msg += (partialContent === undefined) ?
+                            "Failed to load the partial content of " :
+                            "Failed to perform contextual analysis over (pre-)compiled partial ";
+                        
+                    } else {
+
+                        // No matter a partial expression is placed in a data state, we don't know whether the partial content end in DATA state, so warn the user
+                        // if (parser.getCurrentState() !== stateMachine.State.STATE_DATA) {
+                        //     msg += node.content + ' is placed in a non-text context.';
+                        // }
+                        
+                        msg += 'Please enable contextual analysis over the partial content of ';
+                    }
+
+                    msg += node.content;
+
+                    msg += "\nPlease follow this URL to resolve - https://github.com/yahoo/secure-handlebars#warnings-and-workarounds";
+                    exceptionObj = new ContextParserHandlebarsException(msg, this._filePath, this._lineNo, this._charNo);
+                    handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
+
+                }
+                
+            // TODO: content inside RAW_BLOCK should be analysed too
             } else if (node.type === handlebarsUtils.RAW_BLOCK ||
-                node.type === handlebarsUtils.PARTIAL_EXPRESSION ||
                 node.type === handlebarsUtils.AMPERSAND_EXPRESSION) {
 
-                // if the 'rawblock', 'partial expression' and 'ampersand expression' are not in Data State, 
+                // if the 'rawblock' and 'ampersand expression' are not in Data State, 
                 // we should warn the developers or throw exception in strict mode
                 if (parser.getCurrentState() !== stateMachine.State.STATE_DATA) {
-                    msg = (this._config._strictMode? '[ERROR]' : '[WARNING]') + " SecureHandlebars: " + node.content + ' is in non-HTML Context!';
-                    exceptionObj = new ContextParserHandlebarsException(msg, this._fileName, this._lineNo, this._charNo);
+                    msg = (this._config._strictMode? '[ERROR]' : '[WARNING]') + " SecureHandlebars: " + node.content + ' is placed in a non-text context!';
+                    msg += "\nPlease follow this URL to resolve - https://github.com/yahoo/secure-handlebars#warnings-and-workarounds";
+                    exceptionObj = new ContextParserHandlebarsException(msg, this._filePath, this._lineNo, this._charNo);
                     handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
                 }
+
                 output += node.content;
             } else if (node.type === handlebarsUtils.BRANCH_EXPRESSION ||
                 node.type === handlebarsUtils.BRANCH_END_EXPRESSION ||
@@ -452,7 +582,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
         msg = "[ERROR] SecureHandlebars: Inconsistent HTML5 state after conditional branches. Please fix your template! ";
         msg += "state:("+leftParser.state+"/"+rightParser.state+"),";
         msg += "attributeNameType:("+leftParser.getAttributeNameType()+"/"+rightParser.getAttributeNameType()+")";
-        exceptionObj = new ContextParserHandlebarsException(msg, this._fileName, this._lineNo, this._charNo);
+        exceptionObj = new ContextParserHandlebarsException(msg, this._filePath, this._lineNo, this._charNo);
         handlebarsUtils.handleError(exceptionObj, true);
     }
 
@@ -650,7 +780,7 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             errorMessage += handlebarsUtils.isScriptableTag(tagName) ? 'scriptable <' + tagName + '> tag' : exception;
             errorMessage += "\nPlease follow this URL to resolve - https://github.com/yahoo/secure-handlebars#warnings-and-workarounds";
 
-            exceptionObj = new ContextParserHandlebarsException(errorMessage, this._fileName, this._lineNo, this._charNo);
+            exceptionObj = new ContextParserHandlebarsException(errorMessage, this._filePath, this._lineNo, this._charNo);
             handlebarsUtils.handleError(exceptionObj, this._config._strictMode);
         } else {
             handlebarsUtils.handleError(exception, this._config._strictMode);
@@ -752,7 +882,7 @@ ContextParserHandlebars.prototype.handleEscapeAndRawTemplate = function(input, i
         if (typeof exception === 'string') {
             exceptionObj = new ContextParserHandlebarsException(
                 '[ERROR] SecureHandlebars: ' + exception,
-                this._fileName,
+                this._filePath,
                 this._lineNo, 
                 this._charNo);
             handlebarsUtils.handleError(exceptionObj, true);
@@ -844,8 +974,8 @@ ContextParserHandlebars.prototype.handleEscapeExpression = function(input, i, le
             saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
         }
     }
-    msg = "[ERROR] SecureHandlebars: Parsing error! Cannot encounter '}}' close brace of escape expression.";
-    exceptionObj = new ContextParserHandlebarsException(msg, this._fileName, this._lineNo, this._charNo);
+    msg = "[ERROR] SecureHandlebars: Parse error! Cannot encounter '}}' close brace of escape expression.";
+    exceptionObj = new ContextParserHandlebarsException(msg, this._filePath, this._lineNo, this._charNo);
     handlebarsUtils.handleError(exceptionObj, true);
 };
 

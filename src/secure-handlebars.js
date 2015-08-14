@@ -38,13 +38,13 @@ function overrideHbsCreate() {
     // expose preprocess function
     h.preprocess = function (template, options) {
         options = options || {};
+        options.printCharEnable = false;
+
         var k, parser;
 
         try {
             if (template) {
-                parser = new ContextParserHandlebars({ printCharEnable: false, 
-                                                       processingFile: options.processingFile,
-                                                       strictMode: options.strictMode});
+                parser = new ContextParserHandlebars(options);
                 return parser.analyzeContext(template);
             }
         } catch (err) {
@@ -68,7 +68,8 @@ function overrideHbsCreate() {
         return c.call(this, h.preprocess(template, options), options);
     };
 
-    // expose the original compile
+    // expose the original (pre-)/compile
+    h.precompilePreprocessed = pc;
     h.compilePreprocessed = c;
 
     // register below the filters that are automatically applied by context parser 

@@ -341,6 +341,16 @@ var partialExpressionTestPatterns = [
     { syntax: '{{>par\rtial}}     ', type:handlebarsUtils.PARTIAL_EXPRESSION, rstr:'par', result: [ 'PartialStatement', true, 12 ]},
     { syntax: '{{>par\ntial}}     ', type:handlebarsUtils.PARTIAL_EXPRESSION, rstr:'par', result: [ 'PartialStatement', true, 12 ]},
 
+    { syntax: '{{> myPartial myOtherContext }}     ', type:handlebarsUtils.PARTIAL_EXPRESSION, rstr:'myPartial', result: [ 'PartialStatement', true, 30 ]},
+    { syntax: '{{> myPartial parameter=value }}    ', type:handlebarsUtils.PARTIAL_EXPRESSION, rstr:'myPartial', result: [ 'PartialStatement', true, 31 ]},
+    { syntax: '{{> myPartial name=../name }}       ', type:handlebarsUtils.PARTIAL_EXPRESSION, rstr:'myPartial', result: [ 'PartialStatement', true, 28 ]},
+
+    // dynamic partial (it will trigger Parse Error! in the function buildAst, the lookAheadTest and isValidExpression return different result)
+    // it is ok, as we are not supporting dynamic partial yet.
+    // TODO: support dynamic partial
+    { syntax: '{{> (whichPartial) }}       ',          type:handlebarsUtils.PARTIAL_EXPRESSION, rstr:false, result: [ 'PartialStatement', false, 20 ]},
+    { syntax: "{{> (lookup . 'myVariable') }}       ", type:handlebarsUtils.PARTIAL_EXPRESSION, rstr:false, result: [ 'PartialStatement', false, 29 ]},
+
     // invalid syntax
     // the cph test can pass as there is no isValidExpression to guard against
     { syntax: '{{ >partial}}      ', type:handlebarsUtils.PARTIAL_EXPRESSION, rstr:false, result: [ false, false, 12 ]},
@@ -774,6 +784,36 @@ var templatePatterns = [
 ];
 exports.templatePatterns = templatePatterns;
 
+var partialPatterns = [
+    {
+        title: './bin/handlebarspp partial handling test',
+        file: 'tests/samples/files/handlebarsjs_template_include_partials.hbs',
+        partialProcessing: true,
+        combine: true,
+        result: [ /{{{y insidepartial}}}/ ]
+    },
+    {
+        title: './bin/handlebarspp partial handling with template generation test',
+        file: 'tests/samples/files/handlebarsjs_template_include_partials.hbs',
+        partialProcessing: true,
+        result: [ /{{> SJST\/6\/handlebarsjs_template_partial}}/ ]
+    },
+    {
+        title: './bin/handlebarspp partial handling with missing partial test',
+        file: 'tests/samples/files/handlebarsjs_template_include_partial_miss_cache.hbs',
+        partialProcessing: true,
+        result: [ /*/{{> SJST\/SKIP\/miss_cache}}/,*/ /WARNING/, /Failed to load the partial content of {{> miss_cache}}/ ]
+    },
+    {
+        title: './bin/handlebarspp partial handling without enabling partial processing',
+        file: 'tests/samples/files/handlebarsjs_template_include_partials.hbs',
+        partialProcessing: false,
+        result: [ /contextual analysis over the partial content of {{> handlebarsjs_template_partial}}/ ]
+    },
+
+];
+exports.partialPatterns = partialPatterns;
+
 var filterTemplatePatterns = [
     {
         title: './bin/handlebarspp data state template filter test',
@@ -1167,22 +1207,16 @@ var exceptionPatterns = [
         result: [ /lineNo:8,charNo:223/ ],
     },
     {
-        title: './bin/handlebarspp expression in non-data state test',
-        file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_001.hbs',
-        strictMode: true,
-        result: [ /{{>partial}} is in non-HTML Context!/ ],
-    },
-    {
-        title: './bin/handlebarspp expression in non-data state test',
+        title: './bin/handlebarspp rawblock expression in non-data state test',
         file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_002.hbs',
         strictMode: true,
-        result: [ /{{{{rawblock}}}}html{{{{\/rawblock}}}} is in non-HTML Context!/ ],
+        result: [ /{{{{rawblock}}}}html{{{{\/rawblock}}}} is placed in a non-text context/ ],
     },
     {
-        title: './bin/handlebarspp expression in non-data state test',
+        title: './bin/handlebarspp ampersand expression in non-data state test',
         file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_003.hbs',
         strictMode: true,
-        result: [ /{{&rawexpression}} is in non-HTML Context!/ ],
+        result: [ /{{&rawexpression}} is placed in a non-text context/ ],
     },
     /* remove this test as we don't test for tagNameIdx in deepCompare
     {
@@ -1239,7 +1273,19 @@ var exceptionPatterns = [
         file: './tests/samples/files/handlebarsjs_template_strict_mode_008.hbs',
         strictMode: true,
         result: [ /ERROR/, /Unsafe output expression {{data}} found at unsupported position \(i.e., state #: 13\)/ ],
-    }
+    },
+    {
+        title: './bin/handlebarspp partial handling with miss cache test',
+        file: 'tests/samples/files/handlebarsjs_template_include_partial_miss_cache.hbs',
+        strictMode: true,
+        result: [ /ERROR/, /Failed to load the partial content of {{> miss_cache}}/ ]
+    },
+    {
+        title: './bin/handlebarspp infinite loop of partial test',
+        file: 'tests/samples/files/handlebarsjs_template_include_partials_loop.hbs',
+        strictMode: true,
+        result: [ /ERROR/, /The partial inclusion chain \({{> l1 }} > {{> l2.hbs }} > {{> l1.hbs }} > {{> l2.hbs }} > {{> l1.hbs }} > {{> l2.hbs }} > {{> l1.hbs }} > {{> l2.hbs }} > {{> l1.hbs }} > {{> l2.hbs }}\) has exceeded the maximum number of allowed depths \(maxPartialDepth: 10\)./ ]
+    },
 ];
 exports.exceptionPatterns = exceptionPatterns;
 

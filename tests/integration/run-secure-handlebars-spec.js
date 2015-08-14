@@ -90,7 +90,7 @@ describe("SecureHandlebars: compilation tests", function() {
             'url': 'javascript:alert(1)'
         });
 
-        expect(output).to.be.equal('<!--hello--><a href=x-javascript:alert(1) style="background:url(##javascript:alert\\28 1\\29 )" id="12`&quot;\'3" id=\'12`"&#39;3\'>hello</a>');
+        expect(output).to.be.equal('<!--hello--><a href=x-javascript:alert(1) style="background:url(##javascript:alert%281%29)" id="12`&quot;\'3" id=\'12`"&#39;3\'>hello</a>');
     });
 });
 

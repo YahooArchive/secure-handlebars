@@ -35,13 +35,16 @@
     "test": "grunt test"
   },
   "dependencies": {
+    "bluebird": "^2.9.30",
     "context-parser": "^2.0.1",
+    "glob": "^5.0.13",
     "handlebars": "^3.0.3",
     "html-decoder": "^1.0.2",
+    "minimist": "^1.1.1",
+    "mkdirp": "^0.5.1",
     "xss-filters": "^1.2.4"
   },
   "devDependencies": {
-    "bluebird": "^2.9.30",
     "chai": "^2.3.0",
     "grunt-bower-task": "^0.4.0",
     "grunt-browserify": "^3.3.0",

@@ -72,8 +72,9 @@ HandlebarsUtils.ESCAPE_EXPRESSION = 2; // {{expression}}
 HandlebarsUtils.escapeExpressionRegExp = /^\{\{~?\s*@?\s*([^\}\{~]+)~?\}\}(?!})/;
 
 /* '{{' '~'? '>' '\s'* ('not \s, special-char'+) '\s'* 'not ~{}'* non-greedy '}}' and not follow by '}' */
+/* slash should be allowed */
 HandlebarsUtils.PARTIAL_EXPRESSION = 3; // {{>.*}}
-HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>\s*([^\s!"#%&'\(\)\*\+,\.\/;<=>@\[\\\]\^`\{\|\}\~]+)\s*[^~\}\{]*~?\}\}(?!})/;
+HandlebarsUtils.partialExpressionRegExp = /^\{\{~?>\s*([^\s!"#%&'\(\)\*\+,\.;<=>@\[\\\]\^`\{\|\}\~]+)\s*([^~\}\{]*)~?\}\}(?!})/;
 
 /* '{{' '~'? '# or ^' '\s'* ('not \s, special-char'+) '\s'* 'not {}~'* '~'? non-greedy '}}' and not follow by '}' */
 HandlebarsUtils.BRANCH_EXPRESSION = 4; // {{#.*}}, {{^.*}}
@@ -294,7 +295,7 @@ HandlebarsUtils.warn = (function(){
 
 // @function HandlebarsUtils.handleError
 HandlebarsUtils.handleError = function(exceptionObj, throwErr) {
-    HandlebarsUtils.warn(exceptionObj.msg + (exceptionObj.fileName !== ''? '\n'+exceptionObj.fileName:'') + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
+    HandlebarsUtils.warn(exceptionObj.msg + (exceptionObj.filePath !== ''? '\n'+exceptionObj.filePath:'') + " [lineNo:" + exceptionObj.lineNo + ",charNo:" + exceptionObj.charNo + "]");
     if (throwErr) {
         throw exceptionObj;
     }
@@ -331,7 +332,6 @@ HandlebarsUtils.scriptableTags = {
 HandlebarsUtils.isScriptableTag = function(tag) {
     return HandlebarsUtils.scriptableTags[tag] === 1;
 };
-
 
 module.exports = HandlebarsUtils;
 

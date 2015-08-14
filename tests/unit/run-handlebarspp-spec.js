@@ -15,9 +15,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         utils = require("../utils.js"),
         testPatterns = require("../test-patterns.js"),
         expect = require('chai').expect,
-        ContextParserHandlebars = require("../../src/context-parser-handlebars");
+        ContextParserHandlebars = require("../../src/context-parser-handlebars"),
+        exec = promise.promisify(require("child_process").exec);
 
-    var config = {};
+    // TODO: need to improve the processing time of the unit test.
+    var config = {}, t = 500;
     config.printCharEnable = false;
 
     var genTemplateFileWithSpecialChars = function() {
@@ -38,9 +40,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         /* template tests */
         testPatterns.templatePatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
-                var exec = promise.promisify(require("child_process").exec);
+
                 exec('./bin/handlebarspp '+testObj.file)
-                .timeout(300)
+                .timeout(t)
                 .done(function(e){
                     testObj.result.forEach(function(r) {
                         expect(e.toString()).to.match(r);
@@ -53,9 +55,31 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         /* filter template tests */
         testPatterns.filterTemplatePatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
-                var exec = promise.promisify(require("child_process").exec);
-                exec('./bin/handlebarspp '+testObj.file)
-                .timeout(300)
+                
+                exec('./bin/handlebarspp '+testObj.file+' -e .hbs -p tests/samples/files/partials')
+                .timeout(t)
+                .done(function(e){
+                    testObj.result.forEach(function(r) {
+                        expect(e.toString()).to.match(r);
+                    });
+                    done();
+                });
+            });
+        });
+
+        /* partial tests */
+        testPatterns.partialPatterns.forEach(function(testObj) {
+            it(testObj.title, function(done) {
+                var params = ' -e .hbs';
+                if (testObj.partialProcessing) {
+                    params += ' -p tests/samples/files/partials';
+                }
+                if (testObj.combine) {
+                    params += ' -c';
+                }
+
+                exec('./bin/handlebarspp '+ testObj.file + params)
+                .timeout(t)
                 .done(function(e){
                     testObj.result.forEach(function(r) {
                         expect(e.toString()).to.match(r);
@@ -68,9 +92,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         /* exception tests */
         testPatterns.exceptionPatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
-                var exec = promise.promisify(require("child_process").exec);
-                exec('./bin/handlebarspp '+testObj.file+' '+testObj.strictMode)
-                .timeout(300)
+                
+                exec('./bin/handlebarspp '+testObj.file+' -e .hbs -p tests/samples/files/partials' + (testObj.strictMode ? ' -s' : ''))
+                .timeout(t)
                 .catch(function(e){
                     testObj.result.forEach(function(r) {
                         expect(e.toString()).to.match(r);
@@ -83,9 +107,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         /* reported bug tests */
         testPatterns.reportedBugPatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
-                var exec = promise.promisify(require("child_process").exec);
+                
                 exec('./bin/handlebarspp '+testObj.file)
-                .timeout(300)
+                .timeout(t)
                 .done(function(e){
                     testObj.result.forEach(function(r) {
                         expect(e.toString()).to.match(r);

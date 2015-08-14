@@ -185,6 +185,5 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 expect(r).to.equal(testObj.result);
             });
         });
-  
     });
 }());
