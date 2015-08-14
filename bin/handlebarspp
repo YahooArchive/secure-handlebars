@@ -16,7 +16,6 @@ This utility parses the handlebars template file and adds the context-sensitive 
     function printUsage() {
         console.log("Usage: handlebarspp template...\n\n\
 Options:\n\
-\t-D\tDisable Partial Handling, and assume that partials are placed and will result in the text (aka HTML Data) context (default: false).\n\n\
 \t-p\tPartial Directory. The Secure Handlebars preloads the partials into the memory for partial parsing.\n\n\
 \t-e\tPartial File Extension. The partial file extension. (default: .handlebars)\n\n\
 \t-c\tMelt Partials into Template (experimental). The Secure Handlebars combines the partial contents into the input template. (default:false)\n\n\
@@ -56,64 +55,61 @@ Options:\n\
     dump = argv['d'];
 
 
+
     // this function will read all the templates into a memory cache
     function getTemplates (dirPath, extname) {
-        var cache = {}, 
-            extRegex = new RegExp(extname + '$');
+        var extRegex = new RegExp(extname + '$'),
+            shbsPartialsCache = dirPath ? {raw: {}, preprocessed: {}} : {};
 
-        return !dirPath ? Promise.resolve(cache) : glob(dirPath + '**/*' + extname, {follow: true}).map(function (filePath) {
+        return !dirPath ? Promise.resolve(shbsPartialsCache) : glob(dirPath + '**/*' + extname, {follow: true}).map(function (filePath) {
             return Promise.join(fs.readFileAsync(filePath, 'utf8'), function(content) {
                 key = path.relative(dirPath, filePath).replace(extRegex, '');
-                cache[key] = content;
+                shbsPartialsCache.raw[key] = content;
             });
         }).then(function(){
-            return cache;
+            return shbsPartialsCache;
         }).catch(function(e) {
             console.warn("[ERROR] Failed to read! ", e);
         });
     }
 
-    // this funciton preprocess a template
-    function preProcessTemplate (templateContent, rawPartialsCache, processedPartialsCache) {
-        return new ContextParserHandlebars({
-            printCharEnable: true,
-            processingFile: filePath,
-            strictMode: argv['s'] === true,
 
-            // support partial parsing
-            enablePartialHandling: !argv['D'],
-            enablePartialCombine: argv['c'],
-            shbsPartialsCache: {
-                raw: rawPartialsCache,
-                preprocessed: processedPartialsCache
-            }
-
-        }).analyzeContext(templateContent);
-    }
-
-    var processedPartialsCache = {};
     // the partial parsing will be supported if the partial can be loaded from memory
     // otherwise this partial parsing will be disabled by default.
-    getTemplates(partialsDir, extname).then(function(partialsCache){
+    getTemplates(partialsDir, extname).then(function(shbsPartialsCache){
 
         // TODO: use getTemplates() to iterate over all templates for preProcessing
-        return Promise.join(fs.readFileAsync(filePath, 'utf-8'), function(templateContent){
-            return preProcessTemplate(templateContent, partialsCache, processedPartialsCache);
+        return Promise.join(fs.readFileAsync(filePath, 'utf-8'), function(templateContent) {
+
+            // preprocess the templateContent
+            new ContextParserHandlebars({
+                printCharEnable: true,
+                processingFile: filePath,
+                strictMode: argv['s'] === true,
+
+                // support partial parsing
+                enablePartialCombine: argv['c'],
+                shbsPartialsCache: shbsPartialsCache
+
+            }).analyzeContext(templateContent);
+
+            return shbsPartialsCache;
+
         });
 
-    }).then(function(){
+    }).then(function(shbsPartialsCache){
 
         if (!dump || !partialsDir) {
             process.exit(0);
             return;
         }
 
-        var promises = Object.keys(processedPartialsCache).map(function(partialName) {
+        var promises = Object.keys(shbsPartialsCache.preprocessed).map(function(partialName) {
             var destFilePath = partialsDir + partialName + extname;
 
             // create necessary folders, and write the pre-processed file
             return Promise.join(mkdirp(path.dirname(destFilePath)), function(){
-                return fs.writeFileAsync(destFilePath, processedPartialsCache[partialName], 'utf8');
+                return fs.writeFileAsync(destFilePath, shbsPartialsCache.preprocessed[partialName], 'utf8');
             });
             
         });
@@ -125,7 +121,6 @@ Options:\n\
         });
 
     }).catch(function(err) {
-        console.warn("[ERROR] "+err);
         process.exit(1);
     });
 

@@ -788,21 +788,29 @@ var partialPatterns = [
     {
         title: './bin/handlebarspp partial handling test',
         file: 'tests/samples/files/handlebarsjs_template_include_partials.hbs',
+        partialProcessing: true,
         combine: true,
         result: [ /{{{y insidepartial}}}/ ]
     },
     {
         title: './bin/handlebarspp partial handling with template generation test',
         file: 'tests/samples/files/handlebarsjs_template_include_partials.hbs',
-        combine: false,
+        partialProcessing: true,
         result: [ /{{> SJST\/6\/handlebarsjs_template_partial}}/ ]
     },
     {
         title: './bin/handlebarspp partial handling with missing partial test',
         file: 'tests/samples/files/handlebarsjs_template_include_partial_miss_cache.hbs',
-        combine: false,
-        result: [ /{{> SJST\/SKIP\/miss_cache}}/, /WARNING/, /Failed to load the partial content of {{> miss_cache}}/ ]
-    }
+        partialProcessing: true,
+        result: [ /*/{{> SJST\/SKIP\/miss_cache}}/,*/ /WARNING/, /Failed to load the partial content of {{> miss_cache}}/ ]
+    },
+    {
+        title: './bin/handlebarspp partial handling without enabling partial processing',
+        file: 'tests/samples/files/handlebarsjs_template_include_partials.hbs',
+        partialProcessing: false,
+        result: [ /contextual analysis over the partial content of {{> handlebarsjs_template_partial}}/ ]
+    },
+
 ];
 exports.partialPatterns = partialPatterns;
 
@@ -1198,25 +1206,17 @@ var exceptionPatterns = [
         strictMode: false,
         result: [ /lineNo:8,charNo:223/ ],
     },
-/* we support non-html partial now
     {
-        title: './bin/handlebarspp expression in non-data state test',
-        file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_001.hbs',
-        strictMode: true,
-        result: [ /{{>partial}} is in a non-text context!/ ],
-    },
-*/
-    {
-        title: './bin/handlebarspp expression in non-data state test',
+        title: './bin/handlebarspp rawblock expression in non-data state test',
         file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_002.hbs',
         strictMode: true,
-        result: [ /{{{{rawblock}}}}html{{{{\/rawblock}}}} is in a non-text context/ ],
+        result: [ /{{{{rawblock}}}}html{{{{\/rawblock}}}} is placed in a non-text context/ ],
     },
     {
-        title: './bin/handlebarspp expression in non-data state test',
+        title: './bin/handlebarspp ampersand expression in non-data state test',
         file: './tests/samples/files/handlebarsjs_template_expression_in_non_data_state_003.hbs',
         strictMode: true,
-        result: [ /{{&rawexpression}} is in a non-text context/ ],
+        result: [ /{{&rawexpression}} is placed in a non-text context/ ],
     },
     /* remove this test as we don't test for tagNameIdx in deepCompare
     {
