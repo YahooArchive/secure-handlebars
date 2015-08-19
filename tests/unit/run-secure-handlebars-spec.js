@@ -19,6 +19,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
 
         it("empty template test", function() {
             expect(secureHandlebars.compile('')(data)).to.be.equal('');
+            expect(secureHandlebars.preprocess('')).to.be.equal('');
         });
 
         var template = '{{#if url}}<a href="{{url}}"{{else}}<a href="{{url}}">closed</a>{{/if}}';
@@ -68,6 +69,9 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         it("preprocess() and compilePreprocessed() test", function() {
             var template = '<a href="{{url}}">hello</a>';
             var templatePreProcessed = secureHandlebars.preprocess(template);
+
+            expect(templatePreProcessed).to.be.equal('<a href="{{{yubl (yavd (yufull url))}}}">hello</a>');
+
             var t1 = secureHandlebars.compilePreprocessed(templatePreProcessed);
 
             expect(t1(data)).to.be.equal('<a href="x-javascript:alert(1)">hello</a>');
