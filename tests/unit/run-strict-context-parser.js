@@ -80,7 +80,7 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                 html = "<a href='http://www.abc.com'>link</a>";
             parser1.contextualize(html);
             parser2.cloneStates(parser1);
-            expect(parser2.getLastState()).to.equal(1);
+            expect(parser2.getCurrentState()).to.equal(1);
             expect(parser2.getAttributeName()).to.equal("href");
             expect(parser2.getAttributeValue()).to.equal("http://www.abc.com");
         });

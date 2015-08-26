@@ -107,7 +107,7 @@ Parser.prototype.getAttributeNameType = function() {
  *
  */
 Parser.prototype.cloneStates = function(parser) {
-    this.state = parser.getLastState();
+    this.state = parser.getCurrentState();
     this.attrName = parser.getAttributeName();
     this.attributeValue = parser.getAttributeValue();
 };
@@ -124,7 +124,7 @@ ContextParser.getParser = function () {
         enableInputPreProcessing: true,
         enableCanonicalization: true,
         enableVoidingIEConditionalComments: true,
-        enableStateTracking: true
+        enableStateTracking: false
     });
 };
 

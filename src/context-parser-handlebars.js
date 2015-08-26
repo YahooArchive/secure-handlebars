@@ -438,7 +438,7 @@ ContextParserHandlebars.prototype.analyzeAst = function(ast, contextParser, char
                 node.type === handlebarsUtils.RAW_EXPRESSION) {
 
                 // lookupStateForHandlebarsOpenBraceChar from current state before handle it
-                parser.setCurrentState(ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[parser.state]);
+                parser.state = ContextParserHandlebars.lookupStateForHandlebarsOpenBraceChar[parser.state];
                 this.clearBuffer();
                 this.handleEscapeAndRawTemplate(node.content, 0, parser);
                 output += this.getOutput();
