@@ -626,7 +626,9 @@ ContextParserHandlebars.prototype.addFilters = function(parser, input) {
             case stateMachine.State.STATE_RAWTEXT:  // 5
                 // inside raw text state, HTML parser ignores any state change that looks like tag/attribute
                 // hence we apply the context-insensitive NOT_HANDLE filter that escapes '"`&<> without a warning/error
-                if (tagName === 'xmp' || tagName === 'noembed' || tagName === 'noframes') {
+                // Regarding noscript tag, see #4 in http://www.w3.org/TR/html/syntax.html#concept-frag-parse-context
+                if (tagName === 'noscript' || tagName === 'xmp' || 
+                        tagName === 'noembed' || tagName === 'noframes') {
                     return [filterMap.NOT_HANDLE];
                 }
                 
