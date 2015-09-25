@@ -12,6 +12,8 @@ SecureHandlebars
 [dep-badge]: https://img.shields.io/david/yahoo/secure-handlebars.svg?style=flat-square
 
 ## Introduction
+*Check out the latest [slide deck](http://www.slideshare.net/adonatwork/efficient-contextsensitive-output-escaping-for-javascript-template-engines), presented in the OWASP AppSec USA 2015.*
+
 Security is of utmost importance! 
 
 Imagine a template is written like so: `<a href="{{url}}">{{url}}</a>`. When it is compiled with an untrusted user data like `{"url": "javascript:alert(666)"}`, secure-handlebars automatically applies contextual escaping and generates the HTML `<a href="x-javascript:alert(666)">javascript:alert(666)</a>` as a result. 
