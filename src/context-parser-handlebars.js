@@ -1005,7 +1005,11 @@ ContextParserHandlebars.prototype.handleRawBlock = function(input, i, saveToBuff
                 throw "Parsing error! Invalid raw end block expression.";
             }
             if (re.tag !== tag) {
-                throw "Parsing error! start/end raw block name mismatch.";
+                // the throw is no longer used as in handlebars 3
+                // throw "Parsing error! start/end raw block name mismatch.";
+                // handlebars 4 will bypass consider any nested raw block as raw, i.e., bypass it
+                saveToBuffer ? this.saveToBuffer(input[j]) : obj.str += input[j];
+                continue;
             }
             for(var k=j;k<len;++k) {
                 if (input[k] === '}' && k+3<len && input[k+1] === '}' && input[k+2] === '}' && input[k+3] === '}') {
