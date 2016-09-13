@@ -36,8 +36,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                     r = cssParser.parse(testObj.css);
                     expect(testObj.result).to.deep.equal(r);
                 } catch (err) {
-                    expect(err.toString()).to.match(/Error: Parse error/);
-                    if (err.toString().match(/Error: Parse error/)) {
+                    expect(err.message).to.match(/Parse error/);
+                    if (err.message.match(/Parse error/)) {
                         expect(testObj.result[0].type).to.equal(cssParserUtils.STYLE_ATTRIBUTE_ERROR);
                     }
                 }
@@ -52,8 +52,8 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                     r = cssParserUtils.parseStyleAttributeValue(testObj.css);
                     expect(obj.type).to.deep.equal(r.code);
                 } catch (err) {
-                    expect(err.toString()).to.match(/Error: Parse error/);
-                    if (err.toString().match(/Error: Parse error/)) {
+                    expect(err.message).to.match(/Parse error/);
+                    if (err.message.match(/Parse error/)) {
                         expect(obj.type).to.equal(cssParserUtils.STYLE_ATTRIBUTE_ERROR);
                     }
                 }
