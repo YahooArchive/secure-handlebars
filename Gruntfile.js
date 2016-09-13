@@ -7,12 +7,9 @@ module.exports = function(grunt) {
 
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
-    execute: {
+    exec: {
       cssparser: {
-        options: {
-          args: ['src/css-parser/css-parser.strict.attr.partial.y', 'src/css-parser/css.strict.l', '--outfile', 'src/css-parser/css-parser.js']
-        },
-        src: ['node_modules/jison/lib/cli.js']
+        command: './node_modules/jison/lib/cli.js src/css-parser/css-parser.strict.attr.partial.y src/css-parser/css.strict.l --outfile src/css-parser/css-parser.js'
       },
     },
     jshint: {
@@ -126,10 +123,10 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-clean');
   grunt.loadNpmTasks('grunt-contrib-uglify');
-  grunt.loadNpmTasks('grunt-execute');
+  grunt.loadNpmTasks('grunt-exec');
   grunt.loadNpmTasks('grunt-bump');
 
-  grunt.registerTask('test', ['clean:buildResidues', 'jshint', 'execute', 'dist', 'karma', 'mocha_istanbul']);
+  grunt.registerTask('test', ['clean:buildResidues', 'jshint', 'exec', 'dist', 'karma', 'mocha_istanbul']);
   grunt.registerTask('dist', ['browserify', 'uglify']);
   grunt.registerTask('default', ['test']);
   grunt.registerTask('release', ['bump-only', 'dist'])
