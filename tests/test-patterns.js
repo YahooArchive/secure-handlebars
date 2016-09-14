@@ -24,6 +24,8 @@ var expressionTestPatterns = [
     { syntax: '{{!commentexpression}}', type: '', rstr: '', result: [ 'CommentStatement',  '', '' ]},
     { syntax: '{{#branchexpression}} {{/branchexpression}}', type: '', rstr: '', result: [ 'BlockStatement', '', '' ]},
     { syntax: '{{>partialexpression}}', type: '', rstr: '', result: [ 'PartialStatement',  '', '' ]},
+    // the following becomes valid since Handlebars 4. it's the decorator
+    { syntax: "{{*xxx}}", type: '', rstr: '', result: [ 'Decorator', '', '']},
 
     // data var is not a special place holder
     { syntax: '{{@datavar}}         ', type: '', rstr: '', result: [ 'MustacheStatement', '', '' ], },
@@ -45,7 +47,6 @@ var expressionTestPatterns = [
     { syntax: "{{'xxx}}", type: '', rstr: '', result: [ false, '', '']},
     { syntax: "{{(xxx}}", type: '', rstr: '', result: [ false, '', '']},
     { syntax: "{{)xxx}}", type: '', rstr: '', result: [ false, '', '']},
-    { syntax: "{{*xxx}}", type: '', rstr: '', result: [ false, '', '']},
     { syntax: "{{+xxx}}", type: '', rstr: '', result: [ false, '', '']},
     { syntax: "{{,xxx}}", type: '', rstr: '', result: [ false, '', '']},
     { syntax: "{{.xxx}}", type: '', rstr: '', result: [ false, '', '']},
@@ -424,13 +425,11 @@ var branchExpressionTestPatterns = [
     { syntax: "{{#'if}} xxx {{/if}}", type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
     { syntax: '{{#(if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
     { syntax: '{{#)if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
-    { syntax: '{{#*if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
     { syntax: '{{#+if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
     { syntax: '{{#,if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
     { syntax: '{{#.if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
     { syntax: '{{#/if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
     { syntax: '{{#;if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
-    { syntax: '{{#>if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
     { syntax: '{{#=if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
     { syntax: '{{#<if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]}, 
     { syntax: '{{#@if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
@@ -440,6 +439,10 @@ var branchExpressionTestPatterns = [
     { syntax: '{{#{if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
     { syntax: '{{#}if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
     { syntax: '{{#~if}} xxx {{/if}}', type:handlebarsUtils.BRANCH_EXPRESSION, rstr:false, result: [ false, false, false ]},
+
+    // the following syntaxes have different meanings since handlebars 4, and is no longer invalid
+    // { syntax: '{{#*if}} xxx {{/if}}', type:'DecoratorBlock', rstr:false, result: [ false, false, false ]},
+    // { syntax: '{{#>if}} xxx {{/if}}', type:'PartialBlockStatement', rstr:false, result: [ false, false, false ]},
 ];
 exports.branchExpressionTestPatterns = branchExpressionTestPatterns;
 
