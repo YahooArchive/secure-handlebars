@@ -1,4 +1,311 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.Handlebars = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function (process,__filename){
+/** vim: et:ts=4:sw=4:sts=4
+ * @license amdefine 1.0.0 Copyright (c) 2011-2015, The Dojo Foundation All Rights Reserved.
+ * Available via the MIT or new BSD license.
+ * see: http://github.com/jrburke/amdefine for details
+ */
+
+/*jslint node: true */
+/*global module, process */
+'use strict';
+
+/**
+ * Creates a define for node.
+ * @param {Object} module the "module" object that is defined by Node for the
+ * current module.
+ * @param {Function} [requireFn]. Node's require function for the current module.
+ * It only needs to be passed in Node versions before 0.5, when module.require
+ * did not exist.
+ * @returns {Function} a define function that is usable for the current node
+ * module.
+ */
+function amdefine(module, requireFn) {
+    'use strict';
+    var defineCache = {},
+        loaderCache = {},
+        alreadyCalled = false,
+        path = require('path'),
+        makeRequire, stringRequire;
+
+    /**
+     * Trims the . and .. from an array of path segments.
+     * It will keep a leading path segment if a .. will become
+     * the first path segment, to help with module name lookups,
+     * which act like paths, but can be remapped. But the end result,
+     * all paths that use this function should look normalized.
+     * NOTE: this method MODIFIES the input array.
+     * @param {Array} ary the array of path segments.
+     */
+    function trimDots(ary) {
+        var i, part;
+        for (i = 0; ary[i]; i+= 1) {
+            part = ary[i];
+            if (part === '.') {
+                ary.splice(i, 1);
+                i -= 1;
+            } else if (part === '..') {
+                if (i === 1 && (ary[2] === '..' || ary[0] === '..')) {
+                    //End of the line. Keep at least one non-dot
+                    //path segment at the front so it can be mapped
+                    //correctly to disk. Otherwise, there is likely
+                    //no path mapping for a path starting with '..'.
+                    //This can still fail, but catches the most reasonable
+                    //uses of ..
+                    break;
+                } else if (i > 0) {
+                    ary.splice(i - 1, 2);
+                    i -= 2;
+                }
+            }
+        }
+    }
+
+    function normalize(name, baseName) {
+        var baseParts;
+
+        //Adjust any relative paths.
+        if (name && name.charAt(0) === '.') {
+            //If have a base name, try to normalize against it,
+            //otherwise, assume it is a top-level require that will
+            //be relative to baseUrl in the end.
+            if (baseName) {
+                baseParts = baseName.split('/');
+                baseParts = baseParts.slice(0, baseParts.length - 1);
+                baseParts = baseParts.concat(name.split('/'));
+                trimDots(baseParts);
+                name = baseParts.join('/');
+            }
+        }
+
+        return name;
+    }
+
+    /**
+     * Create the normalize() function passed to a loader plugin's
+     * normalize method.
+     */
+    function makeNormalize(relName) {
+        return function (name) {
+            return normalize(name, relName);
+        };
+    }
+
+    function makeLoad(id) {
+        function load(value) {
+            loaderCache[id] = value;
+        }
+
+        load.fromText = function (id, text) {
+            //This one is difficult because the text can/probably uses
+            //define, and any relative paths and requires should be relative
+            //to that id was it would be found on disk. But this would require
+            //bootstrapping a module/require fairly deeply from node core.
+            //Not sure how best to go about that yet.
+            throw new Error('amdefine does not implement load.fromText');
+        };
+
+        return load;
+    }
+
+    makeRequire = function (systemRequire, exports, module, relId) {
+        function amdRequire(deps, callback) {
+            if (typeof deps === 'string') {
+                //Synchronous, single module require('')
+                return stringRequire(systemRequire, exports, module, deps, relId);
+            } else {
+                //Array of dependencies with a callback.
+
+                //Convert the dependencies to modules.
+                deps = deps.map(function (depName) {
+                    return stringRequire(systemRequire, exports, module, depName, relId);
+                });
+
+                //Wait for next tick to call back the require call.
+                if (callback) {
+                    process.nextTick(function () {
+                        callback.apply(null, deps);
+                    });
+                }
+            }
+        }
+
+        amdRequire.toUrl = function (filePath) {
+            if (filePath.indexOf('.') === 0) {
+                return normalize(filePath, path.dirname(module.filename));
+            } else {
+                return filePath;
+            }
+        };
+
+        return amdRequire;
+    };
+
+    //Favor explicit value, passed in if the module wants to support Node 0.4.
+    requireFn = requireFn || function req() {
+        return module.require.apply(module, arguments);
+    };
+
+    function runFactory(id, deps, factory) {
+        var r, e, m, result;
+
+        if (id) {
+            e = loaderCache[id] = {};
+            m = {
+                id: id,
+                uri: __filename,
+                exports: e
+            };
+            r = makeRequire(requireFn, e, m, id);
+        } else {
+            //Only support one define call per file
+            if (alreadyCalled) {
+                throw new Error('amdefine with no module ID cannot be called more than once per file.');
+            }
+            alreadyCalled = true;
+
+            //Use the real variables from node
+            //Use module.exports for exports, since
+            //the exports in here is amdefine exports.
+            e = module.exports;
+            m = module;
+            r = makeRequire(requireFn, e, m, module.id);
+        }
+
+        //If there are dependencies, they are strings, so need
+        //to convert them to dependency values.
+        if (deps) {
+            deps = deps.map(function (depName) {
+                return r(depName);
+            });
+        }
+
+        //Call the factory with the right dependencies.
+        if (typeof factory === 'function') {
+            result = factory.apply(m.exports, deps);
+        } else {
+            result = factory;
+        }
+
+        if (result !== undefined) {
+            m.exports = result;
+            if (id) {
+                loaderCache[id] = m.exports;
+            }
+        }
+    }
+
+    stringRequire = function (systemRequire, exports, module, id, relId) {
+        //Split the ID by a ! so that
+        var index = id.indexOf('!'),
+            originalId = id,
+            prefix, plugin;
+
+        if (index === -1) {
+            id = normalize(id, relId);
+
+            //Straight module lookup. If it is one of the special dependencies,
+            //deal with it, otherwise, delegate to node.
+            if (id === 'require') {
+                return makeRequire(systemRequire, exports, module, relId);
+            } else if (id === 'exports') {
+                return exports;
+            } else if (id === 'module') {
+                return module;
+            } else if (loaderCache.hasOwnProperty(id)) {
+                return loaderCache[id];
+            } else if (defineCache[id]) {
+                runFactory.apply(null, defineCache[id]);
+                return loaderCache[id];
+            } else {
+                if(systemRequire) {
+                    return systemRequire(originalId);
+                } else {
+                    throw new Error('No module with ID: ' + id);
+                }
+            }
+        } else {
+            //There is a plugin in play.
+            prefix = id.substring(0, index);
+            id = id.substring(index + 1, id.length);
+
+            plugin = stringRequire(systemRequire, exports, module, prefix, relId);
+
+            if (plugin.normalize) {
+                id = plugin.normalize(id, makeNormalize(relId));
+            } else {
+                //Normalize the ID normally.
+                id = normalize(id, relId);
+            }
+
+            if (loaderCache[id]) {
+                return loaderCache[id];
+            } else {
+                plugin.load(id, makeRequire(systemRequire, exports, module, relId), makeLoad(id), {});
+
+                return loaderCache[id];
+            }
+        }
+    };
+
+    //Create a define function specific to the module asking for amdefine.
+    function define(id, deps, factory) {
+        if (Array.isArray(id)) {
+            factory = deps;
+            deps = id;
+            id = undefined;
+        } else if (typeof id !== 'string') {
+            factory = id;
+            id = deps = undefined;
+        }
+
+        if (deps && !Array.isArray(deps)) {
+            factory = deps;
+            deps = undefined;
+        }
+
+        if (!deps) {
+            deps = ['require', 'exports', 'module'];
+        }
+
+        //Set up properties for this module. If an ID, then use
+        //internal cache. If no ID, then use the external variables
+        //for this node module.
+        if (id) {
+            //Put the module in deep freeze until there is a
+            //require call for it.
+            defineCache[id] = [id, deps, factory];
+        } else {
+            runFactory(id, deps, factory);
+        }
+    }
+
+    //define.require, which has access to all the values in the
+    //cache. Useful for AMD modules that all have IDs in the file,
+    //but need to finally export a value to node based on one of those
+    //IDs.
+    define.require = function (id) {
+        if (loaderCache[id]) {
+            return loaderCache[id];
+        }
+
+        if (defineCache[id]) {
+            runFactory.apply(null, defineCache[id]);
+            return loaderCache[id];
+        }
+    };
+
+    define.amd = {};
+
+    return define;
+}
+
+module.exports = amdefine;
+
+}).call(this,require('_process'),"/node_modules/amdefine/amdefine.js")
+},{"_process":38,"path":37}],2:[function(require,module,exports){
+
+},{}],3:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo! Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -981,7 +1288,7 @@ module.exports = {
 
 })();
 
-},{"./html5-state-machine.js":2}],2:[function(require,module,exports){
+},{"./html5-state-machine.js":4}],4:[function(require,module,exports){
 /*
 Copyright (c) 2015, Yahoo! Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -1230,329 +1537,7 @@ StateMachine.lookupContext = [
 ];
 
 module.exports = StateMachine;
-},{}],3:[function(require,module,exports){
-
-},{}],4:[function(require,module,exports){
-(function (process){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-// resolves . and .. elements in a path array with directory names there
-// must be no slashes, empty elements, or device names (c:\) in the array
-// (so also no leading and trailing slashes - it does not distinguish
-// relative and absolute paths)
-function normalizeArray(parts, allowAboveRoot) {
-  // if the path tries to go above the root, `up` ends up > 0
-  var up = 0;
-  for (var i = parts.length - 1; i >= 0; i--) {
-    var last = parts[i];
-    if (last === '.') {
-      parts.splice(i, 1);
-    } else if (last === '..') {
-      parts.splice(i, 1);
-      up++;
-    } else if (up) {
-      parts.splice(i, 1);
-      up--;
-    }
-  }
-
-  // if the path is allowed to go above the root, restore leading ..s
-  if (allowAboveRoot) {
-    for (; up--; up) {
-      parts.unshift('..');
-    }
-  }
-
-  return parts;
-}
-
-// Split a filename into [root, dir, basename, ext], unix version
-// 'root' is just a slash, or nothing.
-var splitPathRe =
-    /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
-var splitPath = function(filename) {
-  return splitPathRe.exec(filename).slice(1);
-};
-
-// path.resolve([from ...], to)
-// posix version
-exports.resolve = function() {
-  var resolvedPath = '',
-      resolvedAbsolute = false;
-
-  for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
-    var path = (i >= 0) ? arguments[i] : process.cwd();
-
-    // Skip empty and invalid entries
-    if (typeof path !== 'string') {
-      throw new TypeError('Arguments to path.resolve must be strings');
-    } else if (!path) {
-      continue;
-    }
-
-    resolvedPath = path + '/' + resolvedPath;
-    resolvedAbsolute = path.charAt(0) === '/';
-  }
-
-  // At this point the path should be resolved to a full absolute path, but
-  // handle relative paths to be safe (might happen when process.cwd() fails)
-
-  // Normalize the path
-  resolvedPath = normalizeArray(filter(resolvedPath.split('/'), function(p) {
-    return !!p;
-  }), !resolvedAbsolute).join('/');
-
-  return ((resolvedAbsolute ? '/' : '') + resolvedPath) || '.';
-};
-
-// path.normalize(path)
-// posix version
-exports.normalize = function(path) {
-  var isAbsolute = exports.isAbsolute(path),
-      trailingSlash = substr(path, -1) === '/';
-
-  // Normalize the path
-  path = normalizeArray(filter(path.split('/'), function(p) {
-    return !!p;
-  }), !isAbsolute).join('/');
-
-  if (!path && !isAbsolute) {
-    path = '.';
-  }
-  if (path && trailingSlash) {
-    path += '/';
-  }
-
-  return (isAbsolute ? '/' : '') + path;
-};
-
-// posix version
-exports.isAbsolute = function(path) {
-  return path.charAt(0) === '/';
-};
-
-// posix version
-exports.join = function() {
-  var paths = Array.prototype.slice.call(arguments, 0);
-  return exports.normalize(filter(paths, function(p, index) {
-    if (typeof p !== 'string') {
-      throw new TypeError('Arguments to path.join must be strings');
-    }
-    return p;
-  }).join('/'));
-};
-
-
-// path.relative(from, to)
-// posix version
-exports.relative = function(from, to) {
-  from = exports.resolve(from).substr(1);
-  to = exports.resolve(to).substr(1);
-
-  function trim(arr) {
-    var start = 0;
-    for (; start < arr.length; start++) {
-      if (arr[start] !== '') break;
-    }
-
-    var end = arr.length - 1;
-    for (; end >= 0; end--) {
-      if (arr[end] !== '') break;
-    }
-
-    if (start > end) return [];
-    return arr.slice(start, end - start + 1);
-  }
-
-  var fromParts = trim(from.split('/'));
-  var toParts = trim(to.split('/'));
-
-  var length = Math.min(fromParts.length, toParts.length);
-  var samePartsLength = length;
-  for (var i = 0; i < length; i++) {
-    if (fromParts[i] !== toParts[i]) {
-      samePartsLength = i;
-      break;
-    }
-  }
-
-  var outputParts = [];
-  for (var i = samePartsLength; i < fromParts.length; i++) {
-    outputParts.push('..');
-  }
-
-  outputParts = outputParts.concat(toParts.slice(samePartsLength));
-
-  return outputParts.join('/');
-};
-
-exports.sep = '/';
-exports.delimiter = ':';
-
-exports.dirname = function(path) {
-  var result = splitPath(path),
-      root = result[0],
-      dir = result[1];
-
-  if (!root && !dir) {
-    // No dirname whatsoever
-    return '.';
-  }
-
-  if (dir) {
-    // It has a dirname, strip trailing slash
-    dir = dir.substr(0, dir.length - 1);
-  }
-
-  return root + dir;
-};
-
-
-exports.basename = function(path, ext) {
-  var f = splitPath(path)[2];
-  // TODO: make this comparison case-insensitive on windows?
-  if (ext && f.substr(-1 * ext.length) === ext) {
-    f = f.substr(0, f.length - ext.length);
-  }
-  return f;
-};
-
-
-exports.extname = function(path) {
-  return splitPath(path)[3];
-};
-
-function filter (xs, f) {
-    if (xs.filter) return xs.filter(f);
-    var res = [];
-    for (var i = 0; i < xs.length; i++) {
-        if (f(xs[i], i, xs)) res.push(xs[i]);
-    }
-    return res;
-}
-
-// String.prototype.substr - negative index don't work in IE8
-var substr = 'ab'.substr(-1) === 'b'
-    ? function (str, start, len) { return str.substr(start, len) }
-    : function (str, start, len) {
-        if (start < 0) start = str.length + start;
-        return str.substr(start, len);
-    }
-;
-
-}).call(this,require('_process'))
-},{"_process":5}],5:[function(require,module,exports){
-// shim for using process in browser
-
-var process = module.exports = {};
-var queue = [];
-var draining = false;
-var currentQueue;
-var queueIndex = -1;
-
-function cleanUpNextTick() {
-    draining = false;
-    if (currentQueue.length) {
-        queue = currentQueue.concat(queue);
-    } else {
-        queueIndex = -1;
-    }
-    if (queue.length) {
-        drainQueue();
-    }
-}
-
-function drainQueue() {
-    if (draining) {
-        return;
-    }
-    var timeout = setTimeout(cleanUpNextTick);
-    draining = true;
-
-    var len = queue.length;
-    while(len) {
-        currentQueue = queue;
-        queue = [];
-        while (++queueIndex < len) {
-            currentQueue[queueIndex].run();
-        }
-        queueIndex = -1;
-        len = queue.length;
-    }
-    currentQueue = null;
-    draining = false;
-    clearTimeout(timeout);
-}
-
-process.nextTick = function (fun) {
-    var args = new Array(arguments.length - 1);
-    if (arguments.length > 1) {
-        for (var i = 1; i < arguments.length; i++) {
-            args[i - 1] = arguments[i];
-        }
-    }
-    queue.push(new Item(fun, args));
-    if (queue.length === 1 && !draining) {
-        setTimeout(drainQueue, 0);
-    }
-};
-
-// v8 likes predictible objects
-function Item(fun, array) {
-    this.fun = fun;
-    this.array = array;
-}
-Item.prototype.run = function () {
-    this.fun.apply(null, this.array);
-};
-process.title = 'browser';
-process.browser = true;
-process.env = {};
-process.argv = [];
-process.version = ''; // empty string to avoid regexp issues
-process.versions = {};
-
-function noop() {}
-
-process.on = noop;
-process.addListener = noop;
-process.once = noop;
-process.off = noop;
-process.removeListener = noop;
-process.removeAllListeners = noop;
-process.emit = noop;
-
-process.binding = function (name) {
-    throw new Error('process.binding is not supported');
-};
-
-// TODO(shtylman)
-process.cwd = function () { return '/' };
-process.chdir = function (dir) {
-    throw new Error('process.chdir is not supported');
-};
-process.umask = function() { return 0; };
-
-},{}],6:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -1616,7 +1601,7 @@ inst['default'] = inst;
 
 exports['default'] = inst;
 module.exports = exports['default'];
-},{"./handlebars.runtime":7,"./handlebars/compiler/ast":9,"./handlebars/compiler/base":10,"./handlebars/compiler/compiler":12,"./handlebars/compiler/javascript-compiler":14,"./handlebars/compiler/visitor":17,"./handlebars/no-conflict":20}],7:[function(require,module,exports){
+},{"./handlebars.runtime":6,"./handlebars/compiler/ast":8,"./handlebars/compiler/base":9,"./handlebars/compiler/compiler":11,"./handlebars/compiler/javascript-compiler":13,"./handlebars/compiler/visitor":16,"./handlebars/no-conflict":19}],6:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -1677,7 +1662,7 @@ inst['default'] = inst;
 
 exports['default'] = inst;
 module.exports = exports['default'];
-},{"./handlebars/base":8,"./handlebars/exception":19,"./handlebars/no-conflict":20,"./handlebars/runtime":21,"./handlebars/safe-string":22,"./handlebars/utils":23}],8:[function(require,module,exports){
+},{"./handlebars/base":7,"./handlebars/exception":18,"./handlebars/no-conflict":19,"./handlebars/runtime":20,"./handlebars/safe-string":21,"./handlebars/utils":22}],7:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -1951,7 +1936,7 @@ function createFrame(object) {
 }
 
 /* [args, ]options */
-},{"./exception":19,"./utils":23}],9:[function(require,module,exports){
+},{"./exception":18,"./utils":22}],8:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -2104,7 +2089,7 @@ var AST = {
 // must modify the object to operate properly.
 exports['default'] = AST;
 module.exports = exports['default'];
-},{}],10:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2151,7 +2136,7 @@ function parse(input, options) {
   var strip = new _WhitespaceControl2['default']();
   return strip.accept(_parser2['default'].parse(input));
 }
-},{"../utils":23,"./ast":9,"./helpers":13,"./parser":15,"./whitespace-control":18}],11:[function(require,module,exports){
+},{"../utils":22,"./ast":8,"./helpers":12,"./parser":14,"./whitespace-control":17}],10:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -2316,7 +2301,7 @@ exports['default'] = CodeGen;
 module.exports = exports['default'];
 
 /* NOP */
-},{"../utils":23,"source-map":25}],12:[function(require,module,exports){
+},{"../utils":22,"source-map":24}],11:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2844,7 +2829,7 @@ function transformLiteralToPath(sexpr) {
     sexpr.path = new _AST2['default'].PathExpression(false, 0, [literal.original + ''], literal.original + '', literal.loc);
   }
 }
-},{"../exception":19,"../utils":23,"./ast":9}],13:[function(require,module,exports){
+},{"../exception":18,"../utils":22,"./ast":8}],12:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2976,7 +2961,7 @@ function prepareBlock(openBlock, program, inverseAndProgram, close, inverted, lo
 
   return new this.BlockStatement(openBlock.path, openBlock.params, openBlock.hash, program, inverse, openBlock.strip, inverseStrip, close && close.strip, this.locInfo(locInfo));
 }
-},{"../exception":19}],14:[function(require,module,exports){
+},{"../exception":18}],13:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -4039,7 +4024,7 @@ function strictLookup(requireTerminal, compiler, parts, type) {
 
 exports['default'] = JavaScriptCompiler;
 module.exports = exports['default'];
-},{"../base":8,"../exception":19,"../utils":23,"./code-gen":11}],15:[function(require,module,exports){
+},{"../base":7,"../exception":18,"../utils":22,"./code-gen":10}],14:[function(require,module,exports){
 "use strict";
 
 exports.__esModule = true;
@@ -4718,7 +4703,7 @@ var handlebars = (function () {
     return new Parser();
 })();exports["default"] = handlebars;
 module.exports = exports["default"];
-},{}],16:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -4884,7 +4869,7 @@ PrintVisitor.prototype.HashPair = function (pair) {
   return pair.key + '=' + this.accept(pair.value);
 };
 /*eslint-enable new-cap */
-},{"./visitor":17}],17:[function(require,module,exports){
+},{"./visitor":16}],16:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -5017,7 +5002,7 @@ Visitor.prototype = {
 exports['default'] = Visitor;
 module.exports = exports['default'];
 /* content */ /* comment */ /* path */ /* string */ /* number */ /* bool */ /* literal */ /* literal */
-},{"../exception":19,"./ast":9}],18:[function(require,module,exports){
+},{"../exception":18,"./ast":8}],17:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -5230,7 +5215,7 @@ function omitLeft(body, i, multiple) {
 
 exports['default'] = WhitespaceControl;
 module.exports = exports['default'];
-},{"./visitor":17}],19:[function(require,module,exports){
+},{"./visitor":16}],18:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5269,7 +5254,7 @@ Exception.prototype = new Error();
 
 exports['default'] = Exception;
 module.exports = exports['default'];
-},{}],20:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -5290,7 +5275,7 @@ exports['default'] = function (Handlebars) {
 
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],21:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -5523,7 +5508,7 @@ function initData(context, data) {
   }
   return data;
 }
-},{"./base":8,"./exception":19,"./utils":23}],22:[function(require,module,exports){
+},{"./base":7,"./exception":18,"./utils":22}],21:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5538,7 +5523,7 @@ SafeString.prototype.toString = SafeString.prototype.toHTML = function () {
 
 exports['default'] = SafeString;
 module.exports = exports['default'];
-},{}],23:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5653,7 +5638,7 @@ function blockParams(params, ids) {
 function appendContextPath(contextPath, id) {
   return (contextPath ? contextPath + '.' : '') + id;
 }
-},{}],24:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 // USAGE:
 // var handlebars = require('handlebars');
 /* eslint-disable no-var */
@@ -5680,7 +5665,7 @@ if (typeof require !== 'undefined' && require.extensions) {
   require.extensions['.hbs'] = extension;
 }
 
-},{"../dist/cjs/handlebars":6,"../dist/cjs/handlebars/compiler/printer":16,"fs":3}],25:[function(require,module,exports){
+},{"../dist/cjs/handlebars":5,"../dist/cjs/handlebars/compiler/printer":15,"fs":2}],24:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -5690,7 +5675,7 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":31,"./source-map/source-map-generator":32,"./source-map/source-node":33}],26:[function(require,module,exports){
+},{"./source-map/source-map-consumer":30,"./source-map/source-map-generator":31,"./source-map/source-node":32}],25:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5789,7 +5774,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":34,"amdefine":35}],27:[function(require,module,exports){
+},{"./util":33,"amdefine":1}],26:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5933,7 +5918,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./base64":28,"amdefine":35}],28:[function(require,module,exports){
+},{"./base64":27,"amdefine":1}],27:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5977,7 +5962,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":35}],29:[function(require,module,exports){
+},{"amdefine":1}],28:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6059,7 +6044,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":35}],30:[function(require,module,exports){
+},{"amdefine":1}],29:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2014 Mozilla Foundation and contributors
@@ -6147,7 +6132,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":34,"amdefine":35}],31:[function(require,module,exports){
+},{"./util":33,"amdefine":1}],30:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6724,7 +6709,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":26,"./base64-vlq":27,"./binary-search":29,"./util":34,"amdefine":35}],32:[function(require,module,exports){
+},{"./array-set":25,"./base64-vlq":26,"./binary-search":28,"./util":33,"amdefine":1}],31:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7126,7 +7111,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":26,"./base64-vlq":27,"./mapping-list":30,"./util":34,"amdefine":35}],33:[function(require,module,exports){
+},{"./array-set":25,"./base64-vlq":26,"./mapping-list":29,"./util":33,"amdefine":1}],32:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7542,7 +7527,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./source-map-generator":32,"./util":34,"amdefine":35}],34:[function(require,module,exports){
+},{"./source-map-generator":31,"./util":33,"amdefine":1}],33:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7863,314 +7848,9 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":35}],35:[function(require,module,exports){
-(function (process,__filename){
-/** vim: et:ts=4:sw=4:sts=4
- * @license amdefine 1.0.0 Copyright (c) 2011-2015, The Dojo Foundation All Rights Reserved.
- * Available via the MIT or new BSD license.
- * see: http://github.com/jrburke/amdefine for details
- */
-
-/*jslint node: true */
-/*global module, process */
-'use strict';
-
-/**
- * Creates a define for node.
- * @param {Object} module the "module" object that is defined by Node for the
- * current module.
- * @param {Function} [requireFn]. Node's require function for the current module.
- * It only needs to be passed in Node versions before 0.5, when module.require
- * did not exist.
- * @returns {Function} a define function that is usable for the current node
- * module.
- */
-function amdefine(module, requireFn) {
-    'use strict';
-    var defineCache = {},
-        loaderCache = {},
-        alreadyCalled = false,
-        path = require('path'),
-        makeRequire, stringRequire;
-
-    /**
-     * Trims the . and .. from an array of path segments.
-     * It will keep a leading path segment if a .. will become
-     * the first path segment, to help with module name lookups,
-     * which act like paths, but can be remapped. But the end result,
-     * all paths that use this function should look normalized.
-     * NOTE: this method MODIFIES the input array.
-     * @param {Array} ary the array of path segments.
-     */
-    function trimDots(ary) {
-        var i, part;
-        for (i = 0; ary[i]; i+= 1) {
-            part = ary[i];
-            if (part === '.') {
-                ary.splice(i, 1);
-                i -= 1;
-            } else if (part === '..') {
-                if (i === 1 && (ary[2] === '..' || ary[0] === '..')) {
-                    //End of the line. Keep at least one non-dot
-                    //path segment at the front so it can be mapped
-                    //correctly to disk. Otherwise, there is likely
-                    //no path mapping for a path starting with '..'.
-                    //This can still fail, but catches the most reasonable
-                    //uses of ..
-                    break;
-                } else if (i > 0) {
-                    ary.splice(i - 1, 2);
-                    i -= 2;
-                }
-            }
-        }
-    }
-
-    function normalize(name, baseName) {
-        var baseParts;
-
-        //Adjust any relative paths.
-        if (name && name.charAt(0) === '.') {
-            //If have a base name, try to normalize against it,
-            //otherwise, assume it is a top-level require that will
-            //be relative to baseUrl in the end.
-            if (baseName) {
-                baseParts = baseName.split('/');
-                baseParts = baseParts.slice(0, baseParts.length - 1);
-                baseParts = baseParts.concat(name.split('/'));
-                trimDots(baseParts);
-                name = baseParts.join('/');
-            }
-        }
-
-        return name;
-    }
-
-    /**
-     * Create the normalize() function passed to a loader plugin's
-     * normalize method.
-     */
-    function makeNormalize(relName) {
-        return function (name) {
-            return normalize(name, relName);
-        };
-    }
-
-    function makeLoad(id) {
-        function load(value) {
-            loaderCache[id] = value;
-        }
-
-        load.fromText = function (id, text) {
-            //This one is difficult because the text can/probably uses
-            //define, and any relative paths and requires should be relative
-            //to that id was it would be found on disk. But this would require
-            //bootstrapping a module/require fairly deeply from node core.
-            //Not sure how best to go about that yet.
-            throw new Error('amdefine does not implement load.fromText');
-        };
-
-        return load;
-    }
-
-    makeRequire = function (systemRequire, exports, module, relId) {
-        function amdRequire(deps, callback) {
-            if (typeof deps === 'string') {
-                //Synchronous, single module require('')
-                return stringRequire(systemRequire, exports, module, deps, relId);
-            } else {
-                //Array of dependencies with a callback.
-
-                //Convert the dependencies to modules.
-                deps = deps.map(function (depName) {
-                    return stringRequire(systemRequire, exports, module, depName, relId);
-                });
-
-                //Wait for next tick to call back the require call.
-                if (callback) {
-                    process.nextTick(function () {
-                        callback.apply(null, deps);
-                    });
-                }
-            }
-        }
-
-        amdRequire.toUrl = function (filePath) {
-            if (filePath.indexOf('.') === 0) {
-                return normalize(filePath, path.dirname(module.filename));
-            } else {
-                return filePath;
-            }
-        };
-
-        return amdRequire;
-    };
-
-    //Favor explicit value, passed in if the module wants to support Node 0.4.
-    requireFn = requireFn || function req() {
-        return module.require.apply(module, arguments);
-    };
-
-    function runFactory(id, deps, factory) {
-        var r, e, m, result;
-
-        if (id) {
-            e = loaderCache[id] = {};
-            m = {
-                id: id,
-                uri: __filename,
-                exports: e
-            };
-            r = makeRequire(requireFn, e, m, id);
-        } else {
-            //Only support one define call per file
-            if (alreadyCalled) {
-                throw new Error('amdefine with no module ID cannot be called more than once per file.');
-            }
-            alreadyCalled = true;
-
-            //Use the real variables from node
-            //Use module.exports for exports, since
-            //the exports in here is amdefine exports.
-            e = module.exports;
-            m = module;
-            r = makeRequire(requireFn, e, m, module.id);
-        }
-
-        //If there are dependencies, they are strings, so need
-        //to convert them to dependency values.
-        if (deps) {
-            deps = deps.map(function (depName) {
-                return r(depName);
-            });
-        }
-
-        //Call the factory with the right dependencies.
-        if (typeof factory === 'function') {
-            result = factory.apply(m.exports, deps);
-        } else {
-            result = factory;
-        }
-
-        if (result !== undefined) {
-            m.exports = result;
-            if (id) {
-                loaderCache[id] = m.exports;
-            }
-        }
-    }
-
-    stringRequire = function (systemRequire, exports, module, id, relId) {
-        //Split the ID by a ! so that
-        var index = id.indexOf('!'),
-            originalId = id,
-            prefix, plugin;
-
-        if (index === -1) {
-            id = normalize(id, relId);
-
-            //Straight module lookup. If it is one of the special dependencies,
-            //deal with it, otherwise, delegate to node.
-            if (id === 'require') {
-                return makeRequire(systemRequire, exports, module, relId);
-            } else if (id === 'exports') {
-                return exports;
-            } else if (id === 'module') {
-                return module;
-            } else if (loaderCache.hasOwnProperty(id)) {
-                return loaderCache[id];
-            } else if (defineCache[id]) {
-                runFactory.apply(null, defineCache[id]);
-                return loaderCache[id];
-            } else {
-                if(systemRequire) {
-                    return systemRequire(originalId);
-                } else {
-                    throw new Error('No module with ID: ' + id);
-                }
-            }
-        } else {
-            //There is a plugin in play.
-            prefix = id.substring(0, index);
-            id = id.substring(index + 1, id.length);
-
-            plugin = stringRequire(systemRequire, exports, module, prefix, relId);
-
-            if (plugin.normalize) {
-                id = plugin.normalize(id, makeNormalize(relId));
-            } else {
-                //Normalize the ID normally.
-                id = normalize(id, relId);
-            }
-
-            if (loaderCache[id]) {
-                return loaderCache[id];
-            } else {
-                plugin.load(id, makeRequire(systemRequire, exports, module, relId), makeLoad(id), {});
-
-                return loaderCache[id];
-            }
-        }
-    };
-
-    //Create a define function specific to the module asking for amdefine.
-    function define(id, deps, factory) {
-        if (Array.isArray(id)) {
-            factory = deps;
-            deps = id;
-            id = undefined;
-        } else if (typeof id !== 'string') {
-            factory = id;
-            id = deps = undefined;
-        }
-
-        if (deps && !Array.isArray(deps)) {
-            factory = deps;
-            deps = undefined;
-        }
-
-        if (!deps) {
-            deps = ['require', 'exports', 'module'];
-        }
-
-        //Set up properties for this module. If an ID, then use
-        //internal cache. If no ID, then use the external variables
-        //for this node module.
-        if (id) {
-            //Put the module in deep freeze until there is a
-            //require call for it.
-            defineCache[id] = [id, deps, factory];
-        } else {
-            runFactory(id, deps, factory);
-        }
-    }
-
-    //define.require, which has access to all the values in the
-    //cache. Useful for AMD modules that all have IDs in the file,
-    //but need to finally export a value to node based on one of those
-    //IDs.
-    define.require = function (id) {
-        if (loaderCache[id]) {
-            return loaderCache[id];
-        }
-
-        if (defineCache[id]) {
-            runFactory.apply(null, defineCache[id]);
-            return loaderCache[id];
-        }
-    };
-
-    define.amd = {};
-
-    return define;
-}
-
-module.exports = amdefine;
-
-}).call(this,require('_process'),"/node_modules/handlebars/node_modules/source-map/node_modules/amdefine/amdefine.js")
-},{"_process":5,"path":4}],36:[function(require,module,exports){
+},{"amdefine":1}],34:[function(require,module,exports){
 module.exports={"A":{"a":{"c":{"u":{"t":{"e":{"0":"Á",";":{"0":"Á"}}}}}},"b":{"r":{"e":{"v":{"e":{";":{"0":"Ă"}}}}}},"c":{"i":{"r":{"c":{"0":"Â",";":{"0":"Â"}}}},"y":{";":{"0":"А"}}},"E":{"l":{"i":{"g":{"0":"Æ",";":{"0":"Æ"}}}}},"f":{"r":{";":{"0":"𝔄"}}},"g":{"r":{"a":{"v":{"e":{"0":"À",";":{"0":"À"}}}}}},"l":{"p":{"h":{"a":{";":{"0":"Α"}}}}},"m":{"a":{"c":{"r":{";":{"0":"Ā"}}}}},"M":{"P":{"0":"&",";":{"0":"&"}}},"n":{"d":{";":{"0":"⩓"}}},"o":{"g":{"o":{"n":{";":{"0":"Ą"}}}},"p":{"f":{";":{"0":"𝔸"}}}},"p":{"p":{"l":{"y":{"F":{"u":{"n":{"c":{"t":{"i":{"o":{"n":{";":{"0":"⁡"}}}}}}}}}}}}},"r":{"i":{"n":{"g":{"0":"Å",";":{"0":"Å"}}}}},"s":{"c":{"r":{";":{"0":"𝒜"}}},"s":{"i":{"g":{"n":{";":{"0":"≔"}}}}}},"t":{"i":{"l":{"d":{"e":{"0":"Ã",";":{"0":"Ã"}}}}}},"u":{"m":{"l":{"0":"Ä",";":{"0":"Ä"}}}}},"a":{"a":{"c":{"u":{"t":{"e":{"0":"á",";":{"0":"á"}}}}}},"b":{"r":{"e":{"v":{"e":{";":{"0":"ă"}}}}}},"c":{";":{"0":"∾"},"d":{";":{"0":"∿"}},"E":{";":{"0":"∾̳"}},"i":{"r":{"c":{"0":"â",";":{"0":"â"}}}},"u":{"t":{"e":{"0":"´",";":{"0":"´"}}}},"y":{";":{"0":"а"}}},"e":{"l":{"i":{"g":{"0":"æ",";":{"0":"æ"}}}}},"f":{";":{"0":"⁡"},"r":{";":{"0":"𝔞"}}},"g":{"r":{"a":{"v":{"e":{"0":"à",";":{"0":"à"}}}}}},"l":{"e":{"f":{"s":{"y":{"m":{";":{"0":"ℵ"}}}}},"p":{"h":{";":{"0":"ℵ"}}}},"p":{"h":{"a":{";":{"0":"α"}}}}},"m":{"a":{"c":{"r":{";":{"0":"ā"}}},"l":{"g":{";":{"0":"⨿"}}}},"p":{"0":"&",";":{"0":"&"}}},"n":{"d":{"a":{"n":{"d":{";":{"0":"⩕"}}}},";":{"0":"∧"},"d":{";":{"0":"⩜"}},"s":{"l":{"o":{"p":{"e":{";":{"0":"⩘"}}}}}},"v":{";":{"0":"⩚"}}},"g":{";":{"0":"∠"},"e":{";":{"0":"⦤"}},"l":{"e":{";":{"0":"∠"}}},"m":{"s":{"d":{"a":{"a":{";":{"0":"⦨"}},"b":{";":{"0":"⦩"}},"c":{";":{"0":"⦪"}},"d":{";":{"0":"⦫"}},"e":{";":{"0":"⦬"}},"f":{";":{"0":"⦭"}},"g":{";":{"0":"⦮"}},"h":{";":{"0":"⦯"}}},";":{"0":"∡"}}}},"r":{"t":{";":{"0":"∟"},"v":{"b":{";":{"0":"⊾"},"d":{";":{"0":"⦝"}}}}}},"s":{"p":{"h":{";":{"0":"∢"}}},"t":{";":{"0":"Å"}}},"z":{"a":{"r":{"r":{";":{"0":"⍼"}}}}}}},"o":{"g":{"o":{"n":{";":{"0":"ą"}}}},"p":{"f":{";":{"0":"𝕒"}}}},"p":{"a":{"c":{"i":{"r":{";":{"0":"⩯"}}}}},";":{"0":"≈"},"E":{";":{"0":"⩰"}},"e":{";":{"0":"≊"}},"i":{"d":{";":{"0":"≋"}}},"o":{"s":{";":{"0":"'"}}},"p":{"r":{"o":{"x":{";":{"0":"≈"},"e":{"q":{";":{"0":"≊"}}}}}}}},"r":{"i":{"n":{"g":{"0":"å",";":{"0":"å"}}}}},"s":{"c":{"r":{";":{"0":"𝒶"}}},"t":{";":{"0":"*"}},"y":{"m":{"p":{";":{"0":"≈"},"e":{"q":{";":{"0":"≍"}}}}}}},"t":{"i":{"l":{"d":{"e":{"0":"ã",";":{"0":"ã"}}}}}},"u":{"m":{"l":{"0":"ä",";":{"0":"ä"}}}},"w":{"c":{"o":{"n":{"i":{"n":{"t":{";":{"0":"∳"}}}}}}},"i":{"n":{"t":{";":{"0":"⨑"}}}}}},"b":{"a":{"c":{"k":{"c":{"o":{"n":{"g":{";":{"0":"≌"}}}}},"e":{"p":{"s":{"i":{"l":{"o":{"n":{";":{"0":"϶"}}}}}}}},"p":{"r":{"i":{"m":{"e":{";":{"0":"‵"}}}}}},"s":{"i":{"m":{";":{"0":"∽"},"e":{"q":{";":{"0":"⋍"}}}}}}}},"r":{"v":{"e":{"e":{";":{"0":"⊽"}}}},"w":{"e":{"d":{";":{"0":"⌅"},"g":{"e":{";":{"0":"⌅"}}}}}}}},"b":{"r":{"k":{";":{"0":"⎵"},"t":{"b":{"r":{"k":{";":{"0":"⎶"}}}}}}}},"c":{"o":{"n":{"g":{";":{"0":"≌"}}}},"y":{";":{"0":"б"}}},"d":{"q":{"u":{"o":{";":{"0":"„"}}}}},"e":{"c":{"a":{"u":{"s":{";":{"0":"∵"},"e":{";":{"0":"∵"}}}}}},"m":{"p":{"t":{"y":{"v":{";":{"0":"⦰"}}}}}},"p":{"s":{"i":{";":{"0":"϶"}}}},"r":{"n":{"o":{"u":{";":{"0":"ℬ"}}}}},"t":{"a":{";":{"0":"β"}},"h":{";":{"0":"ℶ"}},"w":{"e":{"e":{"n":{";":{"0":"≬"}}}}}}},"f":{"r":{";":{"0":"𝔟"}}},"i":{"g":{"c":{"a":{"p":{";":{"0":"⋂"}}},"i":{"r":{"c":{";":{"0":"◯"}}}},"u":{"p":{";":{"0":"⋃"}}}},"o":{"d":{"o":{"t":{";":{"0":"⨀"}}}},"p":{"l":{"u":{"s":{";":{"0":"⨁"}}}}},"t":{"i":{"m":{"e":{"s":{";":{"0":"⨂"}}}}}}},"s":{"q":{"c":{"u":{"p":{";":{"0":"⨆"}}}}},"t":{"a":{"r":{";":{"0":"★"}}}}},"t":{"r":{"i":{"a":{"n":{"g":{"l":{"e":{"d":{"o":{"w":{"n":{";":{"0":"▽"}}}}},"u":{"p":{";":{"0":"△"}}}}}}}}}}},"u":{"p":{"l":{"u":{"s":{";":{"0":"⨄"}}}}}},"v":{"e":{"e":{";":{"0":"⋁"}}}},"w":{"e":{"d":{"g":{"e":{";":{"0":"⋀"}}}}}}}},"k":{"a":{"r":{"o":{"w":{";":{"0":"⤍"}}}}}},"l":{"a":{"c":{"k":{"l":{"o":{"z":{"e":{"n":{"g":{"e":{";":{"0":"⧫"}}}}}}}},"s":{"q":{"u":{"a":{"r":{"e":{";":{"0":"▪"}}}}}}},"t":{"r":{"i":{"a":{"n":{"g":{"l":{"e":{";":{"0":"▴"},"d":{"o":{"w":{"n":{";":{"0":"▾"}}}}},"l":{"e":{"f":{"t":{";":{"0":"◂"}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":"▸"}}}}}}}}}}}}}}}},"n":{"k":{";":{"0":"␣"}}}},"k":{"1":{"2":{";":{"0":"▒"}},"4":{";":{"0":"░"}}},"3":{"4":{";":{"0":"▓"}}}},"o":{"c":{"k":{";":{"0":"█"}}}}},"n":{"e":{";":{"0":"=⃥"},"q":{"u":{"i":{"v":{";":{"0":"≡⃥"}}}}}},"o":{"t":{";":{"0":"⌐"}}}},"N":{"o":{"t":{";":{"0":"⫭"}}}},"o":{"p":{"f":{";":{"0":"𝕓"}}},"t":{";":{"0":"⊥"},"t":{"o":{"m":{";":{"0":"⊥"}}}}},"w":{"t":{"i":{"e":{";":{"0":"⋈"}}}}},"x":{"b":{"o":{"x":{";":{"0":"⧉"}}}},"d":{"l":{";":{"0":"┐"}},"L":{";":{"0":"╕"}},"r":{";":{"0":"┌"}},"R":{";":{"0":"╒"}}},"D":{"l":{";":{"0":"╖"}},"L":{";":{"0":"╗"}},"r":{";":{"0":"╓"}},"R":{";":{"0":"╔"}}},"h":{";":{"0":"─"},"d":{";":{"0":"┬"}},"D":{";":{"0":"╥"}},"u":{";":{"0":"┴"}},"U":{";":{"0":"╨"}}},"H":{";":{"0":"═"},"d":{";":{"0":"╤"}},"D":{";":{"0":"╦"}},"u":{";":{"0":"╧"}},"U":{";":{"0":"╩"}}},"m":{"i":{"n":{"u":{"s":{";":{"0":"⊟"}}}}}},"p":{"l":{"u":{"s":{";":{"0":"⊞"}}}}},"t":{"i":{"m":{"e":{"s":{";":{"0":"⊠"}}}}}},"u":{"l":{";":{"0":"┘"}},"L":{";":{"0":"╛"}},"r":{";":{"0":"└"}},"R":{";":{"0":"╘"}}},"U":{"l":{";":{"0":"╜"}},"L":{";":{"0":"╝"}},"r":{";":{"0":"╙"}},"R":{";":{"0":"╚"}}},"v":{";":{"0":"│"},"h":{";":{"0":"┼"}},"H":{";":{"0":"╪"}},"l":{";":{"0":"┤"}},"L":{";":{"0":"╡"}},"r":{";":{"0":"├"}},"R":{";":{"0":"╞"}}},"V":{";":{"0":"║"},"h":{";":{"0":"╫"}},"H":{";":{"0":"╬"}},"l":{";":{"0":"╢"}},"L":{";":{"0":"╣"}},"r":{";":{"0":"╟"}},"R":{";":{"0":"╠"}}}}},"p":{"r":{"i":{"m":{"e":{";":{"0":"‵"}}}}}},"r":{"e":{"v":{"e":{";":{"0":"˘"}}}},"v":{"b":{"a":{"r":{"0":"¦",";":{"0":"¦"}}}}}},"s":{"c":{"r":{";":{"0":"𝒷"}}},"e":{"m":{"i":{";":{"0":"⁏"}}}},"i":{"m":{";":{"0":"∽"},"e":{";":{"0":"⋍"}}}},"o":{"l":{"b":{";":{"0":"⧅"}},";":{"0":"\\"},"h":{"s":{"u":{"b":{";":{"0":"⟈"}}}}}}}},"u":{"l":{"l":{";":{"0":"•"},"e":{"t":{";":{"0":"•"}}}}},"m":{"p":{";":{"0":"≎"},"E":{";":{"0":"⪮"}},"e":{";":{"0":"≏"},"q":{";":{"0":"≏"}}}}}}},"B":{"a":{"c":{"k":{"s":{"l":{"a":{"s":{"h":{";":{"0":"∖"}}}}}}}},"r":{"v":{";":{"0":"⫧"}},"w":{"e":{"d":{";":{"0":"⌆"}}}}}},"c":{"y":{";":{"0":"Б"}}},"e":{"c":{"a":{"u":{"s":{"e":{";":{"0":"∵"}}}}}},"r":{"n":{"o":{"u":{"l":{"l":{"i":{"s":{";":{"0":"ℬ"}}}}}}}}},"t":{"a":{";":{"0":"Β"}}}},"f":{"r":{";":{"0":"𝔅"}}},"o":{"p":{"f":{";":{"0":"𝔹"}}}},"r":{"e":{"v":{"e":{";":{"0":"˘"}}}}},"s":{"c":{"r":{";":{"0":"ℬ"}}}},"u":{"m":{"p":{"e":{"q":{";":{"0":"≎"}}}}}}},"C":{"a":{"c":{"u":{"t":{"e":{";":{"0":"Ć"}}}}},"p":{";":{"0":"⋒"},"i":{"t":{"a":{"l":{"D":{"i":{"f":{"f":{"e":{"r":{"e":{"n":{"t":{"i":{"a":{"l":{"D":{";":{"0":"ⅅ"}}}}}}}}}}}}}}}}}}},"y":{"l":{"e":{"y":{"s":{";":{"0":"ℭ"}}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"Č"}}}}},"e":{"d":{"i":{"l":{"0":"Ç",";":{"0":"Ç"}}}}},"i":{"r":{"c":{";":{"0":"Ĉ"}}}},"o":{"n":{"i":{"n":{"t":{";":{"0":"∰"}}}}}}},"d":{"o":{"t":{";":{"0":"Ċ"}}}},"e":{"d":{"i":{"l":{"l":{"a":{";":{"0":"¸"}}}}}},"n":{"t":{"e":{"r":{"D":{"o":{"t":{";":{"0":"·"}}}}}}}}},"f":{"r":{";":{"0":"ℭ"}}},"H":{"c":{"y":{";":{"0":"Ч"}}}},"h":{"i":{";":{"0":"Χ"}}},"i":{"r":{"c":{"l":{"e":{"D":{"o":{"t":{";":{"0":"⊙"}}}},"M":{"i":{"n":{"u":{"s":{";":{"0":"⊖"}}}}}},"P":{"l":{"u":{"s":{";":{"0":"⊕"}}}}},"T":{"i":{"m":{"e":{"s":{";":{"0":"⊗"}}}}}}}}}}},"l":{"o":{"c":{"k":{"w":{"i":{"s":{"e":{"C":{"o":{"n":{"t":{"o":{"u":{"r":{"I":{"n":{"t":{"e":{"g":{"r":{"a":{"l":{";":{"0":"∲"}}}}}}}}}}}}}}}}}}}}}},"s":{"e":{"C":{"u":{"r":{"l":{"y":{"D":{"o":{"u":{"b":{"l":{"e":{"Q":{"u":{"o":{"t":{"e":{";":{"0":"”"}}}}}}}}}}}},"Q":{"u":{"o":{"t":{"e":{";":{"0":"’"}}}}}}}}}}}}}}},"o":{"l":{"o":{"n":{";":{"0":"∷"},"e":{";":{"0":"⩴"}}}}},"n":{"g":{"r":{"u":{"e":{"n":{"t":{";":{"0":"≡"}}}}}}},"i":{"n":{"t":{";":{"0":"∯"}}}},"t":{"o":{"u":{"r":{"I":{"n":{"t":{"e":{"g":{"r":{"a":{"l":{";":{"0":"∮"}}}}}}}}}}}}}},"p":{"f":{";":{"0":"ℂ"}},"r":{"o":{"d":{"u":{"c":{"t":{";":{"0":"∐"}}}}}}}},"u":{"n":{"t":{"e":{"r":{"C":{"l":{"o":{"c":{"k":{"w":{"i":{"s":{"e":{"C":{"o":{"n":{"t":{"o":{"u":{"r":{"I":{"n":{"t":{"e":{"g":{"r":{"a":{"l":{";":{"0":"∳"}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"O":{"P":{"Y":{"0":"©",";":{"0":"©"}}}},"r":{"o":{"s":{"s":{";":{"0":"⨯"}}}}},"s":{"c":{"r":{";":{"0":"𝒞"}}}},"u":{"p":{"C":{"a":{"p":{";":{"0":"≍"}}}},";":{"0":"⋓"}}}},"c":{"a":{"c":{"u":{"t":{"e":{";":{"0":"ć"}}}}},"p":{"a":{"n":{"d":{";":{"0":"⩄"}}}},"b":{"r":{"c":{"u":{"p":{";":{"0":"⩉"}}}}}},"c":{"a":{"p":{";":{"0":"⩋"}}},"u":{"p":{";":{"0":"⩇"}}}},";":{"0":"∩"},"d":{"o":{"t":{";":{"0":"⩀"}}}},"s":{";":{"0":"∩︀"}}},"r":{"e":{"t":{";":{"0":"⁁"}}},"o":{"n":{";":{"0":"ˇ"}}}}},"c":{"a":{"p":{"s":{";":{"0":"⩍"}}},"r":{"o":{"n":{";":{"0":"č"}}}}},"e":{"d":{"i":{"l":{"0":"ç",";":{"0":"ç"}}}}},"i":{"r":{"c":{";":{"0":"ĉ"}}}},"u":{"p":{"s":{";":{"0":"⩌"},"s":{"m":{";":{"0":"⩐"}}}}}}},"d":{"o":{"t":{";":{"0":"ċ"}}}},"e":{"d":{"i":{"l":{"0":"¸",";":{"0":"¸"}}}},"m":{"p":{"t":{"y":{"v":{";":{"0":"⦲"}}}}}},"n":{"t":{"0":"¢",";":{"0":"¢"},"e":{"r":{"d":{"o":{"t":{";":{"0":"·"}}}}}}}}},"f":{"r":{";":{"0":"𝔠"}}},"h":{"c":{"y":{";":{"0":"ч"}}},"e":{"c":{"k":{";":{"0":"✓"},"m":{"a":{"r":{"k":{";":{"0":"✓"}}}}}}}},"i":{";":{"0":"χ"}}},"i":{"r":{"c":{";":{"0":"ˆ"},"e":{"q":{";":{"0":"≗"}}},"l":{"e":{"a":{"r":{"r":{"o":{"w":{"l":{"e":{"f":{"t":{";":{"0":"↺"}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":"↻"}}}}}}}}}}},"d":{"a":{"s":{"t":{";":{"0":"⊛"}}}},"c":{"i":{"r":{"c":{";":{"0":"⊚"}}}}},"d":{"a":{"s":{"h":{";":{"0":"⊝"}}}}},"R":{";":{"0":"®"}},"S":{";":{"0":"Ⓢ"}}}}}},";":{"0":"○"},"E":{";":{"0":"⧃"}},"e":{";":{"0":"≗"}},"f":{"n":{"i":{"n":{"t":{";":{"0":"⨐"}}}}}},"m":{"i":{"d":{";":{"0":"⫯"}}}},"s":{"c":{"i":{"r":{";":{"0":"⧂"}}}}}}},"l":{"u":{"b":{"s":{";":{"0":"♣"},"u":{"i":{"t":{";":{"0":"♣"}}}}}}}},"o":{"l":{"o":{"n":{";":{"0":":"},"e":{";":{"0":"≔"},"q":{";":{"0":"≔"}}}}}},"m":{"m":{"a":{";":{"0":","},"t":{";":{"0":"@"}}}},"p":{";":{"0":"∁"},"f":{"n":{";":{"0":"∘"}}},"l":{"e":{"m":{"e":{"n":{"t":{";":{"0":"∁"}}}}},"x":{"e":{"s":{";":{"0":"ℂ"}}}}}}}},"n":{"g":{";":{"0":"≅"},"d":{"o":{"t":{";":{"0":"⩭"}}}}},"i":{"n":{"t":{";":{"0":"∮"}}}}},"p":{"f":{";":{"0":"𝕔"}},"r":{"o":{"d":{";":{"0":"∐"}}}},"y":{"0":"©",";":{"0":"©"},"s":{"r":{";":{"0":"℗"}}}}}},"r":{"a":{"r":{"r":{";":{"0":"↵"}}}},"o":{"s":{"s":{";":{"0":"✗"}}}}},"s":{"c":{"r":{";":{"0":"𝒸"}}},"u":{"b":{";":{"0":"⫏"},"e":{";":{"0":"⫑"}}},"p":{";":{"0":"⫐"},"e":{";":{"0":"⫒"}}}}},"t":{"d":{"o":{"t":{";":{"0":"⋯"}}}}},"u":{"d":{"a":{"r":{"r":{"l":{";":{"0":"⤸"}},"r":{";":{"0":"⤵"}}}}}},"e":{"p":{"r":{";":{"0":"⋞"}}},"s":{"c":{";":{"0":"⋟"}}}},"l":{"a":{"r":{"r":{";":{"0":"↶"},"p":{";":{"0":"⤽"}}}}}},"p":{"b":{"r":{"c":{"a":{"p":{";":{"0":"⩈"}}}}}},"c":{"a":{"p":{";":{"0":"⩆"}}},"u":{"p":{";":{"0":"⩊"}}}},";":{"0":"∪"},"d":{"o":{"t":{";":{"0":"⊍"}}}},"o":{"r":{";":{"0":"⩅"}}},"s":{";":{"0":"∪︀"}}},"r":{"a":{"r":{"r":{";":{"0":"↷"},"m":{";":{"0":"⤼"}}}}},"l":{"y":{"e":{"q":{"p":{"r":{"e":{"c":{";":{"0":"⋞"}}}}},"s":{"u":{"c":{"c":{";":{"0":"⋟"}}}}}}},"v":{"e":{"e":{";":{"0":"⋎"}}}},"w":{"e":{"d":{"g":{"e":{";":{"0":"⋏"}}}}}}}},"r":{"e":{"n":{"0":"¤",";":{"0":"¤"}}}},"v":{"e":{"a":{"r":{"r":{"o":{"w":{"l":{"e":{"f":{"t":{";":{"0":"↶"}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":"↷"}}}}}}}}}}}}}},"v":{"e":{"e":{";":{"0":"⋎"}}}},"w":{"e":{"d":{";":{"0":"⋏"}}}}},"w":{"c":{"o":{"n":{"i":{"n":{"t":{";":{"0":"∲"}}}}}}},"i":{"n":{"t":{";":{"0":"∱"}}}}},"y":{"l":{"c":{"t":{"y":{";":{"0":"⌭"}}}}}}},"d":{"a":{"g":{"g":{"e":{"r":{";":{"0":"†"}}}}},"l":{"e":{"t":{"h":{";":{"0":"ℸ"}}}}},"r":{"r":{";":{"0":"↓"}}},"s":{"h":{";":{"0":"‐"},"v":{";":{"0":"⊣"}}}}},"A":{"r":{"r":{";":{"0":"⇓"}}}},"b":{"k":{"a":{"r":{"o":{"w":{";":{"0":"⤏"}}}}}},"l":{"a":{"c":{";":{"0":"˝"}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"ď"}}}}},"y":{";":{"0":"д"}}},"d":{"a":{"g":{"g":{"e":{"r":{";":{"0":"‡"}}}}},"r":{"r":{";":{"0":"⇊"}}}},";":{"0":"ⅆ"},"o":{"t":{"s":{"e":{"q":{";":{"0":"⩷"}}}}}}},"e":{"g":{"0":"°",";":{"0":"°"}},"l":{"t":{"a":{";":{"0":"δ"}}}},"m":{"p":{"t":{"y":{"v":{";":{"0":"⦱"}}}}}}},"f":{"i":{"s":{"h":{"t":{";":{"0":"⥿"}}}}},"r":{";":{"0":"𝔡"}}},"H":{"a":{"r":{";":{"0":"⥥"}}}},"h":{"a":{"r":{"l":{";":{"0":"⇃"}},"r":{";":{"0":"⇂"}}}}},"i":{"a":{"m":{";":{"0":"⋄"},"o":{"n":{"d":{";":{"0":"⋄"},"s":{"u":{"i":{"t":{";":{"0":"♦"}}}}}}}},"s":{";":{"0":"♦"}}}},"e":{";":{"0":"¨"}},"g":{"a":{"m":{"m":{"a":{";":{"0":"ϝ"}}}}}},"s":{"i":{"n":{";":{"0":"⋲"}}}},"v":{";":{"0":"÷"},"i":{"d":{"e":{"0":"÷",";":{"0":"÷"},"o":{"n":{"t":{"i":{"m":{"e":{"s":{";":{"0":"⋇"}}}}}}}}}}},"o":{"n":{"x":{";":{"0":"⋇"}}}}}},"j":{"c":{"y":{";":{"0":"ђ"}}}},"l":{"c":{"o":{"r":{"n":{";":{"0":"⌞"}}}},"r":{"o":{"p":{";":{"0":"⌍"}}}}}},"o":{"l":{"l":{"a":{"r":{";":{"0":"$"}}}}},"p":{"f":{";":{"0":"𝕕"}}},"t":{";":{"0":"˙"},"e":{"q":{";":{"0":"≐"},"d":{"o":{"t":{";":{"0":"≑"}}}}}},"m":{"i":{"n":{"u":{"s":{";":{"0":"∸"}}}}}},"p":{"l":{"u":{"s":{";":{"0":"∔"}}}}},"s":{"q":{"u":{"a":{"r":{"e":{";":{"0":"⊡"}}}}}}}},"u":{"b":{"l":{"e":{"b":{"a":{"r":{"w":{"e":{"d":{"g":{"e":{";":{"0":"⌆"}}}}}}}}}}}}},"w":{"n":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↓"}}}}}},"d":{"o":{"w":{"n":{"a":{"r":{"r":{"o":{"w":{"s":{";":{"0":"⇊"}}}}}}}}}}},"h":{"a":{"r":{"p":{"o":{"o":{"n":{"l":{"e":{"f":{"t":{";":{"0":"⇃"}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":"⇂"}}}}}}}}}}}}}}}},"r":{"b":{"k":{"a":{"r":{"o":{"w":{";":{"0":"⤐"}}}}}}},"c":{"o":{"r":{"n":{";":{"0":"⌟"}}}},"r":{"o":{"p":{";":{"0":"⌌"}}}}}},"s":{"c":{"r":{";":{"0":"𝒹"}},"y":{";":{"0":"ѕ"}}},"o":{"l":{";":{"0":"⧶"}}},"t":{"r":{"o":{"k":{";":{"0":"đ"}}}}}},"t":{"d":{"o":{"t":{";":{"0":"⋱"}}}},"r":{"i":{";":{"0":"▿"},"f":{";":{"0":"▾"}}}}},"u":{"a":{"r":{"r":{";":{"0":"⇵"}}}},"h":{"a":{"r":{";":{"0":"⥯"}}}}},"w":{"a":{"n":{"g":{"l":{"e":{";":{"0":"⦦"}}}}}}},"z":{"c":{"y":{";":{"0":"џ"}}},"i":{"g":{"r":{"a":{"r":{"r":{";":{"0":"⟿"}}}}}}}}},"D":{"a":{"g":{"g":{"e":{"r":{";":{"0":"‡"}}}}},"r":{"r":{";":{"0":"↡"}}},"s":{"h":{"v":{";":{"0":"⫤"}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"Ď"}}}}},"y":{";":{"0":"Д"}}},"D":{";":{"0":"ⅅ"},"o":{"t":{"r":{"a":{"h":{"d":{";":{"0":"⤑"}}}}}}}},"e":{"l":{";":{"0":"∇"},"t":{"a":{";":{"0":"Δ"}}}}},"f":{"r":{";":{"0":"𝔇"}}},"i":{"a":{"c":{"r":{"i":{"t":{"i":{"c":{"a":{"l":{"A":{"c":{"u":{"t":{"e":{";":{"0":"´"}}}}}},"D":{"o":{"t":{";":{"0":"˙"}},"u":{"b":{"l":{"e":{"A":{"c":{"u":{"t":{"e":{";":{"0":"˝"}}}}}}}}}}}},"G":{"r":{"a":{"v":{"e":{";":{"0":"`"}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":"˜"}}}}}}}}}}}}}},"m":{"o":{"n":{"d":{";":{"0":"⋄"}}}}}},"f":{"f":{"e":{"r":{"e":{"n":{"t":{"i":{"a":{"l":{"D":{";":{"0":"ⅆ"}}}}}}}}}}}}},"J":{"c":{"y":{";":{"0":"Ђ"}}}},"o":{"p":{"f":{";":{"0":"𝔻"}}},"t":{";":{"0":"¨"},"D":{"o":{"t":{";":{"0":"⃜"}}}},"E":{"q":{"u":{"a":{"l":{";":{"0":"≐"}}}}}}},"u":{"b":{"l":{"e":{"C":{"o":{"n":{"t":{"o":{"u":{"r":{"I":{"n":{"t":{"e":{"g":{"r":{"a":{"l":{";":{"0":"∯"}}}}}}}}}}}}}}}},"D":{"o":{"t":{";":{"0":"¨"}},"w":{"n":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⇓"}}}}}}}}}},"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⇐"}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⇔"}}}}}}}}}}},"T":{"e":{"e":{";":{"0":"⫤"}}}}}}},"o":{"n":{"g":{"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⟸"}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⟺"}}}}}}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⟹"}}}}}}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⇒"}}}}}},"T":{"e":{"e":{";":{"0":"⊨"}}}}}}}}},"U":{"p":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⇑"}}}}}},"D":{"o":{"w":{"n":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⇕"}}}}}}}}}}}},"V":{"e":{"r":{"t":{"i":{"c":{"a":{"l":{"B":{"a":{"r":{";":{"0":"∥"}}}}}}}}}}}}}}}},"w":{"n":{"A":{"r":{"r":{"o":{"w":{"B":{"a":{"r":{";":{"0":"⤓"}}}},";":{"0":"↓"},"U":{"p":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⇵"}}}}}}}}}}}}},"a":{"r":{"r":{"o":{"w":{";":{"0":"⇓"}}}}}},"B":{"r":{"e":{"v":{"e":{";":{"0":"̑"}}}}}},"L":{"e":{"f":{"t":{"R":{"i":{"g":{"h":{"t":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":"⥐"}}}}}}}}}}}},"T":{"e":{"e":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":"⥞"}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":"⥖"}}}},";":{"0":"↽"}}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"T":{"e":{"e":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":"⥟"}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":"⥗"}}}},";":{"0":"⇁"}}}}}}}}}}}},"T":{"e":{"e":{"A":{"r":{"r":{"o":{"w":{";":{"0":"↧"}}}}}},";":{"0":"⊤"}}}}}}},"s":{"c":{"r":{";":{"0":"𝒟"}}},"t":{"r":{"o":{"k":{";":{"0":"Đ"}}}}}},"S":{"c":{"y":{";":{"0":"Ѕ"}}}},"Z":{"c":{"y":{";":{"0":"Џ"}}}}},"E":{"a":{"c":{"u":{"t":{"e":{"0":"É",";":{"0":"É"}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"Ě"}}}}},"i":{"r":{"c":{"0":"Ê",";":{"0":"Ê"}}}},"y":{";":{"0":"Э"}}},"d":{"o":{"t":{";":{"0":"Ė"}}}},"f":{"r":{";":{"0":"𝔈"}}},"g":{"r":{"a":{"v":{"e":{"0":"È",";":{"0":"È"}}}}}},"l":{"e":{"m":{"e":{"n":{"t":{";":{"0":"∈"}}}}}}},"m":{"a":{"c":{"r":{";":{"0":"Ē"}}}},"p":{"t":{"y":{"S":{"m":{"a":{"l":{"l":{"S":{"q":{"u":{"a":{"r":{"e":{";":{"0":"◻"}}}}}}}}}}}},"V":{"e":{"r":{"y":{"S":{"m":{"a":{"l":{"l":{"S":{"q":{"u":{"a":{"r":{"e":{";":{"0":"▫"}}}}}}}}}}}}}}}}}}}},"N":{"G":{";":{"0":"Ŋ"}}},"o":{"g":{"o":{"n":{";":{"0":"Ę"}}}},"p":{"f":{";":{"0":"𝔼"}}}},"p":{"s":{"i":{"l":{"o":{"n":{";":{"0":"Ε"}}}}}}},"q":{"u":{"a":{"l":{";":{"0":"⩵"},"T":{"i":{"l":{"d":{"e":{";":{"0":"≂"}}}}}}}},"i":{"l":{"i":{"b":{"r":{"i":{"u":{"m":{";":{"0":"⇌"}}}}}}}}}}},"s":{"c":{"r":{";":{"0":"ℰ"}}},"i":{"m":{";":{"0":"⩳"}}}},"t":{"a":{";":{"0":"Η"}}},"T":{"H":{"0":"Ð",";":{"0":"Ð"}}},"u":{"m":{"l":{"0":"Ë",";":{"0":"Ë"}}}},"x":{"i":{"s":{"t":{"s":{";":{"0":"∃"}}}}},"p":{"o":{"n":{"e":{"n":{"t":{"i":{"a":{"l":{"E":{";":{"0":"ⅇ"}}}}}}}}}}}}},"e":{"a":{"c":{"u":{"t":{"e":{"0":"é",";":{"0":"é"}}}}},"s":{"t":{"e":{"r":{";":{"0":"⩮"}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"ě"}}}}},"i":{"r":{"c":{"0":"ê",";":{"0":"ê"}},";":{"0":"≖"}}},"o":{"l":{"o":{"n":{";":{"0":"≕"}}}}},"y":{";":{"0":"э"}}},"D":{"D":{"o":{"t":{";":{"0":"⩷"}}}},"o":{"t":{";":{"0":"≑"}}}},"d":{"o":{"t":{";":{"0":"ė"}}}},"e":{";":{"0":"ⅇ"}},"f":{"D":{"o":{"t":{";":{"0":"≒"}}}},"r":{";":{"0":"𝔢"}}},"g":{";":{"0":"⪚"},"r":{"a":{"v":{"e":{"0":"è",";":{"0":"è"}}}}},"s":{";":{"0":"⪖"},"d":{"o":{"t":{";":{"0":"⪘"}}}}}},"l":{";":{"0":"⪙"},"i":{"n":{"t":{"e":{"r":{"s":{";":{"0":"⏧"}}}}}}},"l":{";":{"0":"ℓ"}},"s":{";":{"0":"⪕"},"d":{"o":{"t":{";":{"0":"⪗"}}}}}},"m":{"a":{"c":{"r":{";":{"0":"ē"}}}},"p":{"t":{"y":{";":{"0":"∅"},"s":{"e":{"t":{";":{"0":"∅"}}}},"v":{";":{"0":"∅"}}}}},"s":{"p":{"1":{"3":{";":{"0":" "}},"4":{";":{"0":" "}}},";":{"0":" "}}}},"n":{"g":{";":{"0":"ŋ"}},"s":{"p":{";":{"0":" "}}}},"o":{"g":{"o":{"n":{";":{"0":"ę"}}}},"p":{"f":{";":{"0":"𝕖"}}}},"p":{"a":{"r":{";":{"0":"⋕"},"s":{"l":{";":{"0":"⧣"}}}}},"l":{"u":{"s":{";":{"0":"⩱"}}}},"s":{"i":{";":{"0":"ε"},"l":{"o":{"n":{";":{"0":"ε"}}}},"v":{";":{"0":"ϵ"}}}}},"q":{"c":{"i":{"r":{"c":{";":{"0":"≖"}}}},"o":{"l":{"o":{"n":{";":{"0":"≕"}}}}}},"s":{"i":{"m":{";":{"0":"≂"}}},"l":{"a":{"n":{"t":{"g":{"t":{"r":{";":{"0":"⪖"}}}},"l":{"e":{"s":{"s":{";":{"0":"⪕"}}}}}}}}}},"u":{"a":{"l":{"s":{";":{"0":"="}}}},"e":{"s":{"t":{";":{"0":"≟"}}}},"i":{"v":{";":{"0":"≡"},"D":{"D":{";":{"0":"⩸"}}}}}},"v":{"p":{"a":{"r":{"s":{"l":{";":{"0":"⧥"}}}}}}}},"r":{"a":{"r":{"r":{";":{"0":"⥱"}}}},"D":{"o":{"t":{";":{"0":"≓"}}}}},"s":{"c":{"r":{";":{"0":"ℯ"}}},"d":{"o":{"t":{";":{"0":"≐"}}}},"i":{"m":{";":{"0":"≂"}}}},"t":{"a":{";":{"0":"η"}},"h":{"0":"ð",";":{"0":"ð"}}},"u":{"m":{"l":{"0":"ë",";":{"0":"ë"}}},"r":{"o":{";":{"0":"€"}}}},"x":{"c":{"l":{";":{"0":"!"}}},"i":{"s":{"t":{";":{"0":"∃"}}}},"p":{"e":{"c":{"t":{"a":{"t":{"i":{"o":{"n":{";":{"0":"ℰ"}}}}}}}}},"o":{"n":{"e":{"n":{"t":{"i":{"a":{"l":{"e":{";":{"0":"ⅇ"}}}}}}}}}}}}},"f":{"a":{"l":{"l":{"i":{"n":{"g":{"d":{"o":{"t":{"s":{"e":{"q":{";":{"0":"≒"}}}}}}}}}}}}},"c":{"y":{";":{"0":"ф"}}},"e":{"m":{"a":{"l":{"e":{";":{"0":"♀"}}}}}},"f":{"i":{"l":{"i":{"g":{";":{"0":"ﬃ"}}}}},"l":{"i":{"g":{";":{"0":"ﬀ"}}},"l":{"i":{"g":{";":{"0":"ﬄ"}}}}},"r":{";":{"0":"𝔣"}}},"i":{"l":{"i":{"g":{";":{"0":"ﬁ"}}}}},"j":{"l":{"i":{"g":{";":{"0":"fj"}}}}},"l":{"a":{"t":{";":{"0":"♭"}}},"l":{"i":{"g":{";":{"0":"ﬂ"}}}},"t":{"n":{"s":{";":{"0":"▱"}}}}},"n":{"o":{"f":{";":{"0":"ƒ"}}}},"o":{"p":{"f":{";":{"0":"𝕗"}}},"r":{"a":{"l":{"l":{";":{"0":"∀"}}}},"k":{";":{"0":"⋔"},"v":{";":{"0":"⫙"}}}}},"p":{"a":{"r":{"t":{"i":{"n":{"t":{";":{"0":"⨍"}}}}}}}},"r":{"a":{"c":{"1":{"2":{"0":"½",";":{"0":"½"}},"3":{";":{"0":"⅓"}},"4":{"0":"¼",";":{"0":"¼"}},"5":{";":{"0":"⅕"}},"6":{";":{"0":"⅙"}},"8":{";":{"0":"⅛"}}},"2":{"3":{";":{"0":"⅔"}},"5":{";":{"0":"⅖"}}},"3":{"4":{"0":"¾",";":{"0":"¾"}},"5":{";":{"0":"⅗"}},"8":{";":{"0":"⅜"}}},"4":{"5":{";":{"0":"⅘"}}},"5":{"6":{";":{"0":"⅚"}},"8":{";":{"0":"⅝"}}},"7":{"8":{";":{"0":"⅞"}}}},"s":{"l":{";":{"0":"⁄"}}}},"o":{"w":{"n":{";":{"0":"⌢"}}}}},"s":{"c":{"r":{";":{"0":"𝒻"}}}}},"F":{"c":{"y":{";":{"0":"Ф"}}},"f":{"r":{";":{"0":"𝔉"}}},"i":{"l":{"l":{"e":{"d":{"S":{"m":{"a":{"l":{"l":{"S":{"q":{"u":{"a":{"r":{"e":{";":{"0":"◼"}}}}}}}}}}}},"V":{"e":{"r":{"y":{"S":{"m":{"a":{"l":{"l":{"S":{"q":{"u":{"a":{"r":{"e":{";":{"0":"▪"}}}}}}}}}}}}}}}}}}}}},"o":{"p":{"f":{";":{"0":"𝔽"}}},"r":{"A":{"l":{"l":{";":{"0":"∀"}}}}},"u":{"r":{"i":{"e":{"r":{"t":{"r":{"f":{";":{"0":"ℱ"}}}}}}}}}},"s":{"c":{"r":{";":{"0":"ℱ"}}}}},"g":{"a":{"c":{"u":{"t":{"e":{";":{"0":"ǵ"}}}}},"m":{"m":{"a":{";":{"0":"γ"},"d":{";":{"0":"ϝ"}}}}},"p":{";":{"0":"⪆"}}},"b":{"r":{"e":{"v":{"e":{";":{"0":"ğ"}}}}}},"c":{"i":{"r":{"c":{";":{"0":"ĝ"}}}},"y":{";":{"0":"г"}}},"d":{"o":{"t":{";":{"0":"ġ"}}}},"e":{";":{"0":"≥"},"l":{";":{"0":"⋛"}},"q":{";":{"0":"≥"},"q":{";":{"0":"≧"}},"s":{"l":{"a":{"n":{"t":{";":{"0":"⩾"}}}}}}},"s":{"c":{"c":{";":{"0":"⪩"}}},";":{"0":"⩾"},"d":{"o":{"t":{";":{"0":"⪀"},"o":{";":{"0":"⪂"},"l":{";":{"0":"⪄"}}}}}},"l":{";":{"0":"⋛︀"},"e":{"s":{";":{"0":"⪔"}}}}}},"E":{";":{"0":"≧"},"l":{";":{"0":"⪌"}}},"f":{"r":{";":{"0":"𝔤"}}},"g":{";":{"0":"≫"},"g":{";":{"0":"⋙"}}},"i":{"m":{"e":{"l":{";":{"0":"ℷ"}}}}},"j":{"c":{"y":{";":{"0":"ѓ"}}}},"l":{"a":{";":{"0":"⪥"}},";":{"0":"≷"},"E":{";":{"0":"⪒"}},"j":{";":{"0":"⪤"}}},"n":{"a":{"p":{";":{"0":"⪊"},"p":{"r":{"o":{"x":{";":{"0":"⪊"}}}}}}},"e":{";":{"0":"⪈"},"q":{";":{"0":"⪈"},"q":{";":{"0":"≩"}}}},"E":{";":{"0":"≩"}},"s":{"i":{"m":{";":{"0":"⋧"}}}}},"o":{"p":{"f":{";":{"0":"𝕘"}}}},"r":{"a":{"v":{"e":{";":{"0":"`"}}}}},"s":{"c":{"r":{";":{"0":"ℊ"}}},"i":{"m":{";":{"0":"≳"},"e":{";":{"0":"⪎"}},"l":{";":{"0":"⪐"}}}}},"t":{"0":">","c":{"c":{";":{"0":"⪧"}},"i":{"r":{";":{"0":"⩺"}}}},";":{"0":">"},"d":{"o":{"t":{";":{"0":"⋗"}}}},"l":{"P":{"a":{"r":{";":{"0":"⦕"}}}}},"q":{"u":{"e":{"s":{"t":{";":{"0":"⩼"}}}}}},"r":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":"⪆"}}}}}},"r":{"r":{";":{"0":"⥸"}}}},"d":{"o":{"t":{";":{"0":"⋗"}}}},"e":{"q":{"l":{"e":{"s":{"s":{";":{"0":"⋛"}}}}},"q":{"l":{"e":{"s":{"s":{";":{"0":"⪌"}}}}}}}},"l":{"e":{"s":{"s":{";":{"0":"≷"}}}}},"s":{"i":{"m":{";":{"0":"≳"}}}}}},"v":{"e":{"r":{"t":{"n":{"e":{"q":{"q":{";":{"0":"≩︀"}}}}}}}},"n":{"E":{";":{"0":"≩︀"}}}}},"G":{"a":{"m":{"m":{"a":{";":{"0":"Γ"},"d":{";":{"0":"Ϝ"}}}}}},"b":{"r":{"e":{"v":{"e":{";":{"0":"Ğ"}}}}}},"c":{"e":{"d":{"i":{"l":{";":{"0":"Ģ"}}}}},"i":{"r":{"c":{";":{"0":"Ĝ"}}}},"y":{";":{"0":"Г"}}},"d":{"o":{"t":{";":{"0":"Ġ"}}}},"f":{"r":{";":{"0":"𝔊"}}},"g":{";":{"0":"⋙"}},"J":{"c":{"y":{";":{"0":"Ѓ"}}}},"o":{"p":{"f":{";":{"0":"𝔾"}}}},"r":{"e":{"a":{"t":{"e":{"r":{"E":{"q":{"u":{"a":{"l":{";":{"0":"≥"},"L":{"e":{"s":{"s":{";":{"0":"⋛"}}}}}}}}}},"F":{"u":{"l":{"l":{"E":{"q":{"u":{"a":{"l":{";":{"0":"≧"}}}}}}}}}},"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":"⪢"}}}}}}}},"L":{"e":{"s":{"s":{";":{"0":"≷"}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":"⩾"}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":"≳"}}}}}}}}}}}},"s":{"c":{"r":{";":{"0":"𝒢"}}}},"T":{"0":">",";":{"0":">"}},"t":{";":{"0":"≫"}}},"H":{"a":{"c":{"e":{"k":{";":{"0":"ˇ"}}}},"t":{";":{"0":"^"}}},"A":{"R":{"D":{"c":{"y":{";":{"0":"Ъ"}}}}}},"c":{"i":{"r":{"c":{";":{"0":"Ĥ"}}}}},"f":{"r":{";":{"0":"ℌ"}}},"i":{"l":{"b":{"e":{"r":{"t":{"S":{"p":{"a":{"c":{"e":{";":{"0":"ℋ"}}}}}}}}}}}},"o":{"p":{"f":{";":{"0":"ℍ"}}},"r":{"i":{"z":{"o":{"n":{"t":{"a":{"l":{"L":{"i":{"n":{"e":{";":{"0":"─"}}}}}}}}}}}}}},"s":{"c":{"r":{";":{"0":"ℋ"}}},"t":{"r":{"o":{"k":{";":{"0":"Ħ"}}}}}},"u":{"m":{"p":{"D":{"o":{"w":{"n":{"H":{"u":{"m":{"p":{";":{"0":"≎"}}}}}}}}},"E":{"q":{"u":{"a":{"l":{";":{"0":"≏"}}}}}}}}}},"h":{"a":{"i":{"r":{"s":{"p":{";":{"0":" "}}}}},"l":{"f":{";":{"0":"½"}}},"m":{"i":{"l":{"t":{";":{"0":"ℋ"}}}}},"r":{"d":{"c":{"y":{";":{"0":"ъ"}}}},"r":{"c":{"i":{"r":{";":{"0":"⥈"}}}},";":{"0":"↔"},"w":{";":{"0":"↭"}}}}},"A":{"r":{"r":{";":{"0":"⇔"}}}},"b":{"a":{"r":{";":{"0":"ℏ"}}}},"c":{"i":{"r":{"c":{";":{"0":"ĥ"}}}}},"e":{"a":{"r":{"t":{"s":{";":{"0":"♥"},"u":{"i":{"t":{";":{"0":"♥"}}}}}}}},"l":{"l":{"i":{"p":{";":{"0":"…"}}}}},"r":{"c":{"o":{"n":{";":{"0":"⊹"}}}}}},"f":{"r":{";":{"0":"𝔥"}}},"k":{"s":{"e":{"a":{"r":{"o":{"w":{";":{"0":"⤥"}}}}}},"w":{"a":{"r":{"o":{"w":{";":{"0":"⤦"}}}}}}}},"o":{"a":{"r":{"r":{";":{"0":"⇿"}}}},"m":{"t":{"h":{"t":{";":{"0":"∻"}}}}},"o":{"k":{"l":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↩"}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↪"}}}}}}}}}}}}},"p":{"f":{";":{"0":"𝕙"}}},"r":{"b":{"a":{"r":{";":{"0":"―"}}}}}},"s":{"c":{"r":{";":{"0":"𝒽"}}},"l":{"a":{"s":{"h":{";":{"0":"ℏ"}}}}},"t":{"r":{"o":{"k":{";":{"0":"ħ"}}}}}},"y":{"b":{"u":{"l":{"l":{";":{"0":"⁃"}}}}},"p":{"h":{"e":{"n":{";":{"0":"‐"}}}}}}},"I":{"a":{"c":{"u":{"t":{"e":{"0":"Í",";":{"0":"Í"}}}}}},"c":{"i":{"r":{"c":{"0":"Î",";":{"0":"Î"}}}},"y":{";":{"0":"И"}}},"d":{"o":{"t":{";":{"0":"İ"}}}},"E":{"c":{"y":{";":{"0":"Е"}}}},"f":{"r":{";":{"0":"ℑ"}}},"g":{"r":{"a":{"v":{"e":{"0":"Ì",";":{"0":"Ì"}}}}}},"J":{"l":{"i":{"g":{";":{"0":"Ĳ"}}}}},"m":{"a":{"c":{"r":{";":{"0":"Ī"}}},"g":{"i":{"n":{"a":{"r":{"y":{"I":{";":{"0":"ⅈ"}}}}}}}}},";":{"0":"ℑ"},"p":{"l":{"i":{"e":{"s":{";":{"0":"⇒"}}}}}}},"n":{"t":{";":{"0":"∬"},"e":{"g":{"r":{"a":{"l":{";":{"0":"∫"}}}}},"r":{"s":{"e":{"c":{"t":{"i":{"o":{"n":{";":{"0":"⋂"}}}}}}}}}}},"v":{"i":{"s":{"i":{"b":{"l":{"e":{"C":{"o":{"m":{"m":{"a":{";":{"0":"⁣"}}}}}},"T":{"i":{"m":{"e":{"s":{";":{"0":"⁢"}}}}}}}}}}}}}},"O":{"c":{"y":{";":{"0":"Ё"}}}},"o":{"g":{"o":{"n":{";":{"0":"Į"}}}},"p":{"f":{";":{"0":"𝕀"}}},"t":{"a":{";":{"0":"Ι"}}}},"s":{"c":{"r":{";":{"0":"ℐ"}}}},"t":{"i":{"l":{"d":{"e":{";":{"0":"Ĩ"}}}}}},"u":{"k":{"c":{"y":{";":{"0":"І"}}}},"m":{"l":{"0":"Ï",";":{"0":"Ï"}}}}},"i":{"a":{"c":{"u":{"t":{"e":{"0":"í",";":{"0":"í"}}}}}},"c":{";":{"0":"⁣"},"i":{"r":{"c":{"0":"î",";":{"0":"î"}}}},"y":{";":{"0":"и"}}},"e":{"c":{"y":{";":{"0":"е"}}},"x":{"c":{"l":{"0":"¡",";":{"0":"¡"}}}}},"f":{"f":{";":{"0":"⇔"}},"r":{";":{"0":"𝔦"}}},"g":{"r":{"a":{"v":{"e":{"0":"ì",";":{"0":"ì"}}}}}},"i":{";":{"0":"ⅈ"},"i":{"i":{"n":{"t":{";":{"0":"⨌"}}}},"n":{"t":{";":{"0":"∭"}}}},"n":{"f":{"i":{"n":{";":{"0":"⧜"}}}}},"o":{"t":{"a":{";":{"0":"℩"}}}}},"j":{"l":{"i":{"g":{";":{"0":"ĳ"}}}}},"m":{"a":{"c":{"r":{";":{"0":"ī"}}},"g":{"e":{";":{"0":"ℑ"}},"l":{"i":{"n":{"e":{";":{"0":"ℐ"}}}}},"p":{"a":{"r":{"t":{";":{"0":"ℑ"}}}}}},"t":{"h":{";":{"0":"ı"}}}},"o":{"f":{";":{"0":"⊷"}}},"p":{"e":{"d":{";":{"0":"Ƶ"}}}}},"n":{"c":{"a":{"r":{"e":{";":{"0":"℅"}}}}},";":{"0":"∈"},"f":{"i":{"n":{";":{"0":"∞"},"t":{"i":{"e":{";":{"0":"⧝"}}}}}}},"o":{"d":{"o":{"t":{";":{"0":"ı"}}}}},"t":{"c":{"a":{"l":{";":{"0":"⊺"}}}},";":{"0":"∫"},"e":{"g":{"e":{"r":{"s":{";":{"0":"ℤ"}}}}},"r":{"c":{"a":{"l":{";":{"0":"⊺"}}}}}},"l":{"a":{"r":{"h":{"k":{";":{"0":"⨗"}}}}}},"p":{"r":{"o":{"d":{";":{"0":"⨼"}}}}}}},"o":{"c":{"y":{";":{"0":"ё"}}},"g":{"o":{"n":{";":{"0":"į"}}}},"p":{"f":{";":{"0":"𝕚"}}},"t":{"a":{";":{"0":"ι"}}}},"p":{"r":{"o":{"d":{";":{"0":"⨼"}}}}},"q":{"u":{"e":{"s":{"t":{"0":"¿",";":{"0":"¿"}}}}}},"s":{"c":{"r":{";":{"0":"𝒾"}}},"i":{"n":{";":{"0":"∈"},"d":{"o":{"t":{";":{"0":"⋵"}}}},"E":{";":{"0":"⋹"}},"s":{";":{"0":"⋴"},"v":{";":{"0":"⋳"}}},"v":{";":{"0":"∈"}}}}},"t":{";":{"0":"⁢"},"i":{"l":{"d":{"e":{";":{"0":"ĩ"}}}}}},"u":{"k":{"c":{"y":{";":{"0":"і"}}}},"m":{"l":{"0":"ï",";":{"0":"ï"}}}}},"J":{"c":{"i":{"r":{"c":{";":{"0":"Ĵ"}}}},"y":{";":{"0":"Й"}}},"f":{"r":{";":{"0":"𝔍"}}},"o":{"p":{"f":{";":{"0":"𝕁"}}}},"s":{"c":{"r":{";":{"0":"𝒥"}}},"e":{"r":{"c":{"y":{";":{"0":"Ј"}}}}}},"u":{"k":{"c":{"y":{";":{"0":"Є"}}}}}},"j":{"c":{"i":{"r":{"c":{";":{"0":"ĵ"}}}},"y":{";":{"0":"й"}}},"f":{"r":{";":{"0":"𝔧"}}},"m":{"a":{"t":{"h":{";":{"0":"ȷ"}}}}},"o":{"p":{"f":{";":{"0":"𝕛"}}}},"s":{"c":{"r":{";":{"0":"𝒿"}}},"e":{"r":{"c":{"y":{";":{"0":"ј"}}}}}},"u":{"k":{"c":{"y":{";":{"0":"є"}}}}}},"K":{"a":{"p":{"p":{"a":{";":{"0":"Κ"}}}}},"c":{"e":{"d":{"i":{"l":{";":{"0":"Ķ"}}}}},"y":{";":{"0":"К"}}},"f":{"r":{";":{"0":"𝔎"}}},"H":{"c":{"y":{";":{"0":"Х"}}}},"J":{"c":{"y":{";":{"0":"Ќ"}}}},"o":{"p":{"f":{";":{"0":"𝕂"}}}},"s":{"c":{"r":{";":{"0":"𝒦"}}}}},"k":{"a":{"p":{"p":{"a":{";":{"0":"κ"},"v":{";":{"0":"ϰ"}}}}}},"c":{"e":{"d":{"i":{"l":{";":{"0":"ķ"}}}}},"y":{";":{"0":"к"}}},"f":{"r":{";":{"0":"𝔨"}}},"g":{"r":{"e":{"e":{"n":{";":{"0":"ĸ"}}}}}},"h":{"c":{"y":{";":{"0":"х"}}}},"j":{"c":{"y":{";":{"0":"ќ"}}}},"o":{"p":{"f":{";":{"0":"𝕜"}}}},"s":{"c":{"r":{";":{"0":"𝓀"}}}}},"l":{"A":{"a":{"r":{"r":{";":{"0":"⇚"}}}},"r":{"r":{";":{"0":"⇐"}}},"t":{"a":{"i":{"l":{";":{"0":"⤛"}}}}}},"a":{"c":{"u":{"t":{"e":{";":{"0":"ĺ"}}}}},"e":{"m":{"p":{"t":{"y":{"v":{";":{"0":"⦴"}}}}}}},"g":{"r":{"a":{"n":{";":{"0":"ℒ"}}}}},"m":{"b":{"d":{"a":{";":{"0":"λ"}}}}},"n":{"g":{";":{"0":"⟨"},"d":{";":{"0":"⦑"}},"l":{"e":{";":{"0":"⟨"}}}}},"p":{";":{"0":"⪅"}},"q":{"u":{"o":{"0":"«",";":{"0":"«"}}}},"r":{"r":{"b":{";":{"0":"⇤"},"f":{"s":{";":{"0":"⤟"}}}},";":{"0":"←"},"f":{"s":{";":{"0":"⤝"}}},"h":{"k":{";":{"0":"↩"}}},"l":{"p":{";":{"0":"↫"}}},"p":{"l":{";":{"0":"⤹"}}},"s":{"i":{"m":{";":{"0":"⥳"}}}},"t":{"l":{";":{"0":"↢"}}}}},"t":{"a":{"i":{"l":{";":{"0":"⤙"}}}},";":{"0":"⪫"},"e":{";":{"0":"⪭"},"s":{";":{"0":"⪭︀"}}}}},"b":{"a":{"r":{"r":{";":{"0":"⤌"}}}},"b":{"r":{"k":{";":{"0":"❲"}}}},"r":{"a":{"c":{"e":{";":{"0":"{"}},"k":{";":{"0":"["}}}},"k":{"e":{";":{"0":"⦋"}},"s":{"l":{"d":{";":{"0":"⦏"}},"u":{";":{"0":"⦍"}}}}}}},"B":{"a":{"r":{"r":{";":{"0":"⤎"}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"ľ"}}}}},"e":{"d":{"i":{"l":{";":{"0":"ļ"}}}},"i":{"l":{";":{"0":"⌈"}}}},"u":{"b":{";":{"0":"{"}}},"y":{";":{"0":"л"}}},"d":{"c":{"a":{";":{"0":"⤶"}}},"q":{"u":{"o":{";":{"0":"“"},"r":{";":{"0":"„"}}}}},"r":{"d":{"h":{"a":{"r":{";":{"0":"⥧"}}}}},"u":{"s":{"h":{"a":{"r":{";":{"0":"⥋"}}}}}}},"s":{"h":{";":{"0":"↲"}}}},"e":{";":{"0":"≤"},"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"←"},"t":{"a":{"i":{"l":{";":{"0":"↢"}}}}}}}}}},"h":{"a":{"r":{"p":{"o":{"o":{"n":{"d":{"o":{"w":{"n":{";":{"0":"↽"}}}}},"u":{"p":{";":{"0":"↼"}}}}}}}}}},"l":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{"s":{";":{"0":"⇇"}}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↔"},"s":{";":{"0":"⇆"}}}}}}},"h":{"a":{"r":{"p":{"o":{"o":{"n":{"s":{";":{"0":"⇋"}}}}}}}}},"s":{"q":{"u":{"i":{"g":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↭"}}}}}}}}}}}}}}}},"t":{"h":{"r":{"e":{"e":{"t":{"i":{"m":{"e":{"s":{";":{"0":"⋋"}}}}}}}}}}}}},"g":{";":{"0":"⋚"}},"q":{";":{"0":"≤"},"q":{";":{"0":"≦"}},"s":{"l":{"a":{"n":{"t":{";":{"0":"⩽"}}}}}}},"s":{"c":{"c":{";":{"0":"⪨"}}},";":{"0":"⩽"},"d":{"o":{"t":{";":{"0":"⩿"},"o":{";":{"0":"⪁"},"r":{";":{"0":"⪃"}}}}}},"g":{";":{"0":"⋚︀"},"e":{"s":{";":{"0":"⪓"}}}},"s":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":"⪅"}}}}}}},"d":{"o":{"t":{";":{"0":"⋖"}}}},"e":{"q":{"g":{"t":{"r":{";":{"0":"⋚"}}}},"q":{"g":{"t":{"r":{";":{"0":"⪋"}}}}}}},"g":{"t":{"r":{";":{"0":"≶"}}}},"s":{"i":{"m":{";":{"0":"≲"}}}}}}},"E":{";":{"0":"≦"},"g":{";":{"0":"⪋"}}},"f":{"i":{"s":{"h":{"t":{";":{"0":"⥼"}}}}},"l":{"o":{"o":{"r":{";":{"0":"⌊"}}}}},"r":{";":{"0":"𝔩"}}},"g":{";":{"0":"≶"},"E":{";":{"0":"⪑"}}},"H":{"a":{"r":{";":{"0":"⥢"}}}},"h":{"a":{"r":{"d":{";":{"0":"↽"}},"u":{";":{"0":"↼"},"l":{";":{"0":"⥪"}}}}},"b":{"l":{"k":{";":{"0":"▄"}}}}},"j":{"c":{"y":{";":{"0":"љ"}}}},"l":{"a":{"r":{"r":{";":{"0":"⇇"}}}},";":{"0":"≪"},"c":{"o":{"r":{"n":{"e":{"r":{";":{"0":"⌞"}}}}}}},"h":{"a":{"r":{"d":{";":{"0":"⥫"}}}}},"t":{"r":{"i":{";":{"0":"◺"}}}}},"m":{"i":{"d":{"o":{"t":{";":{"0":"ŀ"}}}}},"o":{"u":{"s":{"t":{"a":{"c":{"h":{"e":{";":{"0":"⎰"}}}}},";":{"0":"⎰"}}}}}},"n":{"a":{"p":{";":{"0":"⪉"},"p":{"r":{"o":{"x":{";":{"0":"⪉"}}}}}}},"e":{";":{"0":"⪇"},"q":{";":{"0":"⪇"},"q":{";":{"0":"≨"}}}},"E":{";":{"0":"≨"}},"s":{"i":{"m":{";":{"0":"⋦"}}}}},"o":{"a":{"n":{"g":{";":{"0":"⟬"}}},"r":{"r":{";":{"0":"⇽"}}}},"b":{"r":{"k":{";":{"0":"⟦"}}}},"n":{"g":{"l":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⟵"}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⟷"}}}}}}}}}}}}}}},"m":{"a":{"p":{"s":{"t":{"o":{";":{"0":"⟼"}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⟶"}}}}}}}}}}}}},"o":{"p":{"a":{"r":{"r":{"o":{"w":{"l":{"e":{"f":{"t":{";":{"0":"↫"}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":"↬"}}}}}}}}}}}}},"p":{"a":{"r":{";":{"0":"⦅"}}},"f":{";":{"0":"𝕝"}},"l":{"u":{"s":{";":{"0":"⨭"}}}}},"t":{"i":{"m":{"e":{"s":{";":{"0":"⨴"}}}}}},"w":{"a":{"s":{"t":{";":{"0":"∗"}}}},"b":{"a":{"r":{";":{"0":"_"}}}}},"z":{";":{"0":"◊"},"e":{"n":{"g":{"e":{";":{"0":"◊"}}}}},"f":{";":{"0":"⧫"}}}},"p":{"a":{"r":{";":{"0":"("},"l":{"t":{";":{"0":"⦓"}}}}}},"r":{"a":{"r":{"r":{";":{"0":"⇆"}}}},"c":{"o":{"r":{"n":{"e":{"r":{";":{"0":"⌟"}}}}}}},"h":{"a":{"r":{";":{"0":"⇋"},"d":{";":{"0":"⥭"}}}}},"m":{";":{"0":"‎"}},"t":{"r":{"i":{";":{"0":"⊿"}}}}},"s":{"a":{"q":{"u":{"o":{";":{"0":"‹"}}}}},"c":{"r":{";":{"0":"𝓁"}}},"h":{";":{"0":"↰"}},"i":{"m":{";":{"0":"≲"},"e":{";":{"0":"⪍"}},"g":{";":{"0":"⪏"}}}},"q":{"b":{";":{"0":"["}},"u":{"o":{";":{"0":"‘"},"r":{";":{"0":"‚"}}}}},"t":{"r":{"o":{"k":{";":{"0":"ł"}}}}}},"t":{"0":"<","c":{"c":{";":{"0":"⪦"}},"i":{"r":{";":{"0":"⩹"}}}},";":{"0":"<"},"d":{"o":{"t":{";":{"0":"⋖"}}}},"h":{"r":{"e":{"e":{";":{"0":"⋋"}}}}},"i":{"m":{"e":{"s":{";":{"0":"⋉"}}}}},"l":{"a":{"r":{"r":{";":{"0":"⥶"}}}}},"q":{"u":{"e":{"s":{"t":{";":{"0":"⩻"}}}}}},"r":{"i":{";":{"0":"◃"},"e":{";":{"0":"⊴"}},"f":{";":{"0":"◂"}}},"P":{"a":{"r":{";":{"0":"⦖"}}}}}},"u":{"r":{"d":{"s":{"h":{"a":{"r":{";":{"0":"⥊"}}}}}},"u":{"h":{"a":{"r":{";":{"0":"⥦"}}}}}}},"v":{"e":{"r":{"t":{"n":{"e":{"q":{"q":{";":{"0":"≨︀"}}}}}}}},"n":{"E":{";":{"0":"≨︀"}}}}},"L":{"a":{"c":{"u":{"t":{"e":{";":{"0":"Ĺ"}}}}},"m":{"b":{"d":{"a":{";":{"0":"Λ"}}}}},"n":{"g":{";":{"0":"⟪"}}},"p":{"l":{"a":{"c":{"e":{"t":{"r":{"f":{";":{"0":"ℒ"}}}}}}}}},"r":{"r":{";":{"0":"↞"}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"Ľ"}}}}},"e":{"d":{"i":{"l":{";":{"0":"Ļ"}}}}},"y":{";":{"0":"Л"}}},"e":{"f":{"t":{"A":{"n":{"g":{"l":{"e":{"B":{"r":{"a":{"c":{"k":{"e":{"t":{";":{"0":"⟨"}}}}}}}}}}}},"r":{"r":{"o":{"w":{"B":{"a":{"r":{";":{"0":"⇤"}}}},";":{"0":"←"},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⇆"}}}}}}}}}}}}}}}},"a":{"r":{"r":{"o":{"w":{";":{"0":"⇐"}}}}}},"C":{"e":{"i":{"l":{"i":{"n":{"g":{";":{"0":"⌈"}}}}}}}},"D":{"o":{"u":{"b":{"l":{"e":{"B":{"r":{"a":{"c":{"k":{"e":{"t":{";":{"0":"⟦"}}}}}}}}}}}},"w":{"n":{"T":{"e":{"e":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":"⥡"}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":"⥙"}}}},";":{"0":"⇃"}}}}}}}}}}},"F":{"l":{"o":{"o":{"r":{";":{"0":"⌊"}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"↔"}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":"⥎"}}}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⇔"}}}}}}}}}}},"T":{"e":{"e":{"A":{"r":{"r":{"o":{"w":{";":{"0":"↤"}}}}}},";":{"0":"⊣"},"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":"⥚"}}}}}}}}},"r":{"i":{"a":{"n":{"g":{"l":{"e":{"B":{"a":{"r":{";":{"0":"⧏"}}}},";":{"0":"⊲"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⊴"}}}}}}}}}}}}}},"U":{"p":{"D":{"o":{"w":{"n":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":"⥑"}}}}}}}}}}},"T":{"e":{"e":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":"⥠"}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":"⥘"}}}},";":{"0":"↿"}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":"⥒"}}}},";":{"0":"↼"}}}}}}}}},"s":{"s":{"E":{"q":{"u":{"a":{"l":{"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":"⋚"}}}}}}}}}}}}},"F":{"u":{"l":{"l":{"E":{"q":{"u":{"a":{"l":{";":{"0":"≦"}}}}}}}}}},"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":"≶"}}}}}}}},"L":{"e":{"s":{"s":{";":{"0":"⪡"}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":"⩽"}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":"≲"}}}}}}}}},"f":{"r":{";":{"0":"𝔏"}}},"J":{"c":{"y":{";":{"0":"Љ"}}}},"l":{";":{"0":"⋘"},"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⇚"}}}}}}}}}},"m":{"i":{"d":{"o":{"t":{";":{"0":"Ŀ"}}}}}},"o":{"n":{"g":{"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⟵"}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⟷"}}}}}}}}}}}}}}},"l":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⟸"}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⟺"}}}}}}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⟶"}}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⟹"}}}}}}}}}}}}},"p":{"f":{";":{"0":"𝕃"}}},"w":{"e":{"r":{"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"↙"}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"↘"}}}}}}}}}}}}}}},"s":{"c":{"r":{";":{"0":"ℒ"}}},"h":{";":{"0":"↰"}},"t":{"r":{"o":{"k":{";":{"0":"Ł"}}}}}},"T":{"0":"<",";":{"0":"<"}},"t":{";":{"0":"≪"}}},"m":{"a":{"c":{"r":{"0":"¯",";":{"0":"¯"}}},"l":{"e":{";":{"0":"♂"}},"t":{";":{"0":"✠"},"e":{"s":{"e":{";":{"0":"✠"}}}}}},"p":{";":{"0":"↦"},"s":{"t":{"o":{";":{"0":"↦"},"d":{"o":{"w":{"n":{";":{"0":"↧"}}}}},"l":{"e":{"f":{"t":{";":{"0":"↤"}}}}},"u":{"p":{";":{"0":"↥"}}}}}}},"r":{"k":{"e":{"r":{";":{"0":"▮"}}}}}},"c":{"o":{"m":{"m":{"a":{";":{"0":"⨩"}}}}},"y":{";":{"0":"м"}}},"d":{"a":{"s":{"h":{";":{"0":"—"}}}}},"D":{"D":{"o":{"t":{";":{"0":"∺"}}}}},"e":{"a":{"s":{"u":{"r":{"e":{"d":{"a":{"n":{"g":{"l":{"e":{";":{"0":"∡"}}}}}}}}}}}}},"f":{"r":{";":{"0":"𝔪"}}},"h":{"o":{";":{"0":"℧"}}},"i":{"c":{"r":{"o":{"0":"µ",";":{"0":"µ"}}}},"d":{"a":{"s":{"t":{";":{"0":"*"}}}},"c":{"i":{"r":{";":{"0":"⫰"}}}},";":{"0":"∣"},"d":{"o":{"t":{"0":"·",";":{"0":"·"}}}}},"n":{"u":{"s":{"b":{";":{"0":"⊟"}},";":{"0":"−"},"d":{";":{"0":"∸"},"u":{";":{"0":"⨪"}}}}}}},"l":{"c":{"p":{";":{"0":"⫛"}}},"d":{"r":{";":{"0":"…"}}}},"n":{"p":{"l":{"u":{"s":{";":{"0":"∓"}}}}}},"o":{"d":{"e":{"l":{"s":{";":{"0":"⊧"}}}}},"p":{"f":{";":{"0":"𝕞"}}}},"p":{";":{"0":"∓"}},"s":{"c":{"r":{";":{"0":"𝓂"}}},"t":{"p":{"o":{"s":{";":{"0":"∾"}}}}}},"u":{";":{"0":"μ"},"l":{"t":{"i":{"m":{"a":{"p":{";":{"0":"⊸"}}}}}}},"m":{"a":{"p":{";":{"0":"⊸"}}}}}},"M":{"a":{"p":{";":{"0":"⤅"}}},"c":{"y":{";":{"0":"М"}}},"e":{"d":{"i":{"u":{"m":{"S":{"p":{"a":{"c":{"e":{";":{"0":" "}}}}}}}}}},"l":{"l":{"i":{"n":{"t":{"r":{"f":{";":{"0":"ℳ"}}}}}}}}},"f":{"r":{";":{"0":"𝔐"}}},"i":{"n":{"u":{"s":{"P":{"l":{"u":{"s":{";":{"0":"∓"}}}}}}}}},"o":{"p":{"f":{";":{"0":"𝕄"}}}},"s":{"c":{"r":{";":{"0":"ℳ"}}}},"u":{";":{"0":"Μ"}}},"n":{"a":{"b":{"l":{"a":{";":{"0":"∇"}}}},"c":{"u":{"t":{"e":{";":{"0":"ń"}}}}},"n":{"g":{";":{"0":"∠⃒"}}},"p":{";":{"0":"≉"},"E":{";":{"0":"⩰̸"}},"i":{"d":{";":{"0":"≋̸"}}},"o":{"s":{";":{"0":"ŉ"}}},"p":{"r":{"o":{"x":{";":{"0":"≉"}}}}}},"t":{"u":{"r":{"a":{"l":{";":{"0":"♮"},"s":{";":{"0":"ℕ"}}}},";":{"0":"♮"}}}}},"b":{"s":{"p":{"0":" ",";":{"0":" "}}},"u":{"m":{"p":{";":{"0":"≎̸"},"e":{";":{"0":"≏̸"}}}}}},"c":{"a":{"p":{";":{"0":"⩃"}},"r":{"o":{"n":{";":{"0":"ň"}}}}},"e":{"d":{"i":{"l":{";":{"0":"ņ"}}}}},"o":{"n":{"g":{";":{"0":"≇"},"d":{"o":{"t":{";":{"0":"⩭̸"}}}}}}},"u":{"p":{";":{"0":"⩂"}}},"y":{";":{"0":"н"}}},"d":{"a":{"s":{"h":{";":{"0":"–"}}}}},"e":{"a":{"r":{"h":{"k":{";":{"0":"⤤"}}},"r":{";":{"0":"↗"},"o":{"w":{";":{"0":"↗"}}}}}},"A":{"r":{"r":{";":{"0":"⇗"}}}},";":{"0":"≠"},"d":{"o":{"t":{";":{"0":"≐̸"}}}},"q":{"u":{"i":{"v":{";":{"0":"≢"}}}}},"s":{"e":{"a":{"r":{";":{"0":"⤨"}}}},"i":{"m":{";":{"0":"≂̸"}}}},"x":{"i":{"s":{"t":{";":{"0":"∄"},"s":{";":{"0":"∄"}}}}}}},"f":{"r":{";":{"0":"𝔫"}}},"g":{"E":{";":{"0":"≧̸"}},"e":{";":{"0":"≱"},"q":{";":{"0":"≱"},"q":{";":{"0":"≧̸"}},"s":{"l":{"a":{"n":{"t":{";":{"0":"⩾̸"}}}}}}},"s":{";":{"0":"⩾̸"}}},"s":{"i":{"m":{";":{"0":"≵"}}}},"t":{";":{"0":"≯"},"r":{";":{"0":"≯"}}}},"G":{"g":{";":{"0":"⋙̸"}},"t":{";":{"0":"≫⃒"},"v":{";":{"0":"≫̸"}}}},"h":{"a":{"r":{"r":{";":{"0":"↮"}}}},"A":{"r":{"r":{";":{"0":"⇎"}}}},"p":{"a":{"r":{";":{"0":"⫲"}}}}},"i":{";":{"0":"∋"},"s":{";":{"0":"⋼"},"d":{";":{"0":"⋺"}}},"v":{";":{"0":"∋"}}},"j":{"c":{"y":{";":{"0":"њ"}}}},"l":{"a":{"r":{"r":{";":{"0":"↚"}}}},"A":{"r":{"r":{";":{"0":"⇍"}}}},"d":{"r":{";":{"0":"‥"}}},"E":{";":{"0":"≦̸"}},"e":{";":{"0":"≰"},"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↚"}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↮"}}}}}}}}}}}}},"q":{";":{"0":"≰"},"q":{";":{"0":"≦̸"}},"s":{"l":{"a":{"n":{"t":{";":{"0":"⩽̸"}}}}}}},"s":{";":{"0":"⩽̸"},"s":{";":{"0":"≮"}}}},"s":{"i":{"m":{";":{"0":"≴"}}}},"t":{";":{"0":"≮"},"r":{"i":{";":{"0":"⋪"},"e":{";":{"0":"⋬"}}}}}},"L":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⇍"}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⇎"}}}}}}}}}}}}}},"l":{";":{"0":"⋘̸"}},"t":{";":{"0":"≪⃒"},"v":{";":{"0":"≪̸"}}}},"m":{"i":{"d":{";":{"0":"∤"}}}},"o":{"p":{"f":{";":{"0":"𝕟"}}},"t":{"0":"¬",";":{"0":"¬"},"i":{"n":{";":{"0":"∉"},"d":{"o":{"t":{";":{"0":"⋵̸"}}}},"E":{";":{"0":"⋹̸"}},"v":{"a":{";":{"0":"∉"}},"b":{";":{"0":"⋷"}},"c":{";":{"0":"⋶"}}}}},"n":{"i":{";":{"0":"∌"},"v":{"a":{";":{"0":"∌"}},"b":{";":{"0":"⋾"}},"c":{";":{"0":"⋽"}}}}}}},"p":{"a":{"r":{"a":{"l":{"l":{"e":{"l":{";":{"0":"∦"}}}}}},";":{"0":"∦"},"s":{"l":{";":{"0":"⫽⃥"}}},"t":{";":{"0":"∂̸"}}}},"o":{"l":{"i":{"n":{"t":{";":{"0":"⨔"}}}}}},"r":{";":{"0":"⊀"},"c":{"u":{"e":{";":{"0":"⋠"}}}},"e":{"c":{";":{"0":"⊀"},"e":{"q":{";":{"0":"⪯̸"}}}},";":{"0":"⪯̸"}}}},"r":{"a":{"r":{"r":{"c":{";":{"0":"⤳̸"}},";":{"0":"↛"},"w":{";":{"0":"↝̸"}}}}},"A":{"r":{"r":{";":{"0":"⇏"}}}},"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↛"}}}}}}}}}},"t":{"r":{"i":{";":{"0":"⋫"},"e":{";":{"0":"⋭"}}}}}},"R":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⇏"}}}}}}}}}}},"s":{"c":{";":{"0":"⊁"},"c":{"u":{"e":{";":{"0":"⋡"}}}},"e":{";":{"0":"⪰̸"}},"r":{";":{"0":"𝓃"}}},"h":{"o":{"r":{"t":{"m":{"i":{"d":{";":{"0":"∤"}}}},"p":{"a":{"r":{"a":{"l":{"l":{"e":{"l":{";":{"0":"∦"}}}}}}}}}}}}},"i":{"m":{";":{"0":"≁"},"e":{";":{"0":"≄"},"q":{";":{"0":"≄"}}}}},"m":{"i":{"d":{";":{"0":"∤"}}}},"p":{"a":{"r":{";":{"0":"∦"}}}},"q":{"s":{"u":{"b":{"e":{";":{"0":"⋢"}}},"p":{"e":{";":{"0":"⋣"}}}}}},"u":{"b":{";":{"0":"⊄"},"E":{";":{"0":"⫅̸"}},"e":{";":{"0":"⊈"}},"s":{"e":{"t":{";":{"0":"⊂⃒"},"e":{"q":{";":{"0":"⊈"},"q":{";":{"0":"⫅̸"}}}}}}}},"c":{"c":{";":{"0":"⊁"},"e":{"q":{";":{"0":"⪰̸"}}}}},"p":{";":{"0":"⊅"},"E":{";":{"0":"⫆̸"}},"e":{";":{"0":"⊉"}},"s":{"e":{"t":{";":{"0":"⊃⃒"},"e":{"q":{";":{"0":"⊉"},"q":{";":{"0":"⫆̸"}}}}}}}}}},"t":{"g":{"l":{";":{"0":"≹"}}},"i":{"l":{"d":{"e":{"0":"ñ",";":{"0":"ñ"}}}}},"l":{"g":{";":{"0":"≸"}}},"r":{"i":{"a":{"n":{"g":{"l":{"e":{"l":{"e":{"f":{"t":{";":{"0":"⋪"},"e":{"q":{";":{"0":"⋬"}}}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":"⋫"},"e":{"q":{";":{"0":"⋭"}}}}}}}}}}}}}}}},"u":{";":{"0":"ν"},"m":{";":{"0":"#"},"e":{"r":{"o":{";":{"0":"№"}}}},"s":{"p":{";":{"0":" "}}}}},"v":{"a":{"p":{";":{"0":"≍⃒"}}},"d":{"a":{"s":{"h":{";":{"0":"⊬"}}}}},"D":{"a":{"s":{"h":{";":{"0":"⊭"}}}}},"g":{"e":{";":{"0":"≥⃒"}},"t":{";":{"0":">⃒"}}},"H":{"a":{"r":{"r":{";":{"0":"⤄"}}}}},"i":{"n":{"f":{"i":{"n":{";":{"0":"⧞"}}}}}},"l":{"A":{"r":{"r":{";":{"0":"⤂"}}}},"e":{";":{"0":"≤⃒"}},"t":{";":{"0":"<⃒"},"r":{"i":{"e":{";":{"0":"⊴⃒"}}}}}},"r":{"A":{"r":{"r":{";":{"0":"⤃"}}}},"t":{"r":{"i":{"e":{";":{"0":"⊵⃒"}}}}}},"s":{"i":{"m":{";":{"0":"∼⃒"}}}}},"V":{"d":{"a":{"s":{"h":{";":{"0":"⊮"}}}}},"D":{"a":{"s":{"h":{";":{"0":"⊯"}}}}}},"w":{"a":{"r":{"h":{"k":{";":{"0":"⤣"}}},"r":{";":{"0":"↖"},"o":{"w":{";":{"0":"↖"}}}}}},"A":{"r":{"r":{";":{"0":"⇖"}}}},"n":{"e":{"a":{"r":{";":{"0":"⤧"}}}}}}},"N":{"a":{"c":{"u":{"t":{"e":{";":{"0":"Ń"}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"Ň"}}}}},"e":{"d":{"i":{"l":{";":{"0":"Ņ"}}}}},"y":{";":{"0":"Н"}}},"e":{"g":{"a":{"t":{"i":{"v":{"e":{"M":{"e":{"d":{"i":{"u":{"m":{"S":{"p":{"a":{"c":{"e":{";":{"0":"​"}}}}}}}}}}}},"T":{"h":{"i":{"c":{"k":{"S":{"p":{"a":{"c":{"e":{";":{"0":"​"}}}}}}}},"n":{"S":{"p":{"a":{"c":{"e":{";":{"0":"​"}}}}}}}}}},"V":{"e":{"r":{"y":{"T":{"h":{"i":{"n":{"S":{"p":{"a":{"c":{"e":{";":{"0":"​"}}}}}}}}}}}}}}}}}}}},"s":{"t":{"e":{"d":{"G":{"r":{"e":{"a":{"t":{"e":{"r":{"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":"≫"}}}}}}}}}}}}}}},"L":{"e":{"s":{"s":{"L":{"e":{"s":{"s":{";":{"0":"≪"}}}}}}}}}}}}},"w":{"L":{"i":{"n":{"e":{";":{"0":"\n"}}}}}}},"f":{"r":{";":{"0":"𝔑"}}},"J":{"c":{"y":{";":{"0":"Њ"}}}},"o":{"B":{"r":{"e":{"a":{"k":{";":{"0":"⁠"}}}}}},"n":{"B":{"r":{"e":{"a":{"k":{"i":{"n":{"g":{"S":{"p":{"a":{"c":{"e":{";":{"0":" "}}}}}}}}}}}}}}},"p":{"f":{";":{"0":"ℕ"}}},"t":{";":{"0":"⫬"},"C":{"o":{"n":{"g":{"r":{"u":{"e":{"n":{"t":{";":{"0":"≢"}}}}}}}}},"u":{"p":{"C":{"a":{"p":{";":{"0":"≭"}}}}}}},"D":{"o":{"u":{"b":{"l":{"e":{"V":{"e":{"r":{"t":{"i":{"c":{"a":{"l":{"B":{"a":{"r":{";":{"0":"∦"}}}}}}}}}}}}}}}}}},"E":{"l":{"e":{"m":{"e":{"n":{"t":{";":{"0":"∉"}}}}}}},"q":{"u":{"a":{"l":{";":{"0":"≠"},"T":{"i":{"l":{"d":{"e":{";":{"0":"≂̸"}}}}}}}}}},"x":{"i":{"s":{"t":{"s":{";":{"0":"∄"}}}}}}},"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":"≯"},"E":{"q":{"u":{"a":{"l":{";":{"0":"≱"}}}}}},"F":{"u":{"l":{"l":{"E":{"q":{"u":{"a":{"l":{";":{"0":"≧̸"}}}}}}}}}},"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":"≫̸"}}}}}}}},"L":{"e":{"s":{"s":{";":{"0":"≹"}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":"⩾̸"}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":"≵"}}}}}}}}}}}}},"H":{"u":{"m":{"p":{"D":{"o":{"w":{"n":{"H":{"u":{"m":{"p":{";":{"0":"≎̸"}}}}}}}}},"E":{"q":{"u":{"a":{"l":{";":{"0":"≏̸"}}}}}}}}}},"L":{"e":{"f":{"t":{"T":{"r":{"i":{"a":{"n":{"g":{"l":{"e":{"B":{"a":{"r":{";":{"0":"⧏̸"}}}},";":{"0":"⋪"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⋬"}}}}}}}}}}}}}}}},"s":{"s":{";":{"0":"≮"},"E":{"q":{"u":{"a":{"l":{";":{"0":"≰"}}}}}},"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":"≸"}}}}}}}},"L":{"e":{"s":{"s":{";":{"0":"≪̸"}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":"⩽̸"}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":"≴"}}}}}}}}}},"N":{"e":{"s":{"t":{"e":{"d":{"G":{"r":{"e":{"a":{"t":{"e":{"r":{"G":{"r":{"e":{"a":{"t":{"e":{"r":{";":{"0":"⪢̸"}}}}}}}}}}}}}}},"L":{"e":{"s":{"s":{"L":{"e":{"s":{"s":{";":{"0":"⪡̸"}}}}}}}}}}}}}}},"P":{"r":{"e":{"c":{"e":{"d":{"e":{"s":{";":{"0":"⊀"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⪯̸"}}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":"⋠"}}}}}}}}}}}}}}}}}}},"R":{"e":{"v":{"e":{"r":{"s":{"e":{"E":{"l":{"e":{"m":{"e":{"n":{"t":{";":{"0":"∌"}}}}}}}}}}}}}},"i":{"g":{"h":{"t":{"T":{"r":{"i":{"a":{"n":{"g":{"l":{"e":{"B":{"a":{"r":{";":{"0":"⧐̸"}}}},";":{"0":"⋫"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⋭"}}}}}}}}}}}}}}}}}}},"S":{"q":{"u":{"a":{"r":{"e":{"S":{"u":{"b":{"s":{"e":{"t":{";":{"0":"⊏̸"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⋢"}}}}}}}}}},"p":{"e":{"r":{"s":{"e":{"t":{";":{"0":"⊐̸"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⋣"}}}}}}}}}}}}}}}}}}},"u":{"b":{"s":{"e":{"t":{";":{"0":"⊂⃒"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⊈"}}}}}}}}}},"c":{"c":{"e":{"e":{"d":{"s":{";":{"0":"⊁"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⪰̸"}}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":"⋡"}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":"≿̸"}}}}}}}}}}}},"p":{"e":{"r":{"s":{"e":{"t":{";":{"0":"⊃⃒"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⊉"}}}}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":"≁"},"E":{"q":{"u":{"a":{"l":{";":{"0":"≄"}}}}}},"F":{"u":{"l":{"l":{"E":{"q":{"u":{"a":{"l":{";":{"0":"≇"}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":"≉"}}}}}}}}}}},"V":{"e":{"r":{"t":{"i":{"c":{"a":{"l":{"B":{"a":{"r":{";":{"0":"∤"}}}}}}}}}}}}}},"s":{"c":{"r":{";":{"0":"𝒩"}}}},"t":{"i":{"l":{"d":{"e":{"0":"Ñ",";":{"0":"Ñ"}}}}}},"u":{";":{"0":"Ν"}}},"O":{"a":{"c":{"u":{"t":{"e":{"0":"Ó",";":{"0":"Ó"}}}}}},"c":{"i":{"r":{"c":{"0":"Ô",";":{"0":"Ô"}}}},"y":{";":{"0":"О"}}},"d":{"b":{"l":{"a":{"c":{";":{"0":"Ő"}}}}}},"E":{"l":{"i":{"g":{";":{"0":"Œ"}}}}},"f":{"r":{";":{"0":"𝔒"}}},"g":{"r":{"a":{"v":{"e":{"0":"Ò",";":{"0":"Ò"}}}}}},"m":{"a":{"c":{"r":{";":{"0":"Ō"}}}},"e":{"g":{"a":{";":{"0":"Ω"}}}},"i":{"c":{"r":{"o":{"n":{";":{"0":"Ο"}}}}}}},"o":{"p":{"f":{";":{"0":"𝕆"}}}},"p":{"e":{"n":{"C":{"u":{"r":{"l":{"y":{"D":{"o":{"u":{"b":{"l":{"e":{"Q":{"u":{"o":{"t":{"e":{";":{"0":"“"}}}}}}}}}}}},"Q":{"u":{"o":{"t":{"e":{";":{"0":"‘"}}}}}}}}}}}}}},"r":{";":{"0":"⩔"}},"s":{"c":{"r":{";":{"0":"𝒪"}}},"l":{"a":{"s":{"h":{"0":"Ø",";":{"0":"Ø"}}}}}},"t":{"i":{"l":{"d":{"e":{"0":"Õ",";":{"0":"Õ"}}}},"m":{"e":{"s":{";":{"0":"⨷"}}}}}},"u":{"m":{"l":{"0":"Ö",";":{"0":"Ö"}}}},"v":{"e":{"r":{"B":{"a":{"r":{";":{"0":"‾"}}},"r":{"a":{"c":{"e":{";":{"0":"⏞"}},"k":{"e":{"t":{";":{"0":"⎴"}}}}}}}},"P":{"a":{"r":{"e":{"n":{"t":{"h":{"e":{"s":{"i":{"s":{";":{"0":"⏜"}}}}}}}}}}}}}}}},"o":{"a":{"c":{"u":{"t":{"e":{"0":"ó",";":{"0":"ó"}}}}},"s":{"t":{";":{"0":"⊛"}}}},"c":{"i":{"r":{"c":{"0":"ô",";":{"0":"ô"}},";":{"0":"⊚"}}},"y":{";":{"0":"о"}}},"d":{"a":{"s":{"h":{";":{"0":"⊝"}}}},"b":{"l":{"a":{"c":{";":{"0":"ő"}}}}},"i":{"v":{";":{"0":"⨸"}}},"o":{"t":{";":{"0":"⊙"}}},"s":{"o":{"l":{"d":{";":{"0":"⦼"}}}}}},"e":{"l":{"i":{"g":{";":{"0":"œ"}}}}},"f":{"c":{"i":{"r":{";":{"0":"⦿"}}}},"r":{";":{"0":"𝔬"}}},"g":{"o":{"n":{";":{"0":"˛"}}},"r":{"a":{"v":{"e":{"0":"ò",";":{"0":"ò"}}}}},"t":{";":{"0":"⧁"}}},"h":{"b":{"a":{"r":{";":{"0":"⦵"}}}},"m":{";":{"0":"Ω"}}},"i":{"n":{"t":{";":{"0":"∮"}}}},"l":{"a":{"r":{"r":{";":{"0":"↺"}}}},"c":{"i":{"r":{";":{"0":"⦾"}}},"r":{"o":{"s":{"s":{";":{"0":"⦻"}}}}}},"i":{"n":{"e":{";":{"0":"‾"}}}},"t":{";":{"0":"⧀"}}},"m":{"a":{"c":{"r":{";":{"0":"ō"}}}},"e":{"g":{"a":{";":{"0":"ω"}}}},"i":{"c":{"r":{"o":{"n":{";":{"0":"ο"}}}}},"d":{";":{"0":"⦶"}},"n":{"u":{"s":{";":{"0":"⊖"}}}}}},"o":{"p":{"f":{";":{"0":"𝕠"}}}},"p":{"a":{"r":{";":{"0":"⦷"}}},"e":{"r":{"p":{";":{"0":"⦹"}}}},"l":{"u":{"s":{";":{"0":"⊕"}}}}},"r":{"a":{"r":{"r":{";":{"0":"↻"}}}},";":{"0":"∨"},"d":{";":{"0":"⩝"},"e":{"r":{";":{"0":"ℴ"},"o":{"f":{";":{"0":"ℴ"}}}}},"f":{"0":"ª",";":{"0":"ª"}},"m":{"0":"º",";":{"0":"º"}}},"i":{"g":{"o":{"f":{";":{"0":"⊶"}}}}},"o":{"r":{";":{"0":"⩖"}}},"s":{"l":{"o":{"p":{"e":{";":{"0":"⩗"}}}}}},"v":{";":{"0":"⩛"}}},"S":{";":{"0":"Ⓢ"}},"s":{"c":{"r":{";":{"0":"ℴ"}}},"l":{"a":{"s":{"h":{"0":"ø",";":{"0":"ø"}}}}},"o":{"l":{";":{"0":"⊘"}}}},"t":{"i":{"l":{"d":{"e":{"0":"õ",";":{"0":"õ"}}}},"m":{"e":{"s":{"a":{"s":{";":{"0":"⨶"}}},";":{"0":"⊗"}}}}}},"u":{"m":{"l":{"0":"ö",";":{"0":"ö"}}}},"v":{"b":{"a":{"r":{";":{"0":"⌽"}}}}}},"p":{"a":{"r":{"a":{"0":"¶",";":{"0":"¶"},"l":{"l":{"e":{"l":{";":{"0":"∥"}}}}}},";":{"0":"∥"},"s":{"i":{"m":{";":{"0":"⫳"}}},"l":{";":{"0":"⫽"}}},"t":{";":{"0":"∂"}}}},"c":{"y":{";":{"0":"п"}}},"e":{"r":{"c":{"n":{"t":{";":{"0":"%"}}}},"i":{"o":{"d":{";":{"0":"."}}}},"m":{"i":{"l":{";":{"0":"‰"}}}},"p":{";":{"0":"⊥"}},"t":{"e":{"n":{"k":{";":{"0":"‱"}}}}}}},"f":{"r":{";":{"0":"𝔭"}}},"h":{"i":{";":{"0":"φ"},"v":{";":{"0":"ϕ"}}},"m":{"m":{"a":{"t":{";":{"0":"ℳ"}}}}},"o":{"n":{"e":{";":{"0":"☎"}}}}},"i":{";":{"0":"π"},"t":{"c":{"h":{"f":{"o":{"r":{"k":{";":{"0":"⋔"}}}}}}}},"v":{";":{"0":"ϖ"}}},"l":{"a":{"n":{"c":{"k":{";":{"0":"ℏ"},"h":{";":{"0":"ℎ"}}}},"k":{"v":{";":{"0":"ℏ"}}}}},"u":{"s":{"a":{"c":{"i":{"r":{";":{"0":"⨣"}}}}},"b":{";":{"0":"⊞"}},"c":{"i":{"r":{";":{"0":"⨢"}}}},";":{"0":"+"},"d":{"o":{";":{"0":"∔"}},"u":{";":{"0":"⨥"}}},"e":{";":{"0":"⩲"}},"m":{"n":{"0":"±",";":{"0":"±"}}},"s":{"i":{"m":{";":{"0":"⨦"}}}},"t":{"w":{"o":{";":{"0":"⨧"}}}}}}},"m":{";":{"0":"±"}},"o":{"i":{"n":{"t":{"i":{"n":{"t":{";":{"0":"⨕"}}}}}}},"p":{"f":{";":{"0":"𝕡"}}},"u":{"n":{"d":{"0":"£",";":{"0":"£"}}}}},"r":{"a":{"p":{";":{"0":"⪷"}}},";":{"0":"≺"},"c":{"u":{"e":{";":{"0":"≼"}}}},"e":{"c":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":"⪷"}}}}}}},";":{"0":"≺"},"c":{"u":{"r":{"l":{"y":{"e":{"q":{";":{"0":"≼"}}}}}}}},"e":{"q":{";":{"0":"⪯"}}},"n":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":"⪹"}}}}}}},"e":{"q":{"q":{";":{"0":"⪵"}}}},"s":{"i":{"m":{";":{"0":"⋨"}}}}},"s":{"i":{"m":{";":{"0":"≾"}}}}},";":{"0":"⪯"}},"E":{";":{"0":"⪳"}},"i":{"m":{"e":{";":{"0":"′"},"s":{";":{"0":"ℙ"}}}}},"n":{"a":{"p":{";":{"0":"⪹"}}},"E":{";":{"0":"⪵"}},"s":{"i":{"m":{";":{"0":"⋨"}}}}},"o":{"d":{";":{"0":"∏"}},"f":{"a":{"l":{"a":{"r":{";":{"0":"⌮"}}}}},"l":{"i":{"n":{"e":{";":{"0":"⌒"}}}}},"s":{"u":{"r":{"f":{";":{"0":"⌓"}}}}}},"p":{";":{"0":"∝"},"t":{"o":{";":{"0":"∝"}}}}},"s":{"i":{"m":{";":{"0":"≾"}}}},"u":{"r":{"e":{"l":{";":{"0":"⊰"}}}}}},"s":{"c":{"r":{";":{"0":"𝓅"}}},"i":{";":{"0":"ψ"}}},"u":{"n":{"c":{"s":{"p":{";":{"0":" "}}}}}}},"P":{"a":{"r":{"t":{"i":{"a":{"l":{"D":{";":{"0":"∂"}}}}}}}},"c":{"y":{";":{"0":"П"}}},"f":{"r":{";":{"0":"𝔓"}}},"h":{"i":{";":{"0":"Φ"}}},"i":{";":{"0":"Π"}},"l":{"u":{"s":{"M":{"i":{"n":{"u":{"s":{";":{"0":"±"}}}}}}}}},"o":{"i":{"n":{"c":{"a":{"r":{"e":{"p":{"l":{"a":{"n":{"e":{";":{"0":"ℌ"}}}}}}}}}}}},"p":{"f":{";":{"0":"ℙ"}}}},"r":{";":{"0":"⪻"},"e":{"c":{"e":{"d":{"e":{"s":{";":{"0":"≺"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⪯"}}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":"≼"}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":"≾"}}}}}}}}}}}},"i":{"m":{"e":{";":{"0":"″"}}}},"o":{"d":{"u":{"c":{"t":{";":{"0":"∏"}}}}},"p":{"o":{"r":{"t":{"i":{"o":{"n":{"a":{"l":{";":{"0":"∝"}}},";":{"0":"∷"}}}}}}}}}},"s":{"c":{"r":{";":{"0":"𝒫"}}},"i":{";":{"0":"Ψ"}}}},"Q":{"f":{"r":{";":{"0":"𝔔"}}},"o":{"p":{"f":{";":{"0":"ℚ"}}}},"s":{"c":{"r":{";":{"0":"𝒬"}}}},"U":{"O":{"T":{"0":"\"",";":{"0":"\""}}}}},"q":{"f":{"r":{";":{"0":"𝔮"}}},"i":{"n":{"t":{";":{"0":"⨌"}}}},"o":{"p":{"f":{";":{"0":"𝕢"}}}},"p":{"r":{"i":{"m":{"e":{";":{"0":"⁗"}}}}}},"s":{"c":{"r":{";":{"0":"𝓆"}}}},"u":{"a":{"t":{"e":{"r":{"n":{"i":{"o":{"n":{"s":{";":{"0":"ℍ"}}}}}}}},"i":{"n":{"t":{";":{"0":"⨖"}}}}}},"e":{"s":{"t":{";":{"0":"?"},"e":{"q":{";":{"0":"≟"}}}}}},"o":{"t":{"0":"\"",";":{"0":"\""}}}}},"r":{"A":{"a":{"r":{"r":{";":{"0":"⇛"}}}},"r":{"r":{";":{"0":"⇒"}}},"t":{"a":{"i":{"l":{";":{"0":"⤜"}}}}}},"a":{"c":{"e":{";":{"0":"∽̱"}},"u":{"t":{"e":{";":{"0":"ŕ"}}}}},"d":{"i":{"c":{";":{"0":"√"}}}},"e":{"m":{"p":{"t":{"y":{"v":{";":{"0":"⦳"}}}}}}},"n":{"g":{";":{"0":"⟩"},"d":{";":{"0":"⦒"}},"e":{";":{"0":"⦥"}},"l":{"e":{";":{"0":"⟩"}}}}},"q":{"u":{"o":{"0":"»",";":{"0":"»"}}}},"r":{"r":{"a":{"p":{";":{"0":"⥵"}}},"b":{";":{"0":"⇥"},"f":{"s":{";":{"0":"⤠"}}}},"c":{";":{"0":"⤳"}},";":{"0":"→"},"f":{"s":{";":{"0":"⤞"}}},"h":{"k":{";":{"0":"↪"}}},"l":{"p":{";":{"0":"↬"}}},"p":{"l":{";":{"0":"⥅"}}},"s":{"i":{"m":{";":{"0":"⥴"}}}},"t":{"l":{";":{"0":"↣"}}},"w":{";":{"0":"↝"}}}},"t":{"a":{"i":{"l":{";":{"0":"⤚"}}}},"i":{"o":{";":{"0":"∶"},"n":{"a":{"l":{"s":{";":{"0":"ℚ"}}}}}}}}},"b":{"a":{"r":{"r":{";":{"0":"⤍"}}}},"b":{"r":{"k":{";":{"0":"❳"}}}},"r":{"a":{"c":{"e":{";":{"0":"}"}},"k":{";":{"0":"]"}}}},"k":{"e":{";":{"0":"⦌"}},"s":{"l":{"d":{";":{"0":"⦎"}},"u":{";":{"0":"⦐"}}}}}}},"B":{"a":{"r":{"r":{";":{"0":"⤏"}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"ř"}}}}},"e":{"d":{"i":{"l":{";":{"0":"ŗ"}}}},"i":{"l":{";":{"0":"⌉"}}}},"u":{"b":{";":{"0":"}"}}},"y":{";":{"0":"р"}}},"d":{"c":{"a":{";":{"0":"⤷"}}},"l":{"d":{"h":{"a":{"r":{";":{"0":"⥩"}}}}}},"q":{"u":{"o":{";":{"0":"”"},"r":{";":{"0":"”"}}}}},"s":{"h":{";":{"0":"↳"}}}},"e":{"a":{"l":{";":{"0":"ℜ"},"i":{"n":{"e":{";":{"0":"ℛ"}}}},"p":{"a":{"r":{"t":{";":{"0":"ℜ"}}}}},"s":{";":{"0":"ℝ"}}}},"c":{"t":{";":{"0":"▭"}}},"g":{"0":"®",";":{"0":"®"}}},"f":{"i":{"s":{"h":{"t":{";":{"0":"⥽"}}}}},"l":{"o":{"o":{"r":{";":{"0":"⌋"}}}}},"r":{";":{"0":"𝔯"}}},"H":{"a":{"r":{";":{"0":"⥤"}}}},"h":{"a":{"r":{"d":{";":{"0":"⇁"}},"u":{";":{"0":"⇀"},"l":{";":{"0":"⥬"}}}}},"o":{";":{"0":"ρ"},"v":{";":{"0":"ϱ"}}}},"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"→"},"t":{"a":{"i":{"l":{";":{"0":"↣"}}}}}}}}}},"h":{"a":{"r":{"p":{"o":{"o":{"n":{"d":{"o":{"w":{"n":{";":{"0":"⇁"}}}}},"u":{"p":{";":{"0":"⇀"}}}}}}}}}},"l":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{"s":{";":{"0":"⇄"}}}}}}},"h":{"a":{"r":{"p":{"o":{"o":{"n":{"s":{";":{"0":"⇌"}}}}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{"s":{";":{"0":"⇉"}}}}}}}}}}}},"s":{"q":{"u":{"i":{"g":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↝"}}}}}}}}}}},"t":{"h":{"r":{"e":{"e":{"t":{"i":{"m":{"e":{"s":{";":{"0":"⋌"}}}}}}}}}}}}}},"n":{"g":{";":{"0":"˚"}}},"s":{"i":{"n":{"g":{"d":{"o":{"t":{"s":{"e":{"q":{";":{"0":"≓"}}}}}}}}}}}},"l":{"a":{"r":{"r":{";":{"0":"⇄"}}}},"h":{"a":{"r":{";":{"0":"⇌"}}}},"m":{";":{"0":"‏"}}},"m":{"o":{"u":{"s":{"t":{"a":{"c":{"h":{"e":{";":{"0":"⎱"}}}}},";":{"0":"⎱"}}}}}},"n":{"m":{"i":{"d":{";":{"0":"⫮"}}}}},"o":{"a":{"n":{"g":{";":{"0":"⟭"}}},"r":{"r":{";":{"0":"⇾"}}}},"b":{"r":{"k":{";":{"0":"⟧"}}}},"p":{"a":{"r":{";":{"0":"⦆"}}},"f":{";":{"0":"𝕣"}},"l":{"u":{"s":{";":{"0":"⨮"}}}}},"t":{"i":{"m":{"e":{"s":{";":{"0":"⨵"}}}}}}},"p":{"a":{"r":{";":{"0":")"},"g":{"t":{";":{"0":"⦔"}}}}},"p":{"o":{"l":{"i":{"n":{"t":{";":{"0":"⨒"}}}}}}}},"r":{"a":{"r":{"r":{";":{"0":"⇉"}}}}},"s":{"a":{"q":{"u":{"o":{";":{"0":"›"}}}}},"c":{"r":{";":{"0":"𝓇"}}},"h":{";":{"0":"↱"}},"q":{"b":{";":{"0":"]"}},"u":{"o":{";":{"0":"’"},"r":{";":{"0":"’"}}}}}},"t":{"h":{"r":{"e":{"e":{";":{"0":"⋌"}}}}},"i":{"m":{"e":{"s":{";":{"0":"⋊"}}}}},"r":{"i":{";":{"0":"▹"},"e":{";":{"0":"⊵"}},"f":{";":{"0":"▸"}},"l":{"t":{"r":{"i":{";":{"0":"⧎"}}}}}}}},"u":{"l":{"u":{"h":{"a":{"r":{";":{"0":"⥨"}}}}}}},"x":{";":{"0":"℞"}}},"R":{"a":{"c":{"u":{"t":{"e":{";":{"0":"Ŕ"}}}}},"n":{"g":{";":{"0":"⟫"}}},"r":{"r":{";":{"0":"↠"},"t":{"l":{";":{"0":"⤖"}}}}}},"B":{"a":{"r":{"r":{";":{"0":"⤐"}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"Ř"}}}}},"e":{"d":{"i":{"l":{";":{"0":"Ŗ"}}}}},"y":{";":{"0":"Р"}}},"e":{";":{"0":"ℜ"},"v":{"e":{"r":{"s":{"e":{"E":{"l":{"e":{"m":{"e":{"n":{"t":{";":{"0":"∋"}}}}}}},"q":{"u":{"i":{"l":{"i":{"b":{"r":{"i":{"u":{"m":{";":{"0":"⇋"}}}}}}}}}}}},"U":{"p":{"E":{"q":{"u":{"i":{"l":{"i":{"b":{"r":{"i":{"u":{"m":{";":{"0":"⥯"}}}}}}}}}}}}}}}}}}}},"E":{"G":{"0":"®",";":{"0":"®"}}},"f":{"r":{";":{"0":"ℜ"}}},"h":{"o":{";":{"0":"Ρ"}}},"i":{"g":{"h":{"t":{"A":{"n":{"g":{"l":{"e":{"B":{"r":{"a":{"c":{"k":{"e":{"t":{";":{"0":"⟩"}}}}}}}}}}}},"r":{"r":{"o":{"w":{"B":{"a":{"r":{";":{"0":"⇥"}}}},";":{"0":"→"},"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⇄"}}}}}}}}}}}}}}},"a":{"r":{"r":{"o":{"w":{";":{"0":"⇒"}}}}}},"C":{"e":{"i":{"l":{"i":{"n":{"g":{";":{"0":"⌉"}}}}}}}},"D":{"o":{"u":{"b":{"l":{"e":{"B":{"r":{"a":{"c":{"k":{"e":{"t":{";":{"0":"⟧"}}}}}}}}}}}},"w":{"n":{"T":{"e":{"e":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":"⥝"}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":"⥕"}}}},";":{"0":"⇂"}}}}}}}}}}},"F":{"l":{"o":{"o":{"r":{";":{"0":"⌋"}}}}}},"T":{"e":{"e":{"A":{"r":{"r":{"o":{"w":{";":{"0":"↦"}}}}}},";":{"0":"⊢"},"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":"⥛"}}}}}}}}},"r":{"i":{"a":{"n":{"g":{"l":{"e":{"B":{"a":{"r":{";":{"0":"⧐"}}}},";":{"0":"⊳"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⊵"}}}}}}}}}}}}}},"U":{"p":{"D":{"o":{"w":{"n":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":"⥏"}}}}}}}}}}},"T":{"e":{"e":{"V":{"e":{"c":{"t":{"o":{"r":{";":{"0":"⥜"}}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":"⥔"}}}},";":{"0":"↾"}}}}}}}}},"V":{"e":{"c":{"t":{"o":{"r":{"B":{"a":{"r":{";":{"0":"⥓"}}}},";":{"0":"⇀"}}}}}}}}}}},"o":{"p":{"f":{";":{"0":"ℝ"}}},"u":{"n":{"d":{"I":{"m":{"p":{"l":{"i":{"e":{"s":{";":{"0":"⥰"}}}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⇛"}}}}}}}}}}},"s":{"c":{"r":{";":{"0":"ℛ"}}},"h":{";":{"0":"↱"}}},"u":{"l":{"e":{"D":{"e":{"l":{"a":{"y":{"e":{"d":{";":{"0":"⧴"}}}}}}}}}}}},"S":{"a":{"c":{"u":{"t":{"e":{";":{"0":"Ś"}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"Š"}}}}},";":{"0":"⪼"},"e":{"d":{"i":{"l":{";":{"0":"Ş"}}}}},"i":{"r":{"c":{";":{"0":"Ŝ"}}}},"y":{";":{"0":"С"}}},"f":{"r":{";":{"0":"𝔖"}}},"H":{"C":{"H":{"c":{"y":{";":{"0":"Щ"}}}}},"c":{"y":{";":{"0":"Ш"}}}},"h":{"o":{"r":{"t":{"D":{"o":{"w":{"n":{"A":{"r":{"r":{"o":{"w":{";":{"0":"↓"}}}}}}}}}},"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"←"}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"→"}}}}}}}}}}},"U":{"p":{"A":{"r":{"r":{"o":{"w":{";":{"0":"↑"}}}}}}}}}}}},"i":{"g":{"m":{"a":{";":{"0":"Σ"}}}}},"m":{"a":{"l":{"l":{"C":{"i":{"r":{"c":{"l":{"e":{";":{"0":"∘"}}}}}}}}}}},"O":{"F":{"T":{"c":{"y":{";":{"0":"Ь"}}}}}},"o":{"p":{"f":{";":{"0":"𝕊"}}}},"q":{"r":{"t":{";":{"0":"√"}}},"u":{"a":{"r":{"e":{";":{"0":"□"},"I":{"n":{"t":{"e":{"r":{"s":{"e":{"c":{"t":{"i":{"o":{"n":{";":{"0":"⊓"}}}}}}}}}}}}},"S":{"u":{"b":{"s":{"e":{"t":{";":{"0":"⊏"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⊑"}}}}}}}}}},"p":{"e":{"r":{"s":{"e":{"t":{";":{"0":"⊐"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⊒"}}}}}}}}}}}}}},"U":{"n":{"i":{"o":{"n":{";":{"0":"⊔"}}}}}}}}}}},"s":{"c":{"r":{";":{"0":"𝒮"}}}},"t":{"a":{"r":{";":{"0":"⋆"}}}},"u":{"b":{";":{"0":"⋐"},"s":{"e":{"t":{";":{"0":"⋐"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⊆"}}}}}}}}}},"c":{"c":{"e":{"e":{"d":{"s":{";":{"0":"≻"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⪰"}}}}}},"S":{"l":{"a":{"n":{"t":{"E":{"q":{"u":{"a":{"l":{";":{"0":"≽"}}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":"≿"}}}}}}}}}}},"h":{"T":{"h":{"a":{"t":{";":{"0":"∋"}}}}}}},"m":{";":{"0":"∑"}},"p":{";":{"0":"⋑"},"e":{"r":{"s":{"e":{"t":{";":{"0":"⊃"},"E":{"q":{"u":{"a":{"l":{";":{"0":"⊇"}}}}}}}}}}},"s":{"e":{"t":{";":{"0":"⋑"}}}}}}},"s":{"a":{"c":{"u":{"t":{"e":{";":{"0":"ś"}}}}}},"b":{"q":{"u":{"o":{";":{"0":"‚"}}}}},"c":{"a":{"p":{";":{"0":"⪸"}},"r":{"o":{"n":{";":{"0":"š"}}}}},";":{"0":"≻"},"c":{"u":{"e":{";":{"0":"≽"}}}},"e":{";":{"0":"⪰"},"d":{"i":{"l":{";":{"0":"ş"}}}}},"E":{";":{"0":"⪴"}},"i":{"r":{"c":{";":{"0":"ŝ"}}}},"n":{"a":{"p":{";":{"0":"⪺"}}},"E":{";":{"0":"⪶"}},"s":{"i":{"m":{";":{"0":"⋩"}}}}},"p":{"o":{"l":{"i":{"n":{"t":{";":{"0":"⨓"}}}}}}},"s":{"i":{"m":{";":{"0":"≿"}}}},"y":{";":{"0":"с"}}},"d":{"o":{"t":{"b":{";":{"0":"⊡"}},";":{"0":"⋅"},"e":{";":{"0":"⩦"}}}}},"e":{"a":{"r":{"h":{"k":{";":{"0":"⤥"}}},"r":{";":{"0":"↘"},"o":{"w":{";":{"0":"↘"}}}}}},"A":{"r":{"r":{";":{"0":"⇘"}}}},"c":{"t":{"0":"§",";":{"0":"§"}}},"m":{"i":{";":{"0":";"}}},"s":{"w":{"a":{"r":{";":{"0":"⤩"}}}}},"t":{"m":{"i":{"n":{"u":{"s":{";":{"0":"∖"}}}}},"n":{";":{"0":"∖"}}}},"x":{"t":{";":{"0":"✶"}}}},"f":{"r":{";":{"0":"𝔰"},"o":{"w":{"n":{";":{"0":"⌢"}}}}}},"h":{"a":{"r":{"p":{";":{"0":"♯"}}}},"c":{"h":{"c":{"y":{";":{"0":"щ"}}}},"y":{";":{"0":"ш"}}},"o":{"r":{"t":{"m":{"i":{"d":{";":{"0":"∣"}}}},"p":{"a":{"r":{"a":{"l":{"l":{"e":{"l":{";":{"0":"∥"}}}}}}}}}}}},"y":{"0":"­",";":{"0":"­"}}},"i":{"g":{"m":{"a":{";":{"0":"σ"},"f":{";":{"0":"ς"}},"v":{";":{"0":"ς"}}}}},"m":{";":{"0":"∼"},"d":{"o":{"t":{";":{"0":"⩪"}}}},"e":{";":{"0":"≃"},"q":{";":{"0":"≃"}}},"g":{";":{"0":"⪞"},"E":{";":{"0":"⪠"}}},"l":{";":{"0":"⪝"},"E":{";":{"0":"⪟"}}},"n":{"e":{";":{"0":"≆"}}},"p":{"l":{"u":{"s":{";":{"0":"⨤"}}}}},"r":{"a":{"r":{"r":{";":{"0":"⥲"}}}}}}},"l":{"a":{"r":{"r":{";":{"0":"←"}}}}},"m":{"a":{"l":{"l":{"s":{"e":{"t":{"m":{"i":{"n":{"u":{"s":{";":{"0":"∖"}}}}}}}}}}},"s":{"h":{"p":{";":{"0":"⨳"}}}}},"e":{"p":{"a":{"r":{"s":{"l":{";":{"0":"⧤"}}}}}}},"i":{"d":{";":{"0":"∣"}},"l":{"e":{";":{"0":"⌣"}}}},"t":{";":{"0":"⪪"},"e":{";":{"0":"⪬"},"s":{";":{"0":"⪬︀"}}}}},"o":{"f":{"t":{"c":{"y":{";":{"0":"ь"}}}}},"l":{"b":{"a":{"r":{";":{"0":"⌿"}}},";":{"0":"⧄"}},";":{"0":"/"}},"p":{"f":{";":{"0":"𝕤"}}}},"p":{"a":{"d":{"e":{"s":{";":{"0":"♠"},"u":{"i":{"t":{";":{"0":"♠"}}}}}}},"r":{";":{"0":"∥"}}}},"q":{"c":{"a":{"p":{";":{"0":"⊓"},"s":{";":{"0":"⊓︀"}}}},"u":{"p":{";":{"0":"⊔"},"s":{";":{"0":"⊔︀"}}}}},"s":{"u":{"b":{";":{"0":"⊏"},"e":{";":{"0":"⊑"}},"s":{"e":{"t":{";":{"0":"⊏"},"e":{"q":{";":{"0":"⊑"}}}}}}},"p":{";":{"0":"⊐"},"e":{";":{"0":"⊒"}},"s":{"e":{"t":{";":{"0":"⊐"},"e":{"q":{";":{"0":"⊒"}}}}}}}}},"u":{"a":{"r":{"e":{";":{"0":"□"}},"f":{";":{"0":"▪"}}}},";":{"0":"□"},"f":{";":{"0":"▪"}}}},"r":{"a":{"r":{"r":{";":{"0":"→"}}}}},"s":{"c":{"r":{";":{"0":"𝓈"}}},"e":{"t":{"m":{"n":{";":{"0":"∖"}}}}},"m":{"i":{"l":{"e":{";":{"0":"⌣"}}}}},"t":{"a":{"r":{"f":{";":{"0":"⋆"}}}}}},"t":{"a":{"r":{";":{"0":"☆"},"f":{";":{"0":"★"}}}},"r":{"a":{"i":{"g":{"h":{"t":{"e":{"p":{"s":{"i":{"l":{"o":{"n":{";":{"0":"ϵ"}}}}}}}},"p":{"h":{"i":{";":{"0":"ϕ"}}}}}}}}},"n":{"s":{";":{"0":"¯"}}}}},"u":{"b":{";":{"0":"⊂"},"d":{"o":{"t":{";":{"0":"⪽"}}}},"E":{";":{"0":"⫅"}},"e":{";":{"0":"⊆"},"d":{"o":{"t":{";":{"0":"⫃"}}}}},"m":{"u":{"l":{"t":{";":{"0":"⫁"}}}}},"n":{"E":{";":{"0":"⫋"}},"e":{";":{"0":"⊊"}}},"p":{"l":{"u":{"s":{";":{"0":"⪿"}}}}},"r":{"a":{"r":{"r":{";":{"0":"⥹"}}}}},"s":{"e":{"t":{";":{"0":"⊂"},"e":{"q":{";":{"0":"⊆"},"q":{";":{"0":"⫅"}}}},"n":{"e":{"q":{";":{"0":"⊊"},"q":{";":{"0":"⫋"}}}}}}},"i":{"m":{";":{"0":"⫇"}}},"u":{"b":{";":{"0":"⫕"}},"p":{";":{"0":"⫓"}}}}},"c":{"c":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":"⪸"}}}}}}},";":{"0":"≻"},"c":{"u":{"r":{"l":{"y":{"e":{"q":{";":{"0":"≽"}}}}}}}},"e":{"q":{";":{"0":"⪰"}}},"n":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":"⪺"}}}}}}},"e":{"q":{"q":{";":{"0":"⪶"}}}},"s":{"i":{"m":{";":{"0":"⋩"}}}}},"s":{"i":{"m":{";":{"0":"≿"}}}}}},"m":{";":{"0":"∑"}},"n":{"g":{";":{"0":"♪"}}},"p":{"1":{"0":"¹",";":{"0":"¹"}},"2":{"0":"²",";":{"0":"²"}},"3":{"0":"³",";":{"0":"³"}},";":{"0":"⊃"},"d":{"o":{"t":{";":{"0":"⪾"}}},"s":{"u":{"b":{";":{"0":"⫘"}}}}},"E":{";":{"0":"⫆"}},"e":{";":{"0":"⊇"},"d":{"o":{"t":{";":{"0":"⫄"}}}}},"h":{"s":{"o":{"l":{";":{"0":"⟉"}}},"u":{"b":{";":{"0":"⫗"}}}}},"l":{"a":{"r":{"r":{";":{"0":"⥻"}}}}},"m":{"u":{"l":{"t":{";":{"0":"⫂"}}}}},"n":{"E":{";":{"0":"⫌"}},"e":{";":{"0":"⊋"}}},"p":{"l":{"u":{"s":{";":{"0":"⫀"}}}}},"s":{"e":{"t":{";":{"0":"⊃"},"e":{"q":{";":{"0":"⊇"},"q":{";":{"0":"⫆"}}}},"n":{"e":{"q":{";":{"0":"⊋"},"q":{";":{"0":"⫌"}}}}}}},"i":{"m":{";":{"0":"⫈"}}},"u":{"b":{";":{"0":"⫔"}},"p":{";":{"0":"⫖"}}}}}},"w":{"a":{"r":{"h":{"k":{";":{"0":"⤦"}}},"r":{";":{"0":"↙"},"o":{"w":{";":{"0":"↙"}}}}}},"A":{"r":{"r":{";":{"0":"⇙"}}}},"n":{"w":{"a":{"r":{";":{"0":"⤪"}}}}}},"z":{"l":{"i":{"g":{"0":"ß",";":{"0":"ß"}}}}}},"T":{"a":{"b":{";":{"0":"\t"}},"u":{";":{"0":"Τ"}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"Ť"}}}}},"e":{"d":{"i":{"l":{";":{"0":"Ţ"}}}}},"y":{";":{"0":"Т"}}},"f":{"r":{";":{"0":"𝔗"}}},"h":{"e":{"r":{"e":{"f":{"o":{"r":{"e":{";":{"0":"∴"}}}}}}},"t":{"a":{";":{"0":"Θ"}}}},"i":{"c":{"k":{"S":{"p":{"a":{"c":{"e":{";":{"0":"  "}}}}}}}},"n":{"S":{"p":{"a":{"c":{"e":{";":{"0":" "}}}}}}}}},"H":{"O":{"R":{"N":{"0":"Þ",";":{"0":"Þ"}}}}},"i":{"l":{"d":{"e":{";":{"0":"∼"},"E":{"q":{"u":{"a":{"l":{";":{"0":"≃"}}}}}},"F":{"u":{"l":{"l":{"E":{"q":{"u":{"a":{"l":{";":{"0":"≅"}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":"≈"}}}}}}}}}},"o":{"p":{"f":{";":{"0":"𝕋"}}}},"R":{"A":{"D":{"E":{";":{"0":"™"}}}}},"r":{"i":{"p":{"l":{"e":{"D":{"o":{"t":{";":{"0":"⃛"}}}}}}}}},"s":{"c":{"r":{";":{"0":"𝒯"}}},"t":{"r":{"o":{"k":{";":{"0":"Ŧ"}}}}}},"S":{"c":{"y":{";":{"0":"Ц"}}},"H":{"c":{"y":{";":{"0":"Ћ"}}}}}},"t":{"a":{"r":{"g":{"e":{"t":{";":{"0":"⌖"}}}}},"u":{";":{"0":"τ"}}},"b":{"r":{"k":{";":{"0":"⎴"}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"ť"}}}}},"e":{"d":{"i":{"l":{";":{"0":"ţ"}}}}},"y":{";":{"0":"т"}}},"d":{"o":{"t":{";":{"0":"⃛"}}}},"e":{"l":{"r":{"e":{"c":{";":{"0":"⌕"}}}}}},"f":{"r":{";":{"0":"𝔱"}}},"h":{"e":{"r":{"e":{"4":{";":{"0":"∴"}},"f":{"o":{"r":{"e":{";":{"0":"∴"}}}}}}},"t":{"a":{";":{"0":"θ"},"s":{"y":{"m":{";":{"0":"ϑ"}}}},"v":{";":{"0":"ϑ"}}}}},"i":{"c":{"k":{"a":{"p":{"p":{"r":{"o":{"x":{";":{"0":"≈"}}}}}}},"s":{"i":{"m":{";":{"0":"∼"}}}}}},"n":{"s":{"p":{";":{"0":" "}}}}},"k":{"a":{"p":{";":{"0":"≈"}}},"s":{"i":{"m":{";":{"0":"∼"}}}}},"o":{"r":{"n":{"0":"þ",";":{"0":"þ"}}}}},"i":{"l":{"d":{"e":{";":{"0":"˜"}}}},"m":{"e":{"s":{"0":"×","b":{"a":{"r":{";":{"0":"⨱"}}},";":{"0":"⊠"}},";":{"0":"×"},"d":{";":{"0":"⨰"}}}}},"n":{"t":{";":{"0":"∭"}}}},"o":{"e":{"a":{";":{"0":"⤨"}}},"p":{"b":{"o":{"t":{";":{"0":"⌶"}}}},"c":{"i":{"r":{";":{"0":"⫱"}}}},";":{"0":"⊤"},"f":{";":{"0":"𝕥"},"o":{"r":{"k":{";":{"0":"⫚"}}}}}},"s":{"a":{";":{"0":"⤩"}}}},"p":{"r":{"i":{"m":{"e":{";":{"0":"‴"}}}}}},"r":{"a":{"d":{"e":{";":{"0":"™"}}}},"i":{"a":{"n":{"g":{"l":{"e":{";":{"0":"▵"},"d":{"o":{"w":{"n":{";":{"0":"▿"}}}}},"l":{"e":{"f":{"t":{";":{"0":"◃"},"e":{"q":{";":{"0":"⊴"}}}}}}},"q":{";":{"0":"≜"}},"r":{"i":{"g":{"h":{"t":{";":{"0":"▹"},"e":{"q":{";":{"0":"⊵"}}}}}}}}}}}}},"d":{"o":{"t":{";":{"0":"◬"}}}},"e":{";":{"0":"≜"}},"m":{"i":{"n":{"u":{"s":{";":{"0":"⨺"}}}}}},"p":{"l":{"u":{"s":{";":{"0":"⨹"}}}}},"s":{"b":{";":{"0":"⧍"}}},"t":{"i":{"m":{"e":{";":{"0":"⨻"}}}}}},"p":{"e":{"z":{"i":{"u":{"m":{";":{"0":"⏢"}}}}}}}},"s":{"c":{"r":{";":{"0":"𝓉"}},"y":{";":{"0":"ц"}}},"h":{"c":{"y":{";":{"0":"ћ"}}}},"t":{"r":{"o":{"k":{";":{"0":"ŧ"}}}}}},"w":{"i":{"x":{"t":{";":{"0":"≬"}}}},"o":{"h":{"e":{"a":{"d":{"l":{"e":{"f":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↞"}}}}}}}}}},"r":{"i":{"g":{"h":{"t":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↠"}}}}}}}}}}}}}}}}}},"U":{"a":{"c":{"u":{"t":{"e":{"0":"Ú",";":{"0":"Ú"}}}}},"r":{"r":{";":{"0":"↟"},"o":{"c":{"i":{"r":{";":{"0":"⥉"}}}}}}}},"b":{"r":{"c":{"y":{";":{"0":"Ў"}}},"e":{"v":{"e":{";":{"0":"Ŭ"}}}}}},"c":{"i":{"r":{"c":{"0":"Û",";":{"0":"Û"}}}},"y":{";":{"0":"У"}}},"d":{"b":{"l":{"a":{"c":{";":{"0":"Ű"}}}}}},"f":{"r":{";":{"0":"𝔘"}}},"g":{"r":{"a":{"v":{"e":{"0":"Ù",";":{"0":"Ù"}}}}}},"m":{"a":{"c":{"r":{";":{"0":"Ū"}}}}},"n":{"d":{"e":{"r":{"B":{"a":{"r":{";":{"0":"_"}}},"r":{"a":{"c":{"e":{";":{"0":"⏟"}},"k":{"e":{"t":{";":{"0":"⎵"}}}}}}}},"P":{"a":{"r":{"e":{"n":{"t":{"h":{"e":{"s":{"i":{"s":{";":{"0":"⏝"}}}}}}}}}}}}}}},"i":{"o":{"n":{";":{"0":"⋃"},"P":{"l":{"u":{"s":{";":{"0":"⊎"}}}}}}}}},"o":{"g":{"o":{"n":{";":{"0":"Ų"}}}},"p":{"f":{";":{"0":"𝕌"}}}},"p":{"A":{"r":{"r":{"o":{"w":{"B":{"a":{"r":{";":{"0":"⤒"}}}},";":{"0":"↑"},"D":{"o":{"w":{"n":{"A":{"r":{"r":{"o":{"w":{";":{"0":"⇅"}}}}}}}}}}}}}}},"a":{"r":{"r":{"o":{"w":{";":{"0":"⇑"}}}}}},"D":{"o":{"w":{"n":{"A":{"r":{"r":{"o":{"w":{";":{"0":"↕"}}}}}}}}}},"d":{"o":{"w":{"n":{"a":{"r":{"r":{"o":{"w":{";":{"0":"⇕"}}}}}}}}}},"E":{"q":{"u":{"i":{"l":{"i":{"b":{"r":{"i":{"u":{"m":{";":{"0":"⥮"}}}}}}}}}}}},"p":{"e":{"r":{"L":{"e":{"f":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"↖"}}}}}}}}}},"R":{"i":{"g":{"h":{"t":{"A":{"r":{"r":{"o":{"w":{";":{"0":"↗"}}}}}}}}}}}}}},"s":{"i":{";":{"0":"ϒ"},"l":{"o":{"n":{";":{"0":"Υ"}}}}}},"T":{"e":{"e":{"A":{"r":{"r":{"o":{"w":{";":{"0":"↥"}}}}}},";":{"0":"⊥"}}}}},"r":{"i":{"n":{"g":{";":{"0":"Ů"}}}}},"s":{"c":{"r":{";":{"0":"𝒰"}}}},"t":{"i":{"l":{"d":{"e":{";":{"0":"Ũ"}}}}}},"u":{"m":{"l":{"0":"Ü",";":{"0":"Ü"}}}}},"u":{"a":{"c":{"u":{"t":{"e":{"0":"ú",";":{"0":"ú"}}}}},"r":{"r":{";":{"0":"↑"}}}},"A":{"r":{"r":{";":{"0":"⇑"}}}},"b":{"r":{"c":{"y":{";":{"0":"ў"}}},"e":{"v":{"e":{";":{"0":"ŭ"}}}}}},"c":{"i":{"r":{"c":{"0":"û",";":{"0":"û"}}}},"y":{";":{"0":"у"}}},"d":{"a":{"r":{"r":{";":{"0":"⇅"}}}},"b":{"l":{"a":{"c":{";":{"0":"ű"}}}}},"h":{"a":{"r":{";":{"0":"⥮"}}}}},"f":{"i":{"s":{"h":{"t":{";":{"0":"⥾"}}}}},"r":{";":{"0":"𝔲"}}},"g":{"r":{"a":{"v":{"e":{"0":"ù",";":{"0":"ù"}}}}}},"H":{"a":{"r":{";":{"0":"⥣"}}}},"h":{"a":{"r":{"l":{";":{"0":"↿"}},"r":{";":{"0":"↾"}}}},"b":{"l":{"k":{";":{"0":"▀"}}}}},"l":{"c":{"o":{"r":{"n":{";":{"0":"⌜"},"e":{"r":{";":{"0":"⌜"}}}}}},"r":{"o":{"p":{";":{"0":"⌏"}}}}},"t":{"r":{"i":{";":{"0":"◸"}}}}},"m":{"a":{"c":{"r":{";":{"0":"ū"}}}},"l":{"0":"¨",";":{"0":"¨"}}},"o":{"g":{"o":{"n":{";":{"0":"ų"}}}},"p":{"f":{";":{"0":"𝕦"}}}},"p":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↑"}}}}}},"d":{"o":{"w":{"n":{"a":{"r":{"r":{"o":{"w":{";":{"0":"↕"}}}}}}}}}},"h":{"a":{"r":{"p":{"o":{"o":{"n":{"l":{"e":{"f":{"t":{";":{"0":"↿"}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":"↾"}}}}}}}}}}}}},"l":{"u":{"s":{";":{"0":"⊎"}}}},"s":{"i":{";":{"0":"υ"},"h":{";":{"0":"ϒ"}},"l":{"o":{"n":{";":{"0":"υ"}}}}}},"u":{"p":{"a":{"r":{"r":{"o":{"w":{"s":{";":{"0":"⇈"}}}}}}}}}},"r":{"c":{"o":{"r":{"n":{";":{"0":"⌝"},"e":{"r":{";":{"0":"⌝"}}}}}},"r":{"o":{"p":{";":{"0":"⌎"}}}}},"i":{"n":{"g":{";":{"0":"ů"}}}},"t":{"r":{"i":{";":{"0":"◹"}}}}},"s":{"c":{"r":{";":{"0":"𝓊"}}}},"t":{"d":{"o":{"t":{";":{"0":"⋰"}}}},"i":{"l":{"d":{"e":{";":{"0":"ũ"}}}}},"r":{"i":{";":{"0":"▵"},"f":{";":{"0":"▴"}}}}},"u":{"a":{"r":{"r":{";":{"0":"⇈"}}}},"m":{"l":{"0":"ü",";":{"0":"ü"}}}},"w":{"a":{"n":{"g":{"l":{"e":{";":{"0":"⦧"}}}}}}}},"v":{"a":{"n":{"g":{"r":{"t":{";":{"0":"⦜"}}}}},"r":{"e":{"p":{"s":{"i":{"l":{"o":{"n":{";":{"0":"ϵ"}}}}}}}},"k":{"a":{"p":{"p":{"a":{";":{"0":"ϰ"}}}}}},"n":{"o":{"t":{"h":{"i":{"n":{"g":{";":{"0":"∅"}}}}}}}},"p":{"h":{"i":{";":{"0":"ϕ"}}},"i":{";":{"0":"ϖ"}},"r":{"o":{"p":{"t":{"o":{";":{"0":"∝"}}}}}}},"r":{";":{"0":"↕"},"h":{"o":{";":{"0":"ϱ"}}}},"s":{"i":{"g":{"m":{"a":{";":{"0":"ς"}}}}},"u":{"b":{"s":{"e":{"t":{"n":{"e":{"q":{";":{"0":"⊊︀"},"q":{";":{"0":"⫋︀"}}}}}}}}},"p":{"s":{"e":{"t":{"n":{"e":{"q":{";":{"0":"⊋︀"},"q":{";":{"0":"⫌︀"}}}}}}}}}}},"t":{"h":{"e":{"t":{"a":{";":{"0":"ϑ"}}}}},"r":{"i":{"a":{"n":{"g":{"l":{"e":{"l":{"e":{"f":{"t":{";":{"0":"⊲"}}}}},"r":{"i":{"g":{"h":{"t":{";":{"0":"⊳"}}}}}}}}}}}}}}}},"A":{"r":{"r":{";":{"0":"⇕"}}}},"B":{"a":{"r":{";":{"0":"⫨"},"v":{";":{"0":"⫩"}}}}},"c":{"y":{";":{"0":"в"}}},"d":{"a":{"s":{"h":{";":{"0":"⊢"}}}}},"D":{"a":{"s":{"h":{";":{"0":"⊨"}}}}},"e":{"e":{"b":{"a":{"r":{";":{"0":"⊻"}}}},";":{"0":"∨"},"e":{"q":{";":{"0":"≚"}}}},"l":{"l":{"i":{"p":{";":{"0":"⋮"}}}}},"r":{"b":{"a":{"r":{";":{"0":"|"}}}},"t":{";":{"0":"|"}}}},"f":{"r":{";":{"0":"𝔳"}}},"l":{"t":{"r":{"i":{";":{"0":"⊲"}}}}},"n":{"s":{"u":{"b":{";":{"0":"⊂⃒"}},"p":{";":{"0":"⊃⃒"}}}}},"o":{"p":{"f":{";":{"0":"𝕧"}}}},"p":{"r":{"o":{"p":{";":{"0":"∝"}}}}},"r":{"t":{"r":{"i":{";":{"0":"⊳"}}}}},"s":{"c":{"r":{";":{"0":"𝓋"}}},"u":{"b":{"n":{"E":{";":{"0":"⫋︀"}},"e":{";":{"0":"⊊︀"}}}},"p":{"n":{"E":{";":{"0":"⫌︀"}},"e":{";":{"0":"⊋︀"}}}}}},"z":{"i":{"g":{"z":{"a":{"g":{";":{"0":"⦚"}}}}}}}},"V":{"b":{"a":{"r":{";":{"0":"⫫"}}}},"c":{"y":{";":{"0":"В"}}},"d":{"a":{"s":{"h":{";":{"0":"⊩"},"l":{";":{"0":"⫦"}}}}}},"D":{"a":{"s":{"h":{";":{"0":"⊫"}}}}},"e":{"e":{";":{"0":"⋁"}},"r":{"b":{"a":{"r":{";":{"0":"‖"}}}},"t":{";":{"0":"‖"},"i":{"c":{"a":{"l":{"B":{"a":{"r":{";":{"0":"∣"}}}},"L":{"i":{"n":{"e":{";":{"0":"|"}}}}},"S":{"e":{"p":{"a":{"r":{"a":{"t":{"o":{"r":{";":{"0":"❘"}}}}}}}}}},"T":{"i":{"l":{"d":{"e":{";":{"0":"≀"}}}}}}}}}}},"y":{"T":{"h":{"i":{"n":{"S":{"p":{"a":{"c":{"e":{";":{"0":" "}}}}}}}}}}}}},"f":{"r":{";":{"0":"𝔙"}}},"o":{"p":{"f":{";":{"0":"𝕍"}}}},"s":{"c":{"r":{";":{"0":"𝒱"}}}},"v":{"d":{"a":{"s":{"h":{";":{"0":"⊪"}}}}}}},"W":{"c":{"i":{"r":{"c":{";":{"0":"Ŵ"}}}}},"e":{"d":{"g":{"e":{";":{"0":"⋀"}}}}},"f":{"r":{";":{"0":"𝔚"}}},"o":{"p":{"f":{";":{"0":"𝕎"}}}},"s":{"c":{"r":{";":{"0":"𝒲"}}}}},"w":{"c":{"i":{"r":{"c":{";":{"0":"ŵ"}}}}},"e":{"d":{"b":{"a":{"r":{";":{"0":"⩟"}}}},"g":{"e":{";":{"0":"∧"},"q":{";":{"0":"≙"}}}}},"i":{"e":{"r":{"p":{";":{"0":"℘"}}}}}},"f":{"r":{";":{"0":"𝔴"}}},"o":{"p":{"f":{";":{"0":"𝕨"}}}},"p":{";":{"0":"℘"}},"r":{";":{"0":"≀"},"e":{"a":{"t":{"h":{";":{"0":"≀"}}}}}},"s":{"c":{"r":{";":{"0":"𝓌"}}}}},"x":{"c":{"a":{"p":{";":{"0":"⋂"}}},"i":{"r":{"c":{";":{"0":"◯"}}}},"u":{"p":{";":{"0":"⋃"}}}},"d":{"t":{"r":{"i":{";":{"0":"▽"}}}}},"f":{"r":{";":{"0":"𝔵"}}},"h":{"a":{"r":{"r":{";":{"0":"⟷"}}}},"A":{"r":{"r":{";":{"0":"⟺"}}}}},"i":{";":{"0":"ξ"}},"l":{"a":{"r":{"r":{";":{"0":"⟵"}}}},"A":{"r":{"r":{";":{"0":"⟸"}}}}},"m":{"a":{"p":{";":{"0":"⟼"}}}},"n":{"i":{"s":{";":{"0":"⋻"}}}},"o":{"d":{"o":{"t":{";":{"0":"⨀"}}}},"p":{"f":{";":{"0":"𝕩"}},"l":{"u":{"s":{";":{"0":"⨁"}}}}},"t":{"i":{"m":{"e":{";":{"0":"⨂"}}}}}},"r":{"a":{"r":{"r":{";":{"0":"⟶"}}}},"A":{"r":{"r":{";":{"0":"⟹"}}}}},"s":{"c":{"r":{";":{"0":"𝓍"}}},"q":{"c":{"u":{"p":{";":{"0":"⨆"}}}}}},"u":{"p":{"l":{"u":{"s":{";":{"0":"⨄"}}}}},"t":{"r":{"i":{";":{"0":"△"}}}}},"v":{"e":{"e":{";":{"0":"⋁"}}}},"w":{"e":{"d":{"g":{"e":{";":{"0":"⋀"}}}}}}},"X":{"f":{"r":{";":{"0":"𝔛"}}},"i":{";":{"0":"Ξ"}},"o":{"p":{"f":{";":{"0":"𝕏"}}}},"s":{"c":{"r":{";":{"0":"𝒳"}}}}},"Y":{"a":{"c":{"u":{"t":{"e":{"0":"Ý",";":{"0":"Ý"}}}}}},"A":{"c":{"y":{";":{"0":"Я"}}}},"c":{"i":{"r":{"c":{";":{"0":"Ŷ"}}}},"y":{";":{"0":"Ы"}}},"f":{"r":{";":{"0":"𝔜"}}},"I":{"c":{"y":{";":{"0":"Ї"}}}},"o":{"p":{"f":{";":{"0":"𝕐"}}}},"s":{"c":{"r":{";":{"0":"𝒴"}}}},"U":{"c":{"y":{";":{"0":"Ю"}}}},"u":{"m":{"l":{";":{"0":"Ÿ"}}}}},"y":{"a":{"c":{"u":{"t":{"e":{"0":"ý",";":{"0":"ý"}}}},"y":{";":{"0":"я"}}}},"c":{"i":{"r":{"c":{";":{"0":"ŷ"}}}},"y":{";":{"0":"ы"}}},"e":{"n":{"0":"¥",";":{"0":"¥"}}},"f":{"r":{";":{"0":"𝔶"}}},"i":{"c":{"y":{";":{"0":"ї"}}}},"o":{"p":{"f":{";":{"0":"𝕪"}}}},"s":{"c":{"r":{";":{"0":"𝓎"}}}},"u":{"c":{"y":{";":{"0":"ю"}}},"m":{"l":{"0":"ÿ",";":{"0":"ÿ"}}}}},"Z":{"a":{"c":{"u":{"t":{"e":{";":{"0":"Ź"}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"Ž"}}}}},"y":{";":{"0":"З"}}},"d":{"o":{"t":{";":{"0":"Ż"}}}},"e":{"r":{"o":{"W":{"i":{"d":{"t":{"h":{"S":{"p":{"a":{"c":{"e":{";":{"0":"​"}}}}}}}}}}}}},"t":{"a":{";":{"0":"Ζ"}}}},"f":{"r":{";":{"0":"ℨ"}}},"H":{"c":{"y":{";":{"0":"Ж"}}}},"o":{"p":{"f":{";":{"0":"ℤ"}}}},"s":{"c":{"r":{";":{"0":"𝒵"}}}}},"z":{"a":{"c":{"u":{"t":{"e":{";":{"0":"ź"}}}}}},"c":{"a":{"r":{"o":{"n":{";":{"0":"ž"}}}}},"y":{";":{"0":"з"}}},"d":{"o":{"t":{";":{"0":"ż"}}}},"e":{"e":{"t":{"r":{"f":{";":{"0":"ℨ"}}}}},"t":{"a":{";":{"0":"ζ"}}}},"f":{"r":{";":{"0":"𝔷"}}},"h":{"c":{"y":{";":{"0":"ж"}}}},"i":{"g":{"r":{"a":{"r":{"r":{";":{"0":"⇝"}}}}}}},"o":{"p":{"f":{";":{"0":"𝕫"}}}},"s":{"c":{"r":{";":{"0":"𝓏"}}}},"w":{"j":{";":{"0":"‍"}},"n":{"j":{";":{"0":"‌"}}}}}}
-},{}],37:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 /* 
 Copyright 2015, Yahoo Inc.
 Copyrights licensed under the New BSD License.
@@ -8321,7 +8001,7 @@ module.exports = HTMLDecoder;
 
 })();
 
-},{"./gen/trie.json":36,"./polyfills/polyfill.js":38}],38:[function(require,module,exports){
+},{"./gen/trie.json":34,"./polyfills/polyfill.js":36}],36:[function(require,module,exports){
 /*! http://mths.be/fromcodepoint v0.1.0 by @mathias */
 if (!String.fromCodePoint) {
   (function() {
@@ -8384,6 +8064,416 @@ if (!String.fromCodePoint) {
     }
   }());
 }
+
+},{}],37:[function(require,module,exports){
+(function (process){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+// resolves . and .. elements in a path array with directory names there
+// must be no slashes, empty elements, or device names (c:\) in the array
+// (so also no leading and trailing slashes - it does not distinguish
+// relative and absolute paths)
+function normalizeArray(parts, allowAboveRoot) {
+  // if the path tries to go above the root, `up` ends up > 0
+  var up = 0;
+  for (var i = parts.length - 1; i >= 0; i--) {
+    var last = parts[i];
+    if (last === '.') {
+      parts.splice(i, 1);
+    } else if (last === '..') {
+      parts.splice(i, 1);
+      up++;
+    } else if (up) {
+      parts.splice(i, 1);
+      up--;
+    }
+  }
+
+  // if the path is allowed to go above the root, restore leading ..s
+  if (allowAboveRoot) {
+    for (; up--; up) {
+      parts.unshift('..');
+    }
+  }
+
+  return parts;
+}
+
+// Split a filename into [root, dir, basename, ext], unix version
+// 'root' is just a slash, or nothing.
+var splitPathRe =
+    /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
+var splitPath = function(filename) {
+  return splitPathRe.exec(filename).slice(1);
+};
+
+// path.resolve([from ...], to)
+// posix version
+exports.resolve = function() {
+  var resolvedPath = '',
+      resolvedAbsolute = false;
+
+  for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
+    var path = (i >= 0) ? arguments[i] : process.cwd();
+
+    // Skip empty and invalid entries
+    if (typeof path !== 'string') {
+      throw new TypeError('Arguments to path.resolve must be strings');
+    } else if (!path) {
+      continue;
+    }
+
+    resolvedPath = path + '/' + resolvedPath;
+    resolvedAbsolute = path.charAt(0) === '/';
+  }
+
+  // At this point the path should be resolved to a full absolute path, but
+  // handle relative paths to be safe (might happen when process.cwd() fails)
+
+  // Normalize the path
+  resolvedPath = normalizeArray(filter(resolvedPath.split('/'), function(p) {
+    return !!p;
+  }), !resolvedAbsolute).join('/');
+
+  return ((resolvedAbsolute ? '/' : '') + resolvedPath) || '.';
+};
+
+// path.normalize(path)
+// posix version
+exports.normalize = function(path) {
+  var isAbsolute = exports.isAbsolute(path),
+      trailingSlash = substr(path, -1) === '/';
+
+  // Normalize the path
+  path = normalizeArray(filter(path.split('/'), function(p) {
+    return !!p;
+  }), !isAbsolute).join('/');
+
+  if (!path && !isAbsolute) {
+    path = '.';
+  }
+  if (path && trailingSlash) {
+    path += '/';
+  }
+
+  return (isAbsolute ? '/' : '') + path;
+};
+
+// posix version
+exports.isAbsolute = function(path) {
+  return path.charAt(0) === '/';
+};
+
+// posix version
+exports.join = function() {
+  var paths = Array.prototype.slice.call(arguments, 0);
+  return exports.normalize(filter(paths, function(p, index) {
+    if (typeof p !== 'string') {
+      throw new TypeError('Arguments to path.join must be strings');
+    }
+    return p;
+  }).join('/'));
+};
+
+
+// path.relative(from, to)
+// posix version
+exports.relative = function(from, to) {
+  from = exports.resolve(from).substr(1);
+  to = exports.resolve(to).substr(1);
+
+  function trim(arr) {
+    var start = 0;
+    for (; start < arr.length; start++) {
+      if (arr[start] !== '') break;
+    }
+
+    var end = arr.length - 1;
+    for (; end >= 0; end--) {
+      if (arr[end] !== '') break;
+    }
+
+    if (start > end) return [];
+    return arr.slice(start, end - start + 1);
+  }
+
+  var fromParts = trim(from.split('/'));
+  var toParts = trim(to.split('/'));
+
+  var length = Math.min(fromParts.length, toParts.length);
+  var samePartsLength = length;
+  for (var i = 0; i < length; i++) {
+    if (fromParts[i] !== toParts[i]) {
+      samePartsLength = i;
+      break;
+    }
+  }
+
+  var outputParts = [];
+  for (var i = samePartsLength; i < fromParts.length; i++) {
+    outputParts.push('..');
+  }
+
+  outputParts = outputParts.concat(toParts.slice(samePartsLength));
+
+  return outputParts.join('/');
+};
+
+exports.sep = '/';
+exports.delimiter = ':';
+
+exports.dirname = function(path) {
+  var result = splitPath(path),
+      root = result[0],
+      dir = result[1];
+
+  if (!root && !dir) {
+    // No dirname whatsoever
+    return '.';
+  }
+
+  if (dir) {
+    // It has a dirname, strip trailing slash
+    dir = dir.substr(0, dir.length - 1);
+  }
+
+  return root + dir;
+};
+
+
+exports.basename = function(path, ext) {
+  var f = splitPath(path)[2];
+  // TODO: make this comparison case-insensitive on windows?
+  if (ext && f.substr(-1 * ext.length) === ext) {
+    f = f.substr(0, f.length - ext.length);
+  }
+  return f;
+};
+
+
+exports.extname = function(path) {
+  return splitPath(path)[3];
+};
+
+function filter (xs, f) {
+    if (xs.filter) return xs.filter(f);
+    var res = [];
+    for (var i = 0; i < xs.length; i++) {
+        if (f(xs[i], i, xs)) res.push(xs[i]);
+    }
+    return res;
+}
+
+// String.prototype.substr - negative index don't work in IE8
+var substr = 'ab'.substr(-1) === 'b'
+    ? function (str, start, len) { return str.substr(start, len) }
+    : function (str, start, len) {
+        if (start < 0) start = str.length + start;
+        return str.substr(start, len);
+    }
+;
+
+}).call(this,require('_process'))
+},{"_process":38}],38:[function(require,module,exports){
+// shim for using process in browser
+var process = module.exports = {};
+
+// cached from whatever global is present so that test runners that stub it
+// don't break things.  But we need to wrap it in a try catch in case it is
+// wrapped in strict mode code which doesn't define any globals.  It's inside a
+// function because try/catches deoptimize in certain engines.
+
+var cachedSetTimeout;
+var cachedClearTimeout;
+
+function defaultSetTimout() {
+    throw new Error('setTimeout has not been defined');
+}
+function defaultClearTimeout () {
+    throw new Error('clearTimeout has not been defined');
+}
+(function () {
+    try {
+        if (typeof setTimeout === 'function') {
+            cachedSetTimeout = setTimeout;
+        } else {
+            cachedSetTimeout = defaultSetTimout;
+        }
+    } catch (e) {
+        cachedSetTimeout = defaultSetTimout;
+    }
+    try {
+        if (typeof clearTimeout === 'function') {
+            cachedClearTimeout = clearTimeout;
+        } else {
+            cachedClearTimeout = defaultClearTimeout;
+        }
+    } catch (e) {
+        cachedClearTimeout = defaultClearTimeout;
+    }
+} ())
+function runTimeout(fun) {
+    if (cachedSetTimeout === setTimeout) {
+        //normal enviroments in sane situations
+        return setTimeout(fun, 0);
+    }
+    // if setTimeout wasn't available but was latter defined
+    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+        cachedSetTimeout = setTimeout;
+        return setTimeout(fun, 0);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedSetTimeout(fun, 0);
+    } catch(e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
+            return cachedSetTimeout.call(null, fun, 0);
+        } catch(e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
+            return cachedSetTimeout.call(this, fun, 0);
+        }
+    }
+
+
+}
+function runClearTimeout(marker) {
+    if (cachedClearTimeout === clearTimeout) {
+        //normal enviroments in sane situations
+        return clearTimeout(marker);
+    }
+    // if clearTimeout wasn't available but was latter defined
+    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+        cachedClearTimeout = clearTimeout;
+        return clearTimeout(marker);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedClearTimeout(marker);
+    } catch (e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
+            return cachedClearTimeout.call(null, marker);
+        } catch (e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
+            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
+            return cachedClearTimeout.call(this, marker);
+        }
+    }
+
+
+
+}
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    if (!draining || !currentQueue) {
+        return;
+    }
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = runTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    runClearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        runTimeout(drainQueue);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
 
 },{}],39:[function(require,module,exports){
 /*
@@ -8469,9 +8559,10 @@ exports._getPrivFilters = function () {
         };
 
 
-    function getProtocol(s) {
-        s = s.split(URI_PROTOCOL_COLON, 2);
-        return (s.length === 2 && s[0]) ? s[0] : null;
+    function getProtocol(str) {
+        var s = str.split(URI_PROTOCOL_COLON, 2);
+        // str.length !== s[0].length is for older IE (e.g., v8), where delimeter residing at last will result in length equals 1, but not 2
+        return (s[0] && (s.length === 2 || str.length !== s[0].length)) ? s[0] : null;
     }
 
     function htmlDecode(s, namedRefMap, reNamedRef, skipReplacement) {
@@ -8566,6 +8657,7 @@ exports._getPrivFilters = function () {
         var protocol = getProtocol(s);
 
         // prefix ## for blacklisted protocols
+        // here .replace(URI_PROTOCOL_WHITESPACES, '') is not needed since yufull has already percent-encoded the whitespaces
         return (protocol && URI_BLACKLIST_PROTOCOLS[protocol.toLowerCase()]) ? '##' + s : s;
     }
 
@@ -10518,9 +10610,9 @@ module.exports = ContextParserHandlebars;
 })();
 
 }).call(this,require('_process'))
-},{"./css-utils.js":42,"./handlebars-utils.js":43,"./parser-utils.js":44,"_process":5,"html-decoder":37}],41:[function(require,module,exports){
+},{"./css-utils.js":42,"./handlebars-utils.js":43,"./parser-utils.js":44,"_process":38,"html-decoder":35}],41:[function(require,module,exports){
 (function (process){
-/* parser generated by jison 0.4.15 */
+/* parser generated by jison 0.4.17 */
 /*
   Returns a Parser object of the following structure:
 
@@ -10593,7 +10685,7 @@ module.exports = ContextParserHandlebars;
     recoverable: (boolean: TRUE when the parser has a error recovery rule available for this particular error)
   }
 */
-var parser = (function(){
+var cssParser = (function(){
 var o=function(k,v,o,l){for(o=o||{},l=k.length;l--;o[k[l]]=v);return o},$V0=[1,11,12],$V1=[2,41],$V2=[1,4],$V3=[1,11],$V4=[2,3],$V5=[1,7],$V6=[1,8,11,12,20,21,22,23,24,25,26,27,28,29,32,33,34,35,36,37,39,40,41,42,43],$V7=[1,35],$V8=[1,24],$V9=[1,25],$Va=[1,26],$Vb=[1,27],$Vc=[1,28],$Vd=[1,29],$Ve=[1,30],$Vf=[1,31],$Vg=[1,34],$Vh=[1,36],$Vi=[1,39],$Vj=[1,40],$Vk=[1,43],$Vl=[1,42],$Vm=[1,32],$Vn=[1,33],$Vo=[1,11,34,36],$Vp=[1,50],$Vq=[1,51],$Vr=[1,11,12,20,21,22,23,24,25,26,27,28,29,32,33,34,35,36,37,39,40,41,42,43],$Vs=[1,11,12,20,21,22,23,24,25,26,27,28,29,32,33,34,35,36,37,40,41,42,43],$Vt=[20,21,22,23,24,25,26,27],$Vu=[1,11,34,36,42,43];
 var parser = {trace: function trace() { },
 yy: {},
@@ -10763,7 +10855,13 @@ parseError: function parseError(str, hash) {
     if (hash.recoverable) {
         this.trace(str);
     } else {
-        throw new Error(str);
+        function _parseError (msg, hash) {
+            this.message = msg;
+            this.hash = hash;
+        }
+        _parseError.prototype = Error;
+
+        throw new _parseError(str, hash);
     }
 },
 parse: function parse(input) {
@@ -10796,14 +10894,14 @@ parse: function parse(input) {
         lstack.length = lstack.length - n;
     }
     _token_stack:
-        function lex() {
+        var lex = function () {
             var token;
             token = lexer.lex() || EOF;
             if (typeof token !== 'number') {
                 token = self.symbols_[token] || token;
             }
             return token;
-        }
+        };
     var symbol, preErrorSymbol, state, action, a, r, yyval = {}, p, len, newState, expected;
     while (true) {
         state = stack[stack.length - 1];
@@ -11331,7 +11429,7 @@ case 48:return yy_.yytext; /* 'DELIM'; */
 break;
 }
 },
-rules: [/^(?:([ \t\r\n\f]+))/,/^(?:\/\*[^*]*\*+([^/*][^*]*\*+)*\/)/,/^(?:((\/\*[^*]*\*+([^/*][^*]*\*+)*)|(\/\*[^*]*(\*+[^/*][^*]*)*)))/,/^(?:<!--)/,/^(?:-->)/,/^(?:~=)/,/^(?:\|=)/,/^(?:\^=)/,/^(?:\$=)/,/^(?:\*=)/,/^(?:\|\|)/,/^(?:(("([ !#$%&'\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*")|('([ !#$%&"\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*')))/,/^(?:(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)))/,/^(?:[uU][rR][lL]\((([ \t\r\n\f]+)?)(("([ !#$%&'\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*")|('([ !#$%&"\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*'))(([ \t\r\n\f]+)?)\))/,/^(?:[uU][rR][lL]\((([ \t\r\n\f]+)?)(([a-zA-Z0-9]|[:\/\?#\[\]@]|[!$&'\*+,;=]|[%]|[\-\._~])*)(([ \t\r\n\f]+)?)\))/,/^(?:(([uU][rR][lL]\((([ \t\r\n\f]+)?)([!#$%&*-\[\]-~]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*(([ \t\r\n\f]+)?))|([uU][rR][lL]\((([ \t\r\n\f]+)?)(("([ !#$%&'\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*")|('([ !#$%&"\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*'))(([ \t\r\n\f]+)?))|([uU][rR][lL]\((([ \t\r\n\f]+)?)(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)))))/,/^(?:!((([ \t\r\n\f]+)?)|(\/\*[^*]*\*+([^/*][^*]*\*+)*\/))*(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(O|o|\\0{0,4}(4f|6f)(\r\n|[ \t\r\n\f])?|\\[o])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(N|n|\\0{0,4}(4e|6e)(\r\n|[ \t\r\n\f])?|\\[n])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:@(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(O|o|\\0{0,4}(4f|6f)(\r\n|[ \t\r\n\f])?|\\[o])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:@(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g])(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?))/,/^(?:@(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?)(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?))/,/^(?:@charset )/,/^(?:(U|u|\\0{0,4}(55|75)(\r\n|[ \t\r\n\f])?|\\[u])\+([0-9a-fA-F?]{1,6}(-[0-9a-fA-F]{1,6})?))/,/^(?:only\b)/,/^(?:not\b)/,/^(?:and\b)/,/^(?:([\-]?([_a-zA-Z])([_a-zA-Z0-9\-])*)\()/,/^(?:([\-]?([_a-zA-Z])([_a-zA-Z0-9\-])*))/,/^(?:([\-_]([0-9a-fA-F])-([0-9a-fA-F])))/,/^(?:@([\-]?([_a-zA-Z])([_a-zA-Z0-9\-])*))/,/^(?:#(([_a-zA-Z0-9\-])+))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(X|x|\\0{0,4}(58|78)(\r\n|[ \t\r\n\f])?|\\[x]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(X|x|\\0{0,4}(58|78)(\r\n|[ \t\r\n\f])?|\\[x]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(C|c|\\0{0,4}(43|63)(\r\n|[ \t\r\n\f])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(N|n|\\0{0,4}(4e|6e)(\r\n|[ \t\r\n\f])?|\\[n]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(C|c|\\0{0,4}(43|63)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(S|s|\\0{0,4}(53|73)(\r\n|[ \t\r\n\f])?|\\[s]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(S|s|\\0{0,4}(53|73)(\r\n|[ \t\r\n\f])?|\\[s]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(H|h|\\0{0,4}(48|68)(\r\n|[ \t\r\n\f])?|\\[h])(Z|z|\\0{0,4}(5a|7a)(\r\n|[ \t\r\n\f])?|\\[z]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(K|k|\\0{0,4}(4b|6b)(\r\n|[ \t\r\n\f])?|\\[k])(H|h|\\0{0,4}(48|68)(\r\n|[ \t\r\n\f])?|\\[h])(Z|z|\\0{0,4}(5a|7a)(\r\n|[ \t\r\n\f])?|\\[z]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)%)/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)([\-]?([_a-zA-Z])([_a-zA-Z0-9\-])*))/,/^(?:.)/],
+rules: [/^(?:([ \t\r\n\f]+))/,/^(?:\/\*[^*]*\*+([^\/*][^*]*\*+)*\/)/,/^(?:((\/\*[^*]*\*+([^\/*][^*]*\*+)*)|(\/\*[^*]*(\*+[^\/*][^*]*)*)))/,/^(?:<!--)/,/^(?:-->)/,/^(?:~=)/,/^(?:\|=)/,/^(?:\^=)/,/^(?:\$=)/,/^(?:\*=)/,/^(?:\|\|)/,/^(?:(("([ !#$%&'\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*")|('([ !#$%&"\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*')))/,/^(?:(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)))/,/^(?:[uU][rR][lL]\((([ \t\r\n\f]+)?)(("([ !#$%&'\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*")|('([ !#$%&"\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*'))(([ \t\r\n\f]+)?)\))/,/^(?:[uU][rR][lL]\((([ \t\r\n\f]+)?)(([a-zA-Z0-9]|[:\/\?#\[\]@]|[!$&'\*+,;=]|[%]|[\-\._~])*)(([ \t\r\n\f]+)?)\))/,/^(?:(([uU][rR][lL]\((([ \t\r\n\f]+)?)([!#$%&*-\[\]-~]|([\240-\377])|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*(([ \t\r\n\f]+)?))|([uU][rR][lL]\((([ \t\r\n\f]+)?)(("([ !#$%&'\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*")|('([ !#$%&"\(\)\*+,\-\.\/:;<=>\?@\[\\\]^_`\{\|\}~]|[a-zA-Z0-9])*'))(([ \t\r\n\f]+)?))|([uU][rR][lL]\((([ \t\r\n\f]+)?)(("([^\n\r\f\\"]|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)|('([^\n\r\f\\']|\\(\n|\r\n|\r|\f)|((\\([0-9a-fA-F]){1,6}(\r\n|[ \t\r\n\f])?)|\\[^\r\n\f0-9a-fA-F]))*\\?)))))/,/^(?:!((([ \t\r\n\f]+)?)|(\/\*[^*]*\*+([^\/*][^*]*\*+)*\/))*(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(O|o|\\0{0,4}(4f|6f)(\r\n|[ \t\r\n\f])?|\\[o])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(N|n|\\0{0,4}(4e|6e)(\r\n|[ \t\r\n\f])?|\\[n])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:@(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(O|o|\\0{0,4}(4f|6f)(\r\n|[ \t\r\n\f])?|\\[o])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:@(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g])(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?))/,/^(?:@(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?)(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?))/,/^(?:@charset )/,/^(?:(U|u|\\0{0,4}(55|75)(\r\n|[ \t\r\n\f])?|\\[u])\+([0-9a-fA-F?]{1,6}(-[0-9a-fA-F]{1,6})?))/,/^(?:only\b)/,/^(?:not\b)/,/^(?:and\b)/,/^(?:([\-]?([_a-zA-Z])([_a-zA-Z0-9\-])*)\()/,/^(?:([\-]?([_a-zA-Z])([_a-zA-Z0-9\-])*))/,/^(?:([\-_]([0-9a-fA-F])-([0-9a-fA-F])))/,/^(?:@([\-]?([_a-zA-Z])([_a-zA-Z0-9\-])*))/,/^(?:#(([_a-zA-Z0-9\-])+))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(X|x|\\0{0,4}(58|78)(\r\n|[ \t\r\n\f])?|\\[x]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(X|x|\\0{0,4}(58|78)(\r\n|[ \t\r\n\f])?|\\[x]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(C|c|\\0{0,4}(43|63)(\r\n|[ \t\r\n\f])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(I|i|\\0{0,4}(49|69)(\r\n|[ \t\r\n\f])?|\\[i])(N|n|\\0{0,4}(4e|6e)(\r\n|[ \t\r\n\f])?|\\[n]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(T|t|\\0{0,4}(54|74)(\r\n|[ \t\r\n\f])?|\\[t]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(P|p|\\0{0,4}(50|70)(\r\n|[ \t\r\n\f])?|\\[p])(C|c|\\0{0,4}(43|63)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?)(E|e|\\0{0,4}(45|65)(\r\n|[ \t\r\n\f])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(G|g|\\0{0,4}(47|67)(\r\n|[ \t\r\n\f])?|\\[g])(R|r|\\0{0,4}(52|72)(\r\n|[ \t\r\n\f])?|\\[r])(A|a|\\0{0,4}(41|61)(\r\n|[ \t\r\n\f])?)(D|d|\\0{0,4}(44|64)(\r\n|[ \t\r\n\f])?))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(M|m|\\0{0,4}(4d|6d)(\r\n|[ \t\r\n\f])?|\\[m])(S|s|\\0{0,4}(53|73)(\r\n|[ \t\r\n\f])?|\\[s]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(S|s|\\0{0,4}(53|73)(\r\n|[ \t\r\n\f])?|\\[s]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(H|h|\\0{0,4}(48|68)(\r\n|[ \t\r\n\f])?|\\[h])(Z|z|\\0{0,4}(5a|7a)(\r\n|[ \t\r\n\f])?|\\[z]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)(K|k|\\0{0,4}(4b|6b)(\r\n|[ \t\r\n\f])?|\\[k])(H|h|\\0{0,4}(48|68)(\r\n|[ \t\r\n\f])?|\\[h])(Z|z|\\0{0,4}(5a|7a)(\r\n|[ \t\r\n\f])?|\\[z]))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)%)/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?))/,/^(?:([0-9]+(\.[0-9]+)?([eE][+\-][0-9])?|\.[0-9]+([eE][+\-][0-9])?)([\-]?([_a-zA-Z])([_a-zA-Z0-9\-])*))/,/^(?:.)/],
 conditions: {"INITIAL":{"rules":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48],"inclusive":true}}
 });
 return lexer;
@@ -11346,9 +11444,9 @@ return new Parser;
 
 
 if (typeof require !== 'undefined' && typeof exports !== 'undefined') {
-exports.parser = parser;
-exports.Parser = parser.Parser;
-exports.parse = function () { return parser.parse.apply(parser, arguments); };
+exports.parser = cssParser;
+exports.Parser = cssParser.Parser;
+exports.parse = function () { return cssParser.parse.apply(cssParser, arguments); };
 exports.main = function commonjsMain(args) {
     if (!args[1]) {
         console.log('Usage: '+args[0]+' FILE');
@@ -11362,7 +11460,7 @@ if (typeof module !== 'undefined' && require.main === module) {
 }
 }
 }).call(this,require('_process'))
-},{"_process":5,"fs":3,"path":4}],42:[function(require,module,exports){
+},{"_process":38,"fs":2,"path":37}],42:[function(require,module,exports){
 /* 
 Copyright (c) 2015, Yahoo Inc. All rights reserved.
 Copyrights licensed under the New BSD License.
@@ -11893,7 +11991,7 @@ module.exports = ContextParser;
 
 })();
 
-},{"context-parser":1}],45:[function(require,module,exports){
+},{"context-parser":3}],45:[function(require,module,exports){
 /*! http://mths.be/codepointat v0.1.0 by @mathias */
 if (!String.prototype.codePointAt) {
   (function() {
@@ -12102,5 +12200,5 @@ module.exports.create = overrideHbsCreate;
 // @deprecated - the following is in addition to the original Handlbars prototype
 module.exports.ContextParserHandlebars = ContextParserHandlebars;
 
-},{"./context-parser-handlebars":40,"./handlebars-utils.js":43,"handlebars":24,"xss-filters":39}]},{},[46])(46)
+},{"./context-parser-handlebars":40,"./handlebars-utils.js":43,"handlebars":23,"xss-filters":39}]},{},[46])(46)
 });

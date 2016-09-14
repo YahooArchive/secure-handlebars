@@ -78,11 +78,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
                     params += ' -c';
                 }
 
-                exec('./bin/handlebarspp '+ testObj.file + params)
-                .timeout(t)
-                .done(function(e){
+                // output is tested using both stdout and stderr
+                var exec_ = require("child_process").exec;
+                exec_('./bin/handlebarspp '+ testObj.file + params, function(error, stdout, stderr) {
                     testObj.result.forEach(function(r) {
-                        expect(e.toString()).to.match(r);
+                        expect(stdout + stderr).to.match(r);
                     });
                     done();
                 });
@@ -108,11 +108,11 @@ Authors: Nera Liu <neraliu@yahoo-inc.com>
         testPatterns.reportedBugPatterns.forEach(function(testObj) {
             it(testObj.title, function(done) {
                 
-                exec('./bin/handlebarspp '+testObj.file)
-                .timeout(t)
-                .done(function(e){
+                // output is tested using both stdout and stderr
+                var exec_ = require("child_process").exec;
+                exec_('./bin/handlebarspp '+ testObj.file, function(error, stdout, stderr) {
                     testObj.result.forEach(function(r) {
-                        expect(e.toString()).to.match(r);
+                        expect(stdout + stderr).to.match(r);
                     });
                     done();
                 });
