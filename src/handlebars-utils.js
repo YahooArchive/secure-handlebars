@@ -197,7 +197,8 @@ HandlebarsUtils.isValidExpression = function(input, i, type) {
                     re.result = false;
                     return re;
                 }
-                if (re[2] === '') {
+                // re[2] being empty and [a b] in {{[a b]}} are both regarded as a single ID
+                if (re[2] === '' || (re[1].indexOf('[') === 0 && /\]\s*$/.test(re[2]))) {
                     re.isSingleID = true;
                 } else {
                     re.isSingleID = false;
