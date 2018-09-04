@@ -1,3 +1,5 @@
+**Note:** This library has known security vulnerabilities, use at your own risk!
+
 SecureHandlebars
 ===============================
 *Automatically* applying context-sensitive output escaping to prevent XSS!
