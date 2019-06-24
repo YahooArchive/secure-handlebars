@@ -9,14 +9,24 @@ notifications:
     - neraliu@yahoo-inc.com
   on_success: change
   on_failure: always
+env:
+  global:
+    - GH_REF: github.com/yahoo/secure-handlebars.git
+    - secure: IMKSQkQZnZVVtPKwzwt3n5RE4JUcHcY/ySKrQXCDA+Drzll6q31fJns+lN9xGfWMwWfv12+PXPvM+WU1o5IjuvfKOSxfLqy8xl1XxH3sJZuK4R1CI9SHToydJJu5V9zZeO40AvD+5G3Z5u6hOqrf2lbiaqq3zVz8DtEKxSg3OcE=
 after_success:
 - test $(cat $TRAVIS_BUILD_DIR/package.json | grep version | awk '{print $2}' | sed 's/"//g' | sed 's/,//g' | awk '{print "v"$1}' ) = $TRAVIS_TAG && test $(echo $TRAVIS_NODE_VERSION | awk '{print $1}' ) = '0.12' && export VALID_VERSION=true
 deploy:
-  provider: npm
-  email: neraliu@yahoo-inc.com
-  api_key:
-    secure: TNDHDZslbeI3CKi50Pe6wR6ZN+iAGsfaZ3+mFP/2w761bQV0Yc2Dbt2mP57sV8OHhP3XeKG7F3WXVLks9gu/pre6QObBQQEZlv7ojJKbvU+MYgedMw5VuehPT5Q8bz8mngkYvckL7uLegXiqTbPhsohfK00/xGzla0/RePeklpM=
-  on:
-    condition: $VALID_VERSION = true
-    tags: true
-    branch: master
+  - provider: npm
+    email: neraliu@yahoo-inc.com
+    api_key:
+      secure: TNDHDZslbeI3CKi50Pe6wR6ZN+iAGsfaZ3+mFP/2w761bQV0Yc2Dbt2mP57sV8OHhP3XeKG7F3WXVLks9gu/pre6QObBQQEZlv7ojJKbvU+MYgedMw5VuehPT5Q8bz8mngkYvckL7uLegXiqTbPhsohfK00/xGzla0/RePeklpM=
+    on:
+      condition: $VALID_VERSION = true
+      tags: true
+      branch: master
+  - provider: script
+    script: ./bin/auto-push-gh-pages.sh
+    on:
+      condition: $VALID_VERSION = true
+      tags: true
+      branch: master
